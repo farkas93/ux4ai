@@ -42,5 +42,47 @@
   "product_description_prefix": "<p style=\"margin: 0 0 5px 0;\">",
   "product_description_suffix": "</p><a href=\"{url}\" target=\"_blank\" style=\"color: #1E88E5; text-decoration: none;\">{url}</a>",
   "risk_section_title_from_user": "Risiko eines “Adversarial Attacks”",
-  "continuous_learning_section_title_from_user": "Continuous Learning & Feedback Loops"
+  "continuous_learning_section_title_from_user": "Continuous Learning & Feedback Loops",
+
+  "dashboard_title": "UX4AI-Dashboard",
+  "dashboard_header": "UX4AI-Produktanalyse - Dashboard",
+
+  "tab_by_product": "Nach Produkt",
+  "tab_overview": "Übersicht",
+  "tab_compare_products": "Produkte vergleichen",
+
+  "refresh_all_data": "Alle Daten aktualisieren",
+  "refresh_overview_data": "Übersichtsdaten aktualisieren",
+
+  "select_product": "Produkt auswählen",
+  "select_product_prompt": "Wählen Sie ein Produkt aus, um zu beginnen.",
+  "show_solution_comparison": "Lösungsvergleich anzeigen",
+  "averaged_spider_diagram": "Gemitteltes UX4AI-Spinnendiagramm",
+
+  "overview_label": "Übersicht",
+  "ux4ai_analysis_label": "UX4AI-Analyse",
+
+  "compare_two_products_label": "Zwei Produkte vergleichen",
+  "select_product1": "Produkt 1 auswählen",
+  "select_product2": "Produkt 2 auswählen",
+  "show_user_averages": "Benutzerdurchschnitte anzeigen",
+  "select_two_products_prompt": "Wählen Sie zwei Produkte zum Vergleichen aus.",
+  "product_comparison_spider_diagram": "Produktvergleichs-Spinnendiagramm",
+
+  "product_comparison_label": "Produktvergleich",
+  "showing_user_avg_label": "Benutzerdurchschnitte werden angezeigt",
+  "showing_solution_label": "Lösungen werden angezeigt",
+
+  "user_average_label": "Benutzerdurchschnitt",
+  "solution_label": "Lösung",
+
+  "displaying_avg_scores_for": "Zeige durchschnittliche Bewertungen für **{product}**",
+  "aggregated_from": "Aggregiert aus **{count}** Nutzereingabe(n).",
+  "ai_is_feature_label": "KI ist eine Funktion",
+  "ai_is_product_label": "KI ist das Produkt",
+  "risk_label": "Risiko",
+  "analytics_label": "Analytik",
+  "solution_details_label": "Lösungsdetails",
+  "no_solution_file_found": "Keine Lösungsdatei gefunden.",
+  "no_data_found_for": "Keine Daten gefunden für {product}"
 }

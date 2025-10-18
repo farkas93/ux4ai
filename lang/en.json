@@ -42,5 +42,47 @@
   "product_description_prefix": "<p style=\"margin: 0 0 5px 0;\">",
   "product_description_suffix": "</p><a href=\"{url}\" target=\"_blank\" style=\"color: #1E88E5; text-decoration: none;\">{url}</a>",
   "risk_section_title_from_user": "Risk of Adversarial Attacks",
-  "continuous_learning_section_title_from_user": "Continuous Learning & Feedback Loops"
+  "continuous_learning_section_title_from_user": "Continuous Learning & Feedback Loops",
+
+  "dashboard_title": "UX4AI Dashboard",
+  "dashboard_header": "UX4AI Product Analysis - Dashboard",
+
+  "tab_by_product": "By Product",
+  "tab_overview": "Overview",
+  "tab_compare_products": "Compare Products",
+
+  "refresh_all_data": "Refresh All Data",
+  "refresh_overview_data": "Refresh Overview Data",
+
+  "select_product": "Select Product",
+  "select_product_prompt": "Select a product to begin.",
+  "show_solution_comparison": "Show Solution Comparison",
+  "averaged_spider_diagram": "Averaged UX4AI Spider Diagram",
+
+  "overview_label": "Overview",
+  "ux4ai_analysis_label": "UX4AI Analysis",
+
+  "compare_two_products_label": "Compare Two Products",
+  "select_product1": "Select Product 1",
+  "select_product2": "Select Product 2",
+  "show_user_averages": "Show User Averages",
+  "select_two_products_prompt": "Select two products to compare.",
+  "product_comparison_spider_diagram": "Product Comparison Spider Diagram",
+
+  "product_comparison_label": "Product Comparison",
+  "showing_user_avg_label": "Showing User Averages",
+  "showing_solution_label": "Showing Solutions",
+
+  "user_average_label": "User Average",
+  "solution_label": "Solution",
+
+  "displaying_avg_scores_for": "Displaying average scores for **{product}**",
+  "aggregated_from": "Aggregated from **{count}** user submission(s).",
+  "ai_is_feature_label": "AI is a Feature",
+  "ai_is_product_label": "AI is the Product",
+  "risk_label": "Risk",
+  "analytics_label": "Analytics",
+  "solution_details_label": "Solution Details",
+  "no_solution_file_found": "No solution file found.",
+  "no_data_found_for": "No data found for {product}"
 }
