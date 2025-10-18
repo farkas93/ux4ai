@@ -5,20 +5,53 @@ import pandas as pd
 import json
 import os
 
+# --- Language setup ---
+LANG_DIR = "./lang"
+DEFAULT_LANG = "en"
+
+# CHANGED: Removed direct dictionary definitions (LANG_EN, LANG_DE)
+# The dictionaries will now be loaded from JSON files.
+
+def load_lang_file(lang_code):
+    # CHANGED: Load language dictionary from the specified JSON files in LANG_DIR.
+    file_path = os.path.join(LANG_DIR, f"{lang_code}.json")
+    try:
+        with open(file_path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except FileNotFoundError:
+        print(f"Warning: Language file not found for '{lang_code}'. Falling back to default.")
+        # Fallback to English if the requested language file is not found
+        default_file_path = os.path.join(LANG_DIR, f"{DEFAULT_LANG}.json")
+        with open(default_file_path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except json.JSONDecodeError:
+        print(f"Error: Could not decode JSON from '{file_path}'. Falling back to default.")
+        # Fallback to English if the JSON is malformed
+        default_file_path = os.path.join(LANG_DIR, f"{DEFAULT_LANG}.json")
+        with open(default_file_path, "r", encoding="utf-8") as f:
+            return json.load(f)
+
+
+# CHANGED: Initialized LANG by loading from the default English JSON file.
+# This ensures LANG is populated from the file system at startup.
+LANG = load_lang_file(DEFAULT_LANG)
+
 # --- Product Data ---
+# CHANGED: Renamed 'personalization' key to 'specialization' in all product default_scores.
 PRODUCTS = {
-    "DeepL": {"description": "A powerful neural machine translation service.", "url": "https://www.deepl.com/translator", "default_scores": {"conversational": 2.0, "personalization": 1.0, "autonomy": 3.0, "accessibility": 4.5, "explainability": 2.0}},
-    "Google Search": {"description": "A web search engine that indexes and searches the World Wide Web.", "url": "https://www.google.com", "default_scores": {"conversational": 1.5, "personalization": 4.0, "autonomy": 3.5, "accessibility": 5.0, "explainability": 1.5}},
-    "Perplexity": {"description": "An AI-powered conversational search engine that answers questions.", "url": "https://www.perplexity.ai/", "default_scores": {"conversational": 4.0, "personalization": 3.0, "autonomy": 4.0, "accessibility": 4.0, "explainability": 3.0}},
-    "Gemini": {"description": "Google's advanced conversational AI model.", "url": "https://gemini.google.com/", "default_scores": {"conversational": 4.5, "personalization": 4.0, "autonomy": 4.5, "accessibility": 4.5, "explainability": 3.5}},
-    "Claude": {"description": "An AI assistant from Anthropic focused on helpfulness, honesty, and harmlessness.", "url": "https://claude.ai/", "default_scores": {"conversational": 4.2, "personalization": 3.5, "autonomy": 4.2, "accessibility": 4.2, "explainability": 3.8}},
-    "ChatGPT": {"description": "A versatile conversational AI model developed by OpenAI.", "url": "https://chat.openai.com/", "default_scores": {"conversational": 4.3, "personalization": 3.8, "autonomy": 4.3, "accessibility": 4.8, "explainability": 3.2}},
-    "Copilot": {"description": "Microsoft's AI companion that helps with various tasks across different applications.", "url": "https://copilot.microsoft.com/", "default_scores": {"conversational": 4.0, "personalization": 4.2, "autonomy": 4.0, "accessibility": 4.7, "explainability": 3.0}},
+    "DeepL": {"description": "A powerful neural machine translation service.", "url": "https://www.deepl.com/translator", "default_scores": {"conversational": 2.0, "specialization": 1.0, "autonomy": 3.0, "accessibility": 4.5, "explainability": 2.0}},
+    "Google Search": {"description": "A web search engine that indexes and searches the World Wide Web.", "url": "https://www.google.com", "default_scores": {"conversational": 1.5, "specialization": 4.0, "autonomy": 3.5, "accessibility": 5.0, "explainability": 1.5}},
+    "Perplexity": {"description": "An AI-powered conversational search engine that answers questions.", "url": "https://www.perplexity.ai/", "default_scores": {"conversational": 4.0, "specialization": 3.0, "autonomy": 4.0, "accessibility": 4.0, "explainability": 3.0}},
+    "Gemini": {"description": "Google's advanced conversational AI model.", "url": "https://gemini.google.com/", "default_scores": {"conversational": 4.5, "specialization": 4.0, "autonomy": 4.5, "accessibility": 4.5, "explainability": 3.5}},
+    "Claude": {"description": "An AI assistant from Anthropic focused on helpfulness, honesty, and harmlessness.", "url": "https://claude.ai/", "default_scores": {"conversational": 4.2, "specialization": 3.5, "autonomy": 4.2, "accessibility": 4.2, "explainability": 3.8}},
+    "ChatGPT": {"description": "A versatile conversational AI model developed by OpenAI.", "url": "https://chat.openai.com/", "default_scores": {"conversational": 4.3, "specialization": 3.8, "autonomy": 4.3, "accessibility": 4.8, "explainability": 3.2}},
+    "Copilot": {"description": "Microsoft's AI companion that helps with various tasks across different applications.", "url": "https://copilot.microsoft.com/", "default_scores": {"conversational": 4.0, "specialization": 4.2, "autonomy": 4.0, "accessibility": 4.7, "explainability": 3.0}},
     "Other": {"description": "Please specify the product name below.", "url": "", "default_scores": {}}
 }
 
 # --- Function to update product info and reset sliders ---
-def update_product_info(selected_product):
+# CHANGED: Renamed 'personalization' parameter to 'specialization'.
+def update_product_info(selected_product, current_lang_dict):
     if selected_product in PRODUCTS:
         product_data = PRODUCTS[selected_product]
         description = product_data["description"]
@@ -26,14 +59,13 @@ def update_product_info(selected_product):
 
         html_content = f"""
         <div style="border: none; background-color: transparent; padding: 0; margin: 0;">
-            <p style="margin: 0 0 5px 0;">{description}</p>
-            <a href="{url}" target="_blank" style="color: #1E88E5; text-decoration: none;">{url}</a>
+            {current_lang_dict["product_description_prefix"]}{description}{current_lang_dict["product_description_suffix"].format(url=url)}
         </div>
         """
         return (
             html_content,
             gr.update(value=2.5), # Conversational
-            gr.update(value=2.5), # Personalization
+            gr.update(value=2.5), # Specialization # CHANGED: Updated comment
             gr.update(value=2.5), # Autonomy
             gr.update(value=2.5), # Accessibility
             gr.update(value=2.5), # Explainability
@@ -43,7 +75,7 @@ def update_product_info(selected_product):
             gr.update(value=2.5), # Continuous learning analytics type slider
             gr.update(value=""),  # Clear continuous learning aspects textbox
             gr.update(value=""),  # Clear continuous learning explanation textbox
-            gr.update(visible=False) # Hide the "Load Product" button after it's clicked
+            gr.update(visible=False)
         )
     return (
         "", gr.update(value=2.5), gr.update(value=2.5), gr.update(value=2.5),
@@ -61,31 +93,40 @@ def handle_product_selection(selected_product):
     return gr.update(visible=False), gr.update(visible=False)
 
 # --- Function to generate the spider diagram using Plotly ---
-def create_spider_diagram_plotly(conversational, personalization, autonomy, accessibility, explainability):
-    labels = ['Conversational', 'Personalization', 'Autonomy', 'Accessibility', 'Explainability']
-    values = [conversational, personalization, autonomy, accessibility, explainability]
+# CHANGED: Renamed 'personalization' parameter to 'specialization'.
+def create_spider_diagram_plotly(conversational, specialization, autonomy, accessibility, explainability, current_lang_dict):
+    labels = [
+        current_lang_dict['conversational_label'].split('(')[0].strip(),
+        current_lang_dict['specialization_label'].split('(')[0].strip(), # CHANGED: Used specialization_label
+        current_lang_dict['autonomy_label'].split('(')[0].strip(),
+        current_lang_dict['accessibility_label'].split('(')[0].strip(),
+        current_lang_dict['explainability_label'].split('(')[0].strip()
+    ]
+    values = [conversational, specialization, autonomy, accessibility, explainability] # CHANGED: Used specialization
     fig = go.Figure()
-    fig.add_trace(go.Scatterpolar(r=values, theta=labels, fill='toself', name='Product Analysis'))
-    fig.update_layout(polar=dict(radialaxis=dict(visible=True, range=[0, 5])), showlegend=True, title="UX4AI Product Analysis", height=600)
+    fig.add_trace(go.Scatterpolar(r=values, theta=labels, fill='toself', name=current_lang_dict['spider_diagram_label']))
+    fig.update_layout(polar=dict(radialaxis=dict(visible=True, range=[0, 5])), showlegend=True, title=current_lang_dict['spider_diagram_label'], height=600)
     return fig
 
 # --- Function to capture all data and save it to file ---
+# CHANGED: Renamed 'personalization' parameter to 'specialization'.
 def capture_all_data(
     username_full,
     selected_product,
     other_product_name,
-    ai_role, # ADDED: New parameter for the radio button value.
-    conversational, personalization, autonomy, accessibility, explainability,
+    ai_role,
+    conversational, specialization, autonomy, accessibility, explainability, # CHANGED: Renamed
     risk_level,
     risk_assessment_description,
     continuous_learning_analytics_type,
     continuous_learning_aspects,
-    continuous_learning_explanation
+    continuous_learning_explanation,
+    current_lang_dict
 ):
     # Username Validation and Formatting
     username_parts = username_full.strip().split()
     if len(username_parts) < 2 or not all(part.isalpha() for part in username_parts):
-        return "", "Error: Please enter your full name (e.g., 'Peter Mueller')."
+        return "", current_lang_dict["error_full_name"]
     
     formatted_username = username_parts[0][0].upper() + username_parts[-1].capitalize()
 
@@ -93,7 +134,7 @@ def capture_all_data(
     product_name_to_save = ""
     if selected_product == "Other":
         if not other_product_name.strip():
-            return "", "Error: Please specify the product name when 'Other' is selected."
+            return "", current_lang_dict["error_specify_product"]
         product_name_to_save = other_product_name.strip()
     else:
         product_name_to_save = selected_product
@@ -102,10 +143,10 @@ def capture_all_data(
     analysis_data = {
         "username": formatted_username,
         "product_name": product_name_to_save,
-        "ai_role": ai_role, # ADDED: Save the value from the new radio buttons.
+        "ai_role": ai_role,
         "scores": {
             "conversational": conversational,
-            "personalization": personalization,
+            "specialization": specialization, # CHANGED: Renamed
             "autonomy": autonomy,
             "accessibility": accessibility,
             "explainability": explainability
@@ -135,98 +176,142 @@ def capture_all_data(
         with open(file_path, "w", encoding="utf-8") as f:
             f.write(json_output_string)
             
-        success_message = f"Analysis submitted and saved to: {file_path}"
-        return success_message, "Data successfully submitted!"
+        success_message = f"{current_lang_dict['success_message_prefix']} {file_path}"
+        return success_message, current_lang_dict["success_message_suffix"]
         
     except Exception as e:
-        error_message = f"Error saving data: {e}"
-        return "", f"Failed to submit data: {e}"
+        error_message = f"{current_lang_dict['error_saving_data_prefix']} {e}"
+        return "", f"{current_lang_dict['error_submit_data_prefix']} {e}"
+
+# --- Language Update Function ---
+def update_ui_text(lang_code):
+    new_lang_dict = load_lang_file(lang_code)
+
+    return (
+        gr.update(value=f"<h1 style='display: inline;'>{new_lang_dict['app_title']}</h1>"),
+        gr.update(label=new_lang_dict["username_label"], info=new_lang_dict["username_info"], placeholder=new_lang_dict["username_placeholder"]),
+        gr.update(label=new_lang_dict["product_dropdown_label"], info=new_lang_dict["product_dropdown_info"]),
+        gr.update(label=new_lang_dict["other_product_name_label"], placeholder=new_lang_dict["other_product_name_placeholder"]),
+        gr.update(value=new_lang_dict["load_product_button"]),
+        gr.update(label=new_lang_dict["product_info_label"]),
+        gr.update(label=new_lang_dict["ai_role_label"], info=new_lang_dict["ai_role_info"], choices=[new_lang_dict["ai_role_feature"], new_lang_dict["ai_role_product"]]),
+        gr.update(value=f"### {new_lang_dict['ux4ai_dimensions_title']}"),
+        gr.update(label=new_lang_dict["conversational_label"]),
+        gr.update(label=new_lang_dict["specialization_label"]), # CHANGED: Updated label
+        gr.update(label=new_lang_dict["autonomy_label"]),
+        gr.update(label=new_lang_dict["accessibility_label"]),
+        gr.update(label=new_lang_dict["explainability_label"]),
+        gr.update(value="---"),
+        gr.update(value=new_lang_dict['risk_section_title_from_user']),
+        gr.update(label=new_lang_dict["risk_level_label"], info=new_lang_dict["risk_level_info"]),
+        gr.update(label=new_lang_dict["risk_description_label"], info=new_lang_dict["risk_description_info"]),
+        gr.update(value="---"),
+        gr.update(value=new_lang_dict['continuous_learning_section_title_from_user']),
+        gr.update(label=new_lang_dict["continuous_learning_aspects_label"], info=new_lang_dict["continuous_learning_aspects_info"]),
+        gr.update(label=new_lang_dict["analytics_type_label"], info=new_lang_dict["analytics_type_info"]),
+        gr.update(label=new_lang_dict["analytics_explanation_label"], info=new_lang_dict["analytics_explanation_info"]),
+        gr.update(value=new_lang_dict["submit_button"]),
+        gr.update(label=new_lang_dict["spider_diagram_label"]),
+        gr.update(label=new_lang_dict["data_submitted_label"]),
+        gr.update(label=new_lang_dict["status_label"]),
+        new_lang_dict
+    )
+
 
 # --- Gradio Interface ---
-with gr.Blocks() as demo:
-    gr.Markdown("# UX4AI Product Analysis Workshop")
+with gr.Blocks(title="UX4AI Workshop") as app:
+    current_lang_state = gr.State(LANG)
+
+    with gr.Row(variant="panel"):
+        app_title_html = gr.HTML(f"<h1 style='display: inline;'>{LANG['app_title']}</h1>")
+        
+        with gr.Column(scale=0, min_width=100):
+            with gr.Row():
+                en_button = gr.Button("🇬🇧 EN", elem_id="en_lang_button", size="sm")
+                de_button = gr.Button("🇩🇪 DE", elem_id="de_lang_button", size="sm")
 
     with gr.Row():
         with gr.Column():
             username_input = gr.Textbox(
-                label="Your Full Name",
-                info="Enter your first and last name (e.g., 'Peter Mueller'). Will be formatted as 'PMueller'.",
-                placeholder="e.g., Peter Mueller"
+                label=LANG["username_label"],
+                info=LANG["username_info"],
+                placeholder=LANG["username_placeholder"]
             )
 
             product_dropdown = gr.Dropdown(
                 choices=list(PRODUCTS.keys()),
-                label="Select AI Product",
-                info="Choose a product or select 'Other' to specify your own."
+                label=LANG["product_dropdown_label"],
+                info=LANG["product_dropdown_info"]
             )
             
             other_product_name_input = gr.Textbox(
-                label="Specify Product Name",
-                placeholder="Enter the name of the product",
+                label=LANG["other_product_name_label"],
+                placeholder=LANG["other_product_name_placeholder"],
                 visible=False,
                 interactive=True
             )
 
-            load_product_btn = gr.Button("Load Product and Reset Form", visible=False)
+            load_product_btn = gr.Button(LANG["load_product_button"], visible=False)
 
-            product_info_html = gr.HTML(label="Product Details")
+            product_info_html = gr.HTML(label=LANG["product_info_label"])
 
-            # ADDED: Radio buttons to classify the AI's role in the product.
             ai_role_radio = gr.Radio(
-                ["AI is a Feature", "AI is the Product"],
-                label="AI's Role in the Product",
-                info="Is the AI a core component (feature) or the entire product itself?"
+                [LANG["ai_role_feature"], LANG["ai_role_product"]],
+                label=LANG["ai_role_label"],
+                info=LANG["ai_role_info"]
             )
 
-            gr.Markdown("### UX4AI Dimensions")
+            ux4ai_dimensions_markdown = gr.Markdown(f"### {LANG['ux4ai_dimensions_title']}")
             # Sliders for UX4AI Spider Diagram
-            conversational = gr.Slider(minimum=0.0, maximum=5.0, step=0.1, label="Conversational (0: Guided, 5: Free)", value=2.5)
-            personalization = gr.Slider(minimum=0.0, maximum=5.0, step=0.1, label="Personalization (0: General, 5: Personalized)", value=2.5)
-            autonomy = gr.Slider(minimum=0.0, maximum=5.0, step=0.1, label="Autonomy (0: Procedural, 5: Full Agentic)", value=2.5)
-            accessibility = gr.Slider(minimum=0.0, maximum=5.0, step=0.1, label="Accessibility (0: Niche, 5: Everyone)", value=2.5)
-            explainability = gr.Slider(minimum=0.0, maximum=5.0, step=0.1, label="Explainability (0: Blackbox, 5: Fully Transparent)", value=2.5)
+            conversational = gr.Slider(minimum=0.0, maximum=5.0, step=0.1, label=LANG["conversational_label"], value=2.5)
+            specialization = gr.Slider(minimum=0.0, maximum=5.0, step=0.1, label=LANG["specialization_label"], value=2.5) # CHANGED: Renamed from personalization
+            autonomy = gr.Slider(minimum=0.0, maximum=5.0, step=0.1, label=LANG["autonomy_label"], value=2.5)
+            accessibility = gr.Slider(minimum=0.0, maximum=5.0, step=0.1, label=LANG["accessibility_label"], value=2.5)
+            explainability = gr.Slider(minimum=0.0, maximum=5.0, step=0.1, label=LANG["explainability_label"], value=2.5)
 
-            gr.Markdown("---") # Separator for clarity
+            separator_1_markdown = gr.Markdown("---")
+            risk_section_title_markdown = gr.Markdown(LANG['risk_section_title_from_user'])
 
             # Risk of Adversarial Attacks Section
             risk_level_slider = gr.Slider(
                 minimum=0.0, maximum=5.0, step=0.1,
-                label="Risk of Adversarial Attacks (0: No Risk, 5: High Risk)",
-                info="Indicate on the scale where you estimate the risk of the tool being exposed to adversarial attacks.",
+                label=LANG["risk_level_label"],
+                info=LANG["risk_level_info"],
                 value=2.5
             )
             risk_assessment_description = gr.Textbox(
-                label="Worst-case damage description",
-                info="Describe in a few sentences the worst-case damage an adversarial attack could have.",
+                label=LANG["risk_description_label"],
+                info=LANG["risk_description_info"],
                 lines=3
             )
 
-            gr.Markdown("---") # Separator for clarity
+            separator_2_markdown = gr.Markdown("---")
+            continuous_learning_section_title_markdown = gr.Markdown(LANG['continuous_learning_section_title_from_user'])
 
             # Continuous Learning & Feedback Loops Section
             continuous_learning_aspects = gr.Textbox(
-                label="Continuous Learning & Feedback Loops Aspects",
-                info="For what aspects of the Product could you imagine to implement 'Continuous Learning & Feedback Loops'? Name a few bullet points and explain with max 2 sentences.",
+                label=LANG["continuous_learning_aspects_label"],
+                info=LANG["continuous_learning_aspects_info"],
                 lines=5
             )
             continuous_learning_analytics_type_slider = gr.Slider(
                 minimum=0.0, maximum=5.0, step=0.1,
-                label="Analytics Type (0: Manual Analytics, 5: AI-driven Analytics)",
-                info="Indicate if those points can be implemented via manual or AI driven analytics on the slider.",
+                label=LANG["analytics_type_label"],
+                info=LANG["analytics_type_info"],
                 value=2.5
             )
             continuous_learning_explanation = gr.Textbox(
-                label="Explain your Analytics Type Pick",
-                info="Explain your pick on the scale in a few sentences.",
+                label=LANG["analytics_explanation_label"],
+                info=LANG["analytics_explanation_info"],
                 lines=3
             )
 
-            capture_data_btn = gr.Button("Submit My Analysis")
+            capture_data_btn = gr.Button(LANG["submit_button"])
 
         with gr.Column():
-            plotly_chart_output = gr.Plot(label="UX4AI Spider Diagram")
-            json_output_display = gr.Textbox(label="Data Submitted To", lines=1, interactive=False)
-            status_message = gr.Textbox(label="Status", interactive=False)
+            plotly_chart_output = gr.Plot(label=LANG["spider_diagram_label"])
+            json_output_display = gr.Textbox(label=LANG["data_submitted_label"], lines=1, interactive=False)
+            status_message = gr.Textbox(label=LANG["status_label"], interactive=False)
 
 
     # --- Event Handling ---
@@ -238,11 +323,11 @@ with gr.Blocks() as demo:
 
     load_product_btn.click(
         fn=update_product_info,
-        inputs=[product_dropdown],
+        inputs=[product_dropdown, current_lang_state],
         outputs=[
             product_info_html,
-            conversational, personalization, autonomy, accessibility, explainability,
-            ai_role_radio, # ADDED: Ensure the radio button is reset when loading a product.
+            conversational, specialization, autonomy, accessibility, explainability, # CHANGED: Renamed
+            ai_role_radio,
             risk_level_slider,
             risk_assessment_description,
             continuous_learning_analytics_type_slider,
@@ -252,11 +337,12 @@ with gr.Blocks() as demo:
         ]
     )
 
-    sliders = [conversational, personalization, autonomy, accessibility, explainability]
+    # CHANGED: Renamed 'personalization' to 'specialization' in the sliders list.
+    sliders = [conversational, specialization, autonomy, accessibility, explainability]
     for slider in sliders:
         slider.change(
             fn=create_spider_diagram_plotly,
-            inputs=sliders,
+            inputs=sliders + [current_lang_state],
             outputs=plotly_chart_output
         )
 
@@ -266,17 +352,56 @@ with gr.Blocks() as demo:
             username_input,
             product_dropdown,
             other_product_name_input,
-            ai_role_radio, # ADDED: Pass the new radio button component as an input.
-            conversational, personalization, autonomy, accessibility, explainability,
+            ai_role_radio,
+            conversational, specialization, autonomy, accessibility, explainability, # CHANGED: Renamed
             risk_level_slider,
             risk_assessment_description,
             continuous_learning_analytics_type_slider,
             continuous_learning_aspects,
-            continuous_learning_explanation
+            continuous_learning_explanation,
+            current_lang_state
         ],
         outputs=[json_output_display, status_message]
     )
 
+    all_components_to_update = [
+        app_title_html,
+        username_input,
+        product_dropdown,
+        other_product_name_input,
+        load_product_btn,
+        product_info_html,
+        ai_role_radio,
+        ux4ai_dimensions_markdown,
+        conversational,
+        specialization, # CHANGED: Renamed
+        autonomy,
+        accessibility,
+        explainability,
+        separator_1_markdown,
+        risk_section_title_markdown,
+        risk_level_slider,
+        risk_assessment_description,
+        separator_2_markdown,
+        continuous_learning_section_title_markdown,
+        continuous_learning_aspects,
+        continuous_learning_analytics_type_slider,
+        continuous_learning_explanation,
+        capture_data_btn,
+        plotly_chart_output,
+        json_output_display,
+        status_message
+    ]
+
+    en_button.click(
+        fn=lambda: update_ui_text("en"),
+        outputs=all_components_to_update + [current_lang_state]
+    )
+    de_button.click(
+        fn=lambda: update_ui_text("de"),
+        outputs=all_components_to_update + [current_lang_state]
+    )
+
 # --- Launching the Gradio App ---
 if __name__ == "__main__":
-    demo.launch(share=True)
+    app.launch(share=True)

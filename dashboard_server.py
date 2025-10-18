@@ -184,7 +184,7 @@ def refresh_data():
 
 
 # --- Main Application Setup ---
-with gr.Blocks() as demo:
+with gr.Blocks(title="UX4AI Dashboard") as dashboard:
     # Load data once when the app starts and store it in a State component
     initial_data = load_and_process_data()
     all_processed_data = gr.State(initial_data)
@@ -225,4 +225,4 @@ with gr.Blocks() as demo:
     )
 
 if __name__ == "__main__":
-    demo.launch(share=True)
+    dashboard.launch(share=True)
