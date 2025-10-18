@@ -90,7 +90,7 @@ def create_spider_diagram_plotly(avg_scores, solution_scores=None):
         solution_values = [solution_scores.get(label.lower(), 0) for label in labels]
         fig.add_trace(go.Scatterpolar(r=solution_values, theta=theta, fill='toself', name='Solution', line=dict(color='green')))
 
-    fig.update_layout(polar=dict(radialaxis=dict(visible=True, range=[0, 5])), showlegend=True, height=600)
+    fig.update_layout(polar=dict(radialaxis=dict(visible=True, range=[0, 5])), showlegend=True, height=350)
     return fig
 
 
@@ -163,7 +163,6 @@ def update_comparison_visualization(p1, p2, show_solution, show_user_average, al
     return fig, info_text
 
 
-# NEW: Generate all overview plots
 def generate_overview_plots(all_data):
     figs = []
     for product_name, product_data in all_data.items():
@@ -191,8 +190,7 @@ def refresh_data():
     )
 
 
-# --- UI ---
-with gr.Blocks(title="UX4AI Dashboard") as dashboard:
+with gr.Blocks(title="UX4AI Dashboard", css=".gr-row {flex-wrap: nowrap;} .gr-column {flex: 1;} .gr-plot {height: 350px;}") as dashboard:
     initial_data = load_and_process_data()
     all_processed_data = gr.State(initial_data)
 
@@ -209,14 +207,21 @@ with gr.Blocks(title="UX4AI Dashboard") as dashboard:
             with gr.Column(scale=3):
                 plotly_chart_output = gr.Plot(label="Averaged UX4AI Spider Diagram")
 
-    # Overview Tab
+    # Overview Tab (4x2 grid, column-major)
     with gr.Tab("Overview"):
-        gr.Markdown("## Overview of All Product Analyses (Interactive)")
         refresh_btn_overview = gr.Button("Refresh Overview Data")
         overview_plot_outputs = []
-        for name, fig in generate_overview_plots(initial_data):
-            p = gr.Plot(label=f"{name} Overview", value=fig)
-            overview_plot_outputs.append(p)
+        figs_init = generate_overview_plots(initial_data)
+
+        with gr.Row():
+            for col_idx in range(4):
+                with gr.Column():
+                    for row_idx in range(2):
+                        idx = row_idx + col_idx * 2  # column-major fill
+                        if idx < len(figs_init):
+                            name, fig = figs_init[idx]
+                            p = gr.Plot(label=f"{name} Overview", value=fig)
+                            overview_plot_outputs.append(p)
 
     # Compare Products Tab
     with gr.Tab("Compare Products"):
@@ -232,7 +237,7 @@ with gr.Blocks(title="UX4AI Dashboard") as dashboard:
                 compare_plotly_chart_output = gr.Plot(label="Product Comparison Spider Diagram",
                                                       value=create_comparison_spider_diagram_plotly(None, None, False, True, initial_data))
 
-    # --- Events ---
+    # Events
     product_dropdown.change(update_visualization, [product_dropdown, show_solution_checkbox, all_processed_data], [plotly_chart_output, info_display])
     show_solution_checkbox.change(update_visualization, [product_dropdown, show_solution_checkbox, all_processed_data], [plotly_chart_output, info_display])
 
@@ -249,7 +254,6 @@ with gr.Blocks(title="UX4AI Dashboard") as dashboard:
                                               [product1_dropdown, product2_dropdown, show_solution_compare_checkbox, show_user_average_compare_checkbox, all_processed_data],
                                               [compare_plotly_chart_output, compare_info_display])
 
-    # Refresh Buttons with unpack fix
     refresh_btn_global.click(refresh_data, [], [all_processed_data, product_dropdown, *overview_plot_outputs, compare_plotly_chart_output, product1_dropdown, product2_dropdown])
     refresh_btn_overview.click(lambda: [fig for _, fig in generate_overview_plots(load_and_process_data())], [], overview_plot_outputs)
 
