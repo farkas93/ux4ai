@@ -1,0 +1,21 @@
+{
+    "username": "ZKalotay",
+    "product_name": "DeepL",
+    "ai_role": "AI is the Product",
+    "scores": {
+        "conversational": 0,
+        "personalization": 0,
+        "autonomy": 0,
+        "accessibility": 4.2,
+        "explainability": 1
+    },
+    "risk_of_adversarial_attacks": {
+        "level": 0.5,
+        "description": "Sehr unwahrscheinlich, da das System Guided und Prozedural ist."
+    },
+    "continuous_learning_feedback_loops": {
+        "aspects": "Die Feedbackloops sind schwierig einzusch\u00e4tzen, da wenig Feedbackmechanismen f\u00fcr den User existieren.\nDurch thumbs up/down kann man gute von schlechten \u00dcbersetzungen unterscheiden.\nDementsprechend k\u00f6nnte es sein, dass DeepL einiges an menschlicher Arbeit durch eingemietete Spezialisten noch macht, andererseits k\u00f6nnte es sein, dass viel mit LLMs analysiert und verbessert wird. \nLLMs eignen sich ja wegen hoher Verz\u00f6gerungen nicht als Live Translators, dementsprechend wird wenig Einsatz von LLMs bei DeepL vermutet.",
+        "analytics_type_level": 2.5,
+        "analytics_type_explanation": "Wegen hoher intransparenz bei DeepL, wurde der Wert in der Mitte gesetzt."
+    }
+}

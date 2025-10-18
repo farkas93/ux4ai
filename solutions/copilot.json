@@ -1,0 +1,21 @@
+{
+    "username": "ZKalotay",
+    "product_name": "Copilot",
+    "ai_role": "AI is a Feature",
+    "scores": {
+        "conversational": 4,
+        "personalization": 4,
+        "autonomy": 3.9,
+        "accessibility": 1,
+        "explainability": 0.5
+    },
+    "risk_of_adversarial_attacks": {
+        "level": 4.7,
+        "description": "Viele Agentic Features implementiert basierend auf OpenAI Modellen. Hauptfokus sind Firmen, welche Firmenspezialisierte KI Tools wollen. Dementsprechend ist es attraktiv f\u00fcr Angreifer und risikoreich bez\u00fcglich Adversarial Attacks (z.B. indirekte Angriffe mit adversarial Dokumenten auf Sharepoint)"
+    },
+    "continuous_learning_feedback_loops": {
+        "aspects": "Die generellen Aspekte f\u00fcr LLM Chatbot Produkte k\u00f6nnen angewendet werden: Beurteilung von Gespr\u00e4chen zwischen Nutzer und Chatbot f\u00fcr weiteren Modelltraining. Automatische Analyse und Strukturierung von Nutzerdaten f\u00fcr Erweiterung von Nutzerstatistiken (Verbesserte Werbungsschaltung und Nutzererfahrung).",
+        "analytics_type_level": 4.5,
+        "analytics_type_explanation": "Dies ist sehr wertvoll f\u00fcr Trainingsdatengenerierung und Produktverbesserungen."
+    }
+}

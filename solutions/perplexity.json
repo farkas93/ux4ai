@@ -1,0 +1,21 @@
+{
+    "username": "ZKalotay",
+    "product_name": "Perplexity",
+    "ai_role": "AI is the Product",
+    "scores": {
+        "conversational": 3.3,
+        "personalization": 3,
+        "autonomy": 3.5,
+        "accessibility": 4.5,
+        "explainability": 3.5
+    },
+    "risk_of_adversarial_attacks": {
+        "level": 4,
+        "description": "Sehr \u00e4hnlich wie Google, k\u00f6nnte das ganze Internet adversarial sein. Da sich Perplexity in erster Linie als Suchdienstleister positioniert, ist dieser Teil f\u00fcr sie ziemlich kritisch. "
+    },
+    "continuous_learning_feedback_loops": {
+        "aspects": "Bez\u00fcglich Zusammenfassungs-Qualit\u00e4t, -Pr\u00e4zision und -Relevanz k\u00f6nnte Perplexity vieles mit LLMs und dem User Feedback verbessern und ggf. Finetuning Daten f\u00fcr ihre LLMs erstellen. Jedoch ist es f\u00fcr ein Suchanbieter wie Perplexity unwahrscheinlich, dass sie Finetunings an Modellen machen.\nWahrscheinlicher sind Personenbezogene Prompt Engineering Optimierungen.",
+        "analytics_type_level": 3,
+        "analytics_type_explanation": "Gegeben, dass es trotzdem eine Suchengine ist und sie selber keine KI Modelle trainieren. sch\u00e4tze ich den Wert der KI getriebenen Analyse als weniger hoch ein."
+    }
+}

@@ -1,0 +1,21 @@
+{
+    "username": "ZKalotay",
+    "product_name": "Google Search",
+    "ai_role": "AI is a Feature",
+    "scores": {
+        "conversational": 2,
+        "personalization": 4,
+        "autonomy": 1,
+        "accessibility": 4.8,
+        "explainability": 2.5
+    },
+    "risk_of_adversarial_attacks": {
+        "level": 4,
+        "description": "F\u00fcr Google ist das Risiko, dass gewisse Webseiten als \"Adversarial Attack\" gehostet werden sehr hoch. Google muss sich da sicherlich aktiv bem\u00fchen solche Webseiten zu identifizieren und Schaden zu vermeiden "
+    },
+    "continuous_learning_feedback_loops": {
+        "aspects": "Google hat dank anderer Produkte sehr gut in Nutzerinformationenauswertung. Sie sind ber\u00fchmt f\u00fcr ihre KI getriebene Personalisierung und dementsprechend sch\u00e4tze ich das meiste, was Google hier macht KI getrieben ein.\nSelbstverst\u00e4ndlich steht dann auf einer h\u00f6heren Produkt \u00fcbergreifenden Ebene sicherlich ein grosses Team mit viel Arbeitskraft dahinter.",
+        "analytics_type_level": 4,
+        "analytics_type_explanation": "Basierend auf die Annahme, dass Google viel automatisiert, aber auch viel Manpower hinter ihrer Analytics hat, wurde der Wert gew\u00e4hlt."
+    }
+}
