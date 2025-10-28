@@ -97,12 +97,18 @@ def create_spider_diagram_plotly(avg_scores, solution_scores=None, lang_dict=LAN
     theta = [lang_dict[label + "_label"].split('(')[0].strip() for label in labels]
     fig = go.Figure()
 
+    # Create a closed loop for the spider chart by repeating the first value and label
+    theta_closed = theta + [theta[0]]
+
     avg_values = [avg_scores.get(label.lower(), 0) for label in labels]
-    fig.add_trace(go.Scatterpolar(r=avg_values, theta=theta, fill='toself', name=lang_dict["user_average_label"]))
+    avg_values.append(avg_values[0]) # Append the first value to the end to close the shape
+    fig.add_trace(go.Scatterpolar(r=avg_values, theta=theta_closed, fill='toself', name=lang_dict["user_average_label"]))
 
     if solution_scores:
         solution_values = [solution_scores.get(label.lower(), 0) for label in labels]
-        fig.add_trace(go.Scatterpolar(r=solution_values, theta=theta, fill='toself', name=lang_dict["solution_label"], line=dict(color='green')))
+        solution_values.append(solution_values[0]) # Append the first value to the end to close the shape
+        # MODIFIED: Changed name to use 'lecturer_label' and updated line color for consistency
+        fig.add_trace(go.Scatterpolar(r=solution_values, theta=theta_closed, fill='toself', name=lang_dict.get("lecturer_label", "Lecturer"), line=dict(color='green')))
 
     fig.update_layout(polar=dict(radialaxis=dict(visible=True, range=[0, 5])), showlegend=True, height=350)
     return fig
@@ -141,25 +147,38 @@ def update_visualization(selected_product, show_solution, all_data, lang_dict):
 def create_comparison_spider_diagram_plotly(product1, product2, show_solution, show_user_average, all_data, lang_dict):
     labels = ['conversational', 'specialization', 'autonomy', 'accessibility', 'explainability']
     theta = [lang_dict[label + "_label"].split('(')[0].strip() for label in labels]
+    # MODIFIED: Create a closed loop for the spider chart by repeating the first label
+    theta_closed = theta + [theta[0]]
     fig = go.Figure()
 
     def add_trace(product_name, avg_scores, solution_scores, avg_color, sol_color):
         if show_user_average and avg_scores:
-            fig.add_trace(go.Scatterpolar(r=[avg_scores.get(lbl.lower(), 0) for lbl in labels],
-                                          theta=theta, fill='none', name=f"{product_name} ({lang_dict['user_average_label']})", line=dict(color=avg_color, width=3)))
+            # MODIFIED: Append the first value to the end to close the shape
+            r_avg = [avg_scores.get(lbl.lower(), 0) for lbl in labels] + [avg_scores.get(labels[0].lower(), 0)]
+            fig.add_trace(go.Scatterpolar(r=r_avg,
+                                          theta=theta_closed, fill='none', name=f"{product_name} ({lang_dict['user_average_label']})", line=dict(color=avg_color, width=3)))
         if show_solution and solution_scores:
-            fig.add_trace(go.Scatterpolar(r=[solution_scores.get(lbl.lower(), 0) for lbl in labels],
-                                          theta=theta, fill='none', name=f"{product_name} ({lang_dict['solution_label']})", line=dict(color=sol_color, dash='dash', width=2)))
+            # MODIFIED: Append the first value to the end to close the shape
+            r_sol = [solution_scores.get(lbl.lower(), 0) for lbl in labels] + [solution_scores.get(labels[0].lower(), 0)]
+            # MODIFIED: Renamed to 'Lecturer', removed dashed line, and updated line style
+            fig.add_trace(go.Scatterpolar(r=r_sol,
+                                          theta=theta_closed, fill='none', name=f"{product_name}", line=dict(color=sol_color, width=2)))
 
     if product1:
         p1_data = all_data.get(product1, {})
-        p1_sol = load_solution_data(product1).get('scores') if show_solution else None
-        add_trace(product1, p1_data.get('avg_scores', {}), p1_sol, 'blue', 'darkblue')
+        # FIX: Safely load solution data to prevent errors if the file doesn't exist
+        solution_data_p1 = load_solution_data(product1)
+        p1_sol = solution_data_p1.get('scores') if show_solution and solution_data_p1 else None
+        # MODIFIED: Updated solution color to green for better visibility
+        add_trace(product1, p1_data.get('avg_scores', {}), p1_sol, 'blue', 'green')
 
     if product2:
         p2_data = all_data.get(product2, {})
-        p2_sol = load_solution_data(product2).get('scores') if show_solution else None
-        add_trace(product2, p2_data.get('avg_scores', {}), p2_sol, 'red', 'darkred')
+        # FIX: Safely load solution data
+        solution_data_p2 = load_solution_data(product2)
+        p2_sol = solution_data_p2.get('scores') if show_solution and solution_data_p2 else None
+        # MODIFIED: Updated solution color to purple for better visibility
+        add_trace(product2, p2_data.get('avg_scores', {}), p2_sol, 'red', 'purple')
 
     fig.update_layout(polar=dict(radialaxis=dict(visible=True, range=[0, 5])), showlegend=True, height=600)
     return fig
