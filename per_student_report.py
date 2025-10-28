@@ -2,8 +2,10 @@ import json
 import os
 from collections import defaultdict
 from docx import Document
-from docx.shared import Inches
+from docx.shared import Inches, Pt
 from docx.enum.text import WD_PARAGRAPH_ALIGNMENT
+from docx.oxml.ns import qn
+from docx.oxml import OxmlElement
 import plotly.graph_objects as go
 import plotly.io as pio
 
@@ -14,7 +16,7 @@ pio.kaleido.scope.default_height = 400
 
 # --- Language setup ---
 LANG_DIR = "./lang"
-DEFAULT_LANG = "de" # Default language for reports
+DEFAULT_LANG = "en" # Default language for reports
 
 def load_lang_file(lang_code):
     file_path = os.path.join(LANG_DIR, f"{lang_code}.json")
@@ -23,7 +25,6 @@ def load_lang_file(lang_code):
             return json.load(f)
     except FileNotFoundError:
         print(f"Warning: Language file not found for '{lang_code}'. Falling back to default.")
-        # Ensure we don't infinitely recurse if default lang file is also missing
         if lang_code == DEFAULT_LANG:
             raise FileNotFoundError(f"Default language file '{DEFAULT_LANG}.json' also not found.")
         return load_lang_file(DEFAULT_LANG)
@@ -70,7 +71,7 @@ def create_report_spider_diagram(user_scores, solution_scores, lang_dict, produc
             r=user_values,
             theta=theta_closed,
             fill='toself',
-            name=lang_dict["user_average_label"], # Use "Class Average" from en.json
+            name=lang_dict["user_answer_column_header"],
             line=dict(color='blue', width=3)
         ))
 
@@ -82,7 +83,7 @@ def create_report_spider_diagram(user_scores, solution_scores, lang_dict, produc
             r=solution_values,
             theta=theta_closed,
             fill='toself',
-            name=lang_dict["solution_label"], # Use "Lecturer" from en.json
+            name=lang_dict["lecturer_answer_column_header"],
             line=dict(color='green', width=2)
         ))
 
@@ -97,25 +98,53 @@ def create_report_spider_diagram(user_scores, solution_scores, lang_dict, produc
     )
     return fig
 
+# --- NEW: Function to create a plot for a single 0-5 value comparison ---
+def create_single_value_comparison_plot(user_value, lecturer_value, title, min_label, max_label, lang_dict):
+    fig = go.Figure()
+
+    # Data for plotting
+    y_labels = [lang_dict["user_answer_column_header"], lang_dict["lecturer_answer_column_header"]]
+    x_values = [user_value if user_value is not None else 0, lecturer_value if lecturer_value is not None else 0]
+    colors = ['blue', 'green']
+    text_values = [f"{v:.1f}" if v is not None else "N/A" for v in [user_value, lecturer_value]]
+
+    fig.add_trace(go.Bar(
+        y=y_labels,
+        x=x_values,
+        orientation='h',
+        marker_color=colors,
+        text=text_values,
+        textposition='outside',
+        name='', # No legend needed for individual bars in this context
+        width=0.8 # CHANGED: Make bars thinner
+    ))
+
+    fig.update_layout(
+        title=title,
+        xaxis=dict(
+            range=[0, 5],
+            tickvals=[0, 1, 2, 3, 4, 5],
+            title_text=f"{min_label.split(':')[0].strip()} - {max_label.split(':')[0].strip()}",
+            showgrid=True
+        ),
+        yaxis=dict(
+            showgrid=False,
+            categoryorder='array',
+            categoryarray=y_labels # Ensure order is preserved
+        ),
+        height=100, # Compact height
+        width=pio.kaleido.scope.default_width, # Ensure width is consistent with image export
+        bargap=0.0, # CHANGED: Remove space between bars
+        margin=dict(l=150, r=50, t=20, b=20), # Adjust margins
+        showlegend=False
+    )
+    return fig
+
+
 # --- Function to generate a report for a single student ---
 def generate_student_report(username_full, student_product_files, lecturer_solutions, lang_dict):
     document = Document()
     document.add_heading(f"{lang_dict['report_title']} - {username_full}", level=1)
-
-    # Define the fields to compare and their corresponding labels/paths in the JSON
-    comparison_fields = [
-        ("ai_role_label", "ai_role", ""),
-        ("conversational_label", "scores", "conversational"),
-        ("specialization_label", "scores", "specialization"),
-        ("autonomy_label", "scores", "autonomy"),
-        ("accessibility_label", "scores", "accessibility"),
-        ("explainability_label", "scores", "explainability"),
-        ("risk_level_label", "risk_of_adversarial_attacks", "level"),
-        ("risk_description_label", "risk_of_adversarial_attacks", "description"),
-        ("continuous_learning_aspects_label", "continuous_learning_feedback_loops", "aspects"),
-        ("analytics_type_label", "continuous_learning_feedback_loops", "analytics_type_level"),
-        ("analytics_explanation_label", "continuous_learning_feedback_loops", "analytics_type_explanation"),
-    ]
 
     for student_file_path in student_product_files:
         try:
@@ -126,56 +155,153 @@ def generate_student_report(username_full, student_product_files, lecturer_solut
             continue
 
         product_name = student_data.get("product_name", "Unknown Product")
-        lecturer_data = lecturer_solutions.get(product_name)
+        lecturer_data = lecturer_solutions.get(product_name, {}) # Ensure it's a dict even if not found
 
-        document.add_heading(f"{lang_dict['product_label']}: {product_name}", level=2)
+        # --- Product Name ---
+        document.add_paragraph(f"{lang_dict['product_label']}: {product_name}", style='Heading 2')
+        
+        # --- AI Embedding ---
+        document.add_paragraph(lang_dict['ai_embedding_label'])
+        
+        user_ai_role = student_data.get("ai_role", "N/A")
+        lecturer_ai_role = lecturer_data.get("ai_role", "N/A")
 
-        # Create a table for side-by-side comparison
-        table = document.add_table(rows=1, cols=3)
-        table.style = 'Table Grid'
-        hdr_cells = table.rows[0].cells
-        hdr_cells[0].text = lang_dict['question_column_header']
-        hdr_cells[1].text = lang_dict['user_answer_column_header']
-        hdr_cells[2].text = lang_dict['lecturer_answer_column_header']
+        # CHANGED: Use a table for AI embedding
+        table_ai_role = document.add_table(rows=1, cols=3)
+        table_ai_role.style = 'Table Grid'
+        hdr_cells_ai_role = table_ai_role.rows[0].cells
+        hdr_cells_ai_role[0].text = ""
+        hdr_cells_ai_role[1].text = lang_dict['user_answer_column_header']
+        hdr_cells_ai_role[2].text = lang_dict['lecturer_answer_column_header']
 
-        for lang_key, top_level_key, sub_key in comparison_fields:
-            # Extract just the main label part, removing descriptions in parentheses
-            question_text = lang_dict.get(lang_key, lang_key.replace('_label', '').replace('_', ' ').capitalize()).split('(')[0].strip()
-            
-            # Get student's answer
-            student_ans = student_data.get(top_level_key)
-            if sub_key:
-                student_ans = student_ans.get(sub_key, "N/A") if isinstance(student_ans, dict) else "N/A"
-            else:
-                student_ans = student_ans if student_ans is not None else "N/A"
+        row_cells = table_ai_role.add_row().cells
+        # Determine "Feature" or "Product" based on ai_role value
+        if user_ai_role:
+            user_display_role = lang_dict['ai_role_feature'] if "feature" in user_ai_role.lower() else lang_dict['ai_role_product']
+        else:
+            user_display_role = "N/A"
+        lecturer_display_role = lang_dict['ai_role_feature'] if "feature" in lecturer_ai_role.lower() else lang_dict['ai_role_product']
 
-            # Get lecturer's answer
-            lecturer_ans = lecturer_data.get(top_level_key) if lecturer_data else None
-            if sub_key:
-                lecturer_ans = lecturer_ans.get(sub_key, "N/A") if isinstance(lecturer_ans, dict) else "N/A"
-            else:
-                lecturer_ans = lecturer_ans if lecturer_ans is not None else "N/A"
+        row_cells[0].text = lang_dict['ai_role_label'].split('(')[0].strip()
+        row_cells[1].text = user_display_role
+        row_cells[2].text = lecturer_display_role
+        document.add_paragraph() # Spacer
 
-            row_cells = table.add_row().cells
-            row_cells[0].text = str(question_text)
-            row_cells[1].text = str(student_ans)
-            row_cells[2].text = str(lecturer_ans)
-
-        document.add_paragraph() # Add a blank line after the table
-
-        # Generate and embed spider diagram
+        # --- UX4AI Spider Diagram ---
+        document.add_heading(lang_dict['spider_diagram_label'], level=2)
         user_scores_for_plot = student_data.get('scores', {})
-        solution_scores_for_plot = lecturer_data.get('scores', {}) if lecturer_data else {}
+        solution_scores_for_plot = lecturer_data.get('scores', {})
+        fig_spider = create_report_spider_diagram(user_scores_for_plot, solution_scores_for_plot, lang_dict, product_name)
+        temp_spider_image_path = f"temp_spider_diagram_{username_full.replace(' ', '_')}_{product_name.replace(' ', '_')}.png"
+        fig_spider.write_image(temp_spider_image_path)
+        document.add_picture(temp_spider_image_path, width=Inches(6.5))
+        os.remove(temp_spider_image_path)
+        
+        # --- Legend for Spider Diagram ---
+        document.add_heading(lang_dict['legend_label'], level=3)
+        legend_labels = [
+            'conversational', 'specialization', 'autonomy', 'accessibility', 'explainability'
+        ]
+        for label_key in legend_labels:
+            p = document.add_paragraph()
+            p.add_run(lang_dict[label_key + "_label"])
+        document.add_paragraph() # Spacer
 
-        fig = create_report_spider_diagram(user_scores_for_plot, solution_scores_for_plot, lang_dict, product_name)
+        # --- Risk of Adversarial Attacks Section ---
+        document.add_heading(lang_dict['risk_section_title_from_user'], level=2)
+        document.add_paragraph(lang_dict['risk_level_info'])
         
-        # Save plot to a temporary file and embed
-        temp_image_path = f"temp_spider_diagram_{username_full.replace(' ', '_')}_{product_name.replace(' ', '_')}.png"
-        fig.write_image(temp_image_path)
+        user_risk_level = student_data.get('risk_of_adversarial_attacks', {}).get('level')
+        lecturer_risk_level = lecturer_data.get('risk_of_adversarial_attacks', {}).get('level')
+
+        fig_risk = create_single_value_comparison_plot(
+            user_risk_level, lecturer_risk_level,
+            lang_dict['risk_level_label'].split('(')[0].strip(), # Title from label
+            lang_dict['risk_level_label'].split('(')[1].split(',')[0].strip().replace(')', ''), # Min label
+            lang_dict['risk_level_label'].split('(')[1].split(',')[1].strip().replace(')', ''), # Max label
+            lang_dict
+        )
+        temp_risk_image_path = f"temp_risk_plot_{username_full.replace(' ', '_')}_{product_name.replace(' ', '_')}.png"
+        fig_risk.write_image(temp_risk_image_path)
+        document.add_picture(temp_risk_image_path, width=Inches(6.5))
+        os.remove(temp_risk_image_path)
+        document.add_paragraph() # Spacer
+
+        # CHANGED: Table for only Risk Description
+        table_risk_desc = document.add_table(rows=1, cols=3)
+        table_risk_desc.style = 'Table Grid'
+        hdr_cells_risk_desc = table_risk_desc.rows[0].cells
+        hdr_cells_risk_desc[0].text = lang_dict['question_column_header']
+        hdr_cells_risk_desc[1].text = lang_dict['user_answer_column_header']
+        hdr_cells_risk_desc[2].text = lang_dict['lecturer_answer_column_header']
+
+        user_risk_desc = student_data.get('risk_of_adversarial_attacks', {}).get('description', "N/A")
+        lecturer_risk_desc = lecturer_data.get('risk_of_adversarial_attacks', {}).get('description', "N/A")
         
-        document.add_picture(temp_image_path, width=Inches(6.5))
-        os.remove(temp_image_path) # Clean up temporary file
+        row_cells = table_risk_desc.add_row().cells
+        row_cells[0].text = lang_dict['risk_description_label'].split('(')[0].strip()
+        row_cells[1].text = str(user_risk_desc)
+        row_cells[2].text = str(lecturer_risk_desc)
+        document.add_paragraph() # Spacer
+
+
+        # --- Continuous Learning & Feedback Loops Section ---
+        document.add_heading(lang_dict['continuous_learning_section_title_from_user'], level=2)
+        document.add_paragraph(lang_dict['continuous_learning_aspects_info'])
+
+        # CHANGED: Table for only Continuous Learning Aspects
+        table_cl_aspects = document.add_table(rows=1, cols=3)
+        table_cl_aspects.style = 'Table Grid'
+        hdr_cells_cl_aspects = table_cl_aspects.rows[0].cells
+        hdr_cells_cl_aspects[0].text = lang_dict['question_column_header']
+        hdr_cells_cl_aspects[1].text = lang_dict['user_answer_column_header']
+        hdr_cells_cl_aspects[2].text = lang_dict['lecturer_answer_column_header']
+
+        cl_aspects_user = student_data.get('continuous_learning_feedback_loops', {}).get('aspects', "N/A")
+        cl_aspects_lecturer = lecturer_data.get('continuous_learning_feedback_loops', {}).get('aspects', "N/A")
         
+        row_cells = table_cl_aspects.add_row().cells
+        row_cells[0].text = lang_dict['continuous_learning_aspects_label'].split('(')[0].strip()
+        row_cells[1].text = str(cl_aspects_user)
+        row_cells[2].text = str(cl_aspects_lecturer)
+        document.add_paragraph() # Spacer
+
+        # Analytics Type Level Plot
+        document.add_paragraph(lang_dict['analytics_type_intro'])
+
+        user_analytics_level = student_data.get('continuous_learning_feedback_loops', {}).get('analytics_type_level')
+        lecturer_analytics_level = lecturer_data.get('continuous_learning_feedback_loops', {}).get('analytics_type_level')
+
+        fig_analytics = create_single_value_comparison_plot(
+            user_analytics_level, lecturer_analytics_level,
+            lang_dict['analytics_type_label'].split('(')[0].strip(), # Title from label
+            lang_dict['analytics_type_label'].split('(')[1].split(',')[0].strip().replace(')', ''), # Min label
+            lang_dict['analytics_type_label'].split('(')[1].split(',')[1].strip().replace(')', ''), # Max label
+            lang_dict
+        )
+        temp_analytics_image_path = f"temp_analytics_plot_{username_full.replace(' ', '_')}_{product_name.replace(' ', '_')}.png"
+        fig_analytics.write_image(temp_analytics_image_path)
+        document.add_picture(temp_analytics_image_path, width=Inches(6.5))
+        os.remove(temp_analytics_image_path)
+        document.add_paragraph() # Spacer
+
+        # CHANGED: Table for only Analytics Explanation
+        table_analytics_expl = document.add_table(rows=1, cols=3)
+        table_analytics_expl.style = 'Table Grid'
+        hdr_cells_analytics_expl = table_analytics_expl.rows[0].cells
+        hdr_cells_analytics_expl[0].text = lang_dict['question_column_header']
+        hdr_cells_analytics_expl[1].text = lang_dict['user_answer_column_header']
+        hdr_cells_analytics_expl[2].text = lang_dict['lecturer_answer_column_header']
+
+        analytics_explanation_user = student_data.get('continuous_learning_feedback_loops', {}).get('analytics_type_explanation', "N/A")
+        analytics_explanation_lecturer = lecturer_data.get('continuous_learning_feedback_loops', {}).get('analytics_type_explanation', "N/A")
+        
+        row_cells = table_analytics_expl.add_row().cells
+        row_cells[0].text = lang_dict['analytics_explanation_label'].split('(')[0].strip()
+        row_cells[1].text = str(analytics_explanation_user)
+        row_cells[2].text = str(analytics_explanation_lecturer)
+        document.add_paragraph() # Spacer
+
         document.add_page_break()
 
     # Save the document
@@ -187,20 +313,18 @@ def generate_student_report(username_full, student_product_files, lecturer_solut
 # --- Main execution logic ---
 if __name__ == "__main__":
     # You can change 'en' to 'de' or any other language code you have
-    report_language = "en" 
+    report_language = "de" # Changed to 'de' for demonstration with your provided German template
     current_lang_dict = load_lang_file(report_language)
 
     # Load all lecturer solutions once
     lecturer_solutions_by_product = {}
     for filename in os.listdir(SOLUTION_DIR):
         if filename.endswith(".json"):
-            # Attempt to load the solution data and use its internal product_name if available
-            # This handles cases where filename might not perfectly match the product_name in JSON
             temp_product_name = filename.replace(".json", "").replace("_", " ").title()
             solution_data = load_solution_data(temp_product_name)
             if solution_data and solution_data.get("product_name"):
                  lecturer_solutions_by_product[solution_data["product_name"]] = solution_data
-            elif solution_data: # Fallback to filename if product_name isn't in JSON
+            elif solution_data:
                 lecturer_solutions_by_product[temp_product_name] = solution_data
 
     # Group student data by username
@@ -209,34 +333,23 @@ if __name__ == "__main__":
         for user_dir in os.listdir(DATA_DIR):
             user_path = os.path.join(DATA_DIR, user_dir)
             if os.path.isdir(user_path):
-                # We need the *formatted* username (e.g., JSmith) from the JSON for the folder structure
-                # and potentially the *full* username (e.g., John Smith) for the report title.
-                # The `username` key in the JSON is the formatted one from the form.
-                
-                user_formatted_name_from_folder = user_dir # e.g., "PMueller"
-                full_username_for_report = user_dir # Default to folder name, will try to update from data
+                user_formatted_name_from_folder = user_dir
+                full_username_for_report = user_dir
 
                 for filename in os.listdir(user_path):
                     if filename.endswith(".json"):
                         file_path = os.path.join(user_path, filename)
                         student_data_grouped[user_formatted_name_from_folder].append(file_path)
                         
-                        # Try to get the full username from the first file found for this student
-                        # The 'username' key in the JSON is the *formatted* one like "JSmith"
-                        # The user's prompt says "Enter your first and last name (e.g., 'Peter Mueller'). Will be formatted as 'PMueller'."
-                        # So, the `username` field in the JSON is the *formatted* one.
-                        # If you need "Peter Mueller" in the report title, you'd need to store it in the JSON
-                        # or derive it (which is harder). For now, we use the formatted username from the JSON.
-                        if full_username_for_report == user_dir: # Only update if not already set from a previous file
+                        if full_username_for_report == user_dir:
                             try:
                                 with open(file_path, "r", encoding="utf-8") as f:
                                     data = json.load(f)
                                     if data.get("username"): 
                                         full_username_for_report = data["username"] 
                             except:
-                                pass # Ignore errors if file is malformed
+                                pass
 
-                # After processing all files for a user_dir, update the key to use the actual formatted username
                 if student_data_grouped[user_formatted_name_from_folder]:
                     student_data_grouped[full_username_for_report] = student_data_grouped.pop(user_formatted_name_from_folder)
 

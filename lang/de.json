@@ -15,8 +15,8 @@
   "ai_role_product": "KI ist das Produkt",
   "ux4ai_dimensions_title": "UX4AI Dimensionen",
   "conversational_label": "Conversationality (0: Geführt, 5: Frei)",
-  "specialization_label": "Specialization (0: Generell, 5: Spezialisiert)",
-  "autonomy_label": "Autonomy (0: Prozedural, 5: Voll Agentisch)",
+  "specialization_label": "Spezialisierung (0: Generell, 5: Spezialisiert)",
+  "autonomy_label": "Autonomie (0: Prozedural, 5: Voll Agentisch)",
   "accessibility_label": "Zugänglichkeit (0: Nische, 5: Zugriff/Nutzung für jeden)",
   "explainability_label": "Erklärbarkeit (0: Blackbox, 5: Voll Transparenz)",
   "risk_level_label": "Risiko eines “Adversarial Attacks” (0: Kein Risiko, 5: Hohes Risiko)",
@@ -73,8 +73,8 @@
   "showing_user_avg_label": "Benutzerdurchschnitte werden angezeigt",
   "showing_solution_label": "Dozentenlösungen werden angezeigt",
 
-  "user_average_label": "Ihr Durchschnitt",
-  "solution_label": "Dozent",
+  "user_average_label": "Ihre Antwort",
+  "solution_label": "Antwort des Dozenten",
 
   "displaying_avg_scores_for": "Zeige durchschnittliche Bewertungen für **{product}**",
   "aggregated_from": "Aggregiert aus **{count}** Nutzereingabe(n).",
@@ -90,5 +90,24 @@
   "product_label": "Produkt",
   "question_column_header": "Frage",
   "user_answer_column_header": "Ihre Antwort",
-  "lecturer_answer_column_header": "Antwort des Dozenten"
+  "lecturer_answer_column_header": "Antwort des Dozenten",
+  "ai_embedding_label": "Einbettung der KI als:",
+  "legend_label": "Legende:",
+  "analytics_type_intro": "Geben Sie abschliessend an, ob die oben genannten Punkte manuell oder mittels KI-gesteuerter Analysen implementiert werden können, und erläutern Sie Ihre Wahl auf der Skala in wenigen Sätzen.",
+
+  "summary_report_title": "UX4AI Workshop Zusammenfassender Bericht",
+  "overall_product_analysis_label": "Gesamtanalyse pro Produkt",
+  "number_of_submissions_label": "Anzahl der Einreichungen:",
+  "avg_risk_level_label_short": "Durchschn. Risiko",
+  "avg_analytics_level_label_short": "Durchschn. Analytik-Typ",
+  "ai_role_distribution_label": "KI-Rollenverteilung (Studentische Einreichungen):",
+  "ai_role_comparison_label": "KI-Rollenvergleich",
+  "risk_description_summary_label": "Beschreibung des schlimmsten Schadens (Antwort des Dozenten)",
+  "continuous_learning_aspects_summary_label": "Aspekte für Kontinuierliches Lernen (Antwort des Dozenten)",
+  "analytics_explanation_summary_label": "Begründung des Analysetyps (Antwort des Dozenten)",
+  "student_avg_label_plot": "Studentendurchschnitt",
+  "lecturer_ans_label_plot": "Antwort des Dozenten",
+  "no_student_data_for_product": "Keine Studentendaten für dieses Produkt gefunden.",
+  "aggregated_student_responses": "Aggregiert aus studentischen Antworten (Details variieren)"
+
 }

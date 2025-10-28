@@ -90,5 +90,23 @@
   "product_label": "Product",
   "question_column_header": "Question",
   "user_answer_column_header": "Your Answer",
-  "lecturer_answer_column_header": "Lecturer's Answer"
+  "lecturer_answer_column_header": "Lecturer's Answer",
+  "ai_embedding_label": "AI Embedding as:",
+  "legend_label": "Legend:",
+  "analytics_type_intro": "Finally, indicate whether the above points can be implemented manually or using AI-driven analytics, and explain your choice on the scale in a few sentences.",
+
+  "summary_report_title": "UX4AI Workshop Summary Report",
+  "overall_product_analysis_label": "Overall Product Analysis",
+  "number_of_submissions_label": "Number of Submissions:",
+  "avg_risk_level_label_short": "Avg. Risk Level",
+  "avg_analytics_level_label_short": "Avg. Analytics Level",
+  "ai_role_distribution_label": "AI Role Distribution (Student Submissions):",
+  "ai_role_comparison_label": "AI Role Comparison",
+  "risk_description_summary_label": "Risk Description (Lecturer's Answer)",
+  "continuous_learning_aspects_summary_label": "Continuous Learning Aspects (Lecturer's Answer)",
+  "analytics_explanation_summary_label": "Analytics Explanation (Lecturer's Answer)",
+  "student_avg_label_plot": "Student Average",
+  "lecturer_ans_label_plot": "Lecturer's Answer",
+  "no_student_data_for_product": "No student data found for this product.",
+  "aggregated_student_responses": "Aggregated from student responses (details vary)"
 }
