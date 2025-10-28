@@ -12,9 +12,9 @@ pio.kaleido.scope.default_format = "png"
 pio.kaleido.scope.default_width = 700
 pio.kaleido.scope.default_height = 400
 
-# --- Language setup (copied from your existing script) ---
+# --- Language setup ---
 LANG_DIR = "./lang"
-DEFAULT_LANG = "en"
+DEFAULT_LANG = "de" # Default language for reports
 
 def load_lang_file(lang_code):
     file_path = os.path.join(LANG_DIR, f"{lang_code}.json")
@@ -23,13 +23,17 @@ def load_lang_file(lang_code):
             return json.load(f)
     except FileNotFoundError:
         print(f"Warning: Language file not found for '{lang_code}'. Falling back to default.")
+        # Ensure we don't infinitely recurse if default lang file is also missing
+        if lang_code == DEFAULT_LANG:
+            raise FileNotFoundError(f"Default language file '{DEFAULT_LANG}.json' also not found.")
         return load_lang_file(DEFAULT_LANG)
     except json.JSONDecodeError:
         print(f"Error decoding JSON for '{lang_code}', falling back to default.")
+        if lang_code == DEFAULT_LANG:
+            raise json.JSONDecodeError(f"Default language file '{DEFAULT_LANG}.json' is malformed.", doc="", pos=0)
         return load_lang_file(DEFAULT_LANG)
 
-LANG = load_lang_file(DEFAULT_LANG)
-
+# --- Directories ---
 DATA_DIR = "./data"
 SOLUTION_DIR = "./solutions"
 REPORTS_DIR = "./reports" # New directory for generated reports
@@ -37,7 +41,7 @@ REPORTS_DIR = "./reports" # New directory for generated reports
 # Ensure reports directory exists
 os.makedirs(REPORTS_DIR, exist_ok=True)
 
-# --- Helper to load solution data (from your existing script) ---
+# --- Helper to load solution data ---
 def load_solution_data(product_name):
     safe_filename = product_name.lower().replace(" ", "_").replace("/", "_") + ".json"
     solution_path = os.path.join(SOLUTION_DIR, safe_filename)
@@ -52,6 +56,7 @@ def load_solution_data(product_name):
 # --- Function to create spider diagram for the report ---
 def create_report_spider_diagram(user_scores, solution_scores, lang_dict, product_name):
     labels = ['conversational', 'specialization', 'autonomy', 'accessibility', 'explainability']
+    # Extract just the main label part, removing descriptions in parentheses
     theta = [lang_dict[label + "_label"].split('(')[0].strip() for label in labels]
     theta_closed = theta + [theta[0]] # Close the loop
 
@@ -65,7 +70,7 @@ def create_report_spider_diagram(user_scores, solution_scores, lang_dict, produc
             r=user_values,
             theta=theta_closed,
             fill='toself',
-            name=lang_dict["user_answer_label"], # Use a specific label for the report
+            name=lang_dict["user_average_label"], # Use "Class Average" from en.json
             line=dict(color='blue', width=3)
         ))
 
@@ -77,7 +82,7 @@ def create_report_spider_diagram(user_scores, solution_scores, lang_dict, produc
             r=solution_values,
             theta=theta_closed,
             fill='toself',
-            name=lang_dict.get("lecturer_label", "Lecturer's Answer"), # Use lecturer label
+            name=lang_dict["solution_label"], # Use "Lecturer" from en.json
             line=dict(color='green', width=2)
         ))
 
@@ -125,11 +130,6 @@ def generate_student_report(username_full, student_product_files, lecturer_solut
 
         document.add_heading(f"{lang_dict['product_label']}: {product_name}", level=2)
 
-        # Add product description from the original PRODUCTS list if available
-        # (Assuming PRODUCTS is available or can be loaded here)
-        # For simplicity, I'm skipping reloading PRODUCTS here, but you could add it.
-        # document.add_paragraph(f"Description: {PRODUCTS.get(product_name, {}).get('description', 'N/A')}")
-
         # Create a table for side-by-side comparison
         table = document.add_table(rows=1, cols=3)
         table.style = 'Table Grid'
@@ -139,7 +139,8 @@ def generate_student_report(username_full, student_product_files, lecturer_solut
         hdr_cells[2].text = lang_dict['lecturer_answer_column_header']
 
         for lang_key, top_level_key, sub_key in comparison_fields:
-            question_text = lang_dict.get(lang_key, lang_key.replace('_label', '').replace('_', ' ').capitalize())
+            # Extract just the main label part, removing descriptions in parentheses
+            question_text = lang_dict.get(lang_key, lang_key.replace('_label', '').replace('_', ' ').capitalize()).split('(')[0].strip()
             
             # Get student's answer
             student_ans = student_data.get(top_level_key)
@@ -169,7 +170,7 @@ def generate_student_report(username_full, student_product_files, lecturer_solut
         fig = create_report_spider_diagram(user_scores_for_plot, solution_scores_for_plot, lang_dict, product_name)
         
         # Save plot to a temporary file and embed
-        temp_image_path = f"temp_spider_diagram_{username_full}_{product_name.replace(' ', '_')}.png"
+        temp_image_path = f"temp_spider_diagram_{username_full.replace(' ', '_')}_{product_name.replace(' ', '_')}.png"
         fig.write_image(temp_image_path)
         
         document.add_picture(temp_image_path, width=Inches(6.5))
@@ -185,23 +186,22 @@ def generate_student_report(username_full, student_product_files, lecturer_solut
 
 # --- Main execution logic ---
 if __name__ == "__main__":
+    # You can change 'en' to 'de' or any other language code you have
+    report_language = "en" 
+    current_lang_dict = load_lang_file(report_language)
+
     # Load all lecturer solutions once
     lecturer_solutions_by_product = {}
     for filename in os.listdir(SOLUTION_DIR):
         if filename.endswith(".json"):
-            product_name_from_file = filename.replace(".json", "").replace("_", " ").title()
-            # Special handling for "Google Search" if it's "google_search.json"
-            if product_name_from_file == "Google Search":
-                lecturer_solutions_by_product["Google Search"] = load_solution_data("Google Search")
-            else:
-                # Try to map to actual product names if they differ from filename
-                # This assumes product names in your PRODUCTS dict are canonical
-                # For now, just use the title-cased filename part
-                solution_data = load_solution_data(product_name_from_file)
-                if solution_data and solution_data.get("product_name"):
-                     lecturer_solutions_by_product[solution_data["product_name"]] = solution_data
-                elif solution_data:
-                    lecturer_solutions_by_product[product_name_from_file] = solution_data
+            # Attempt to load the solution data and use its internal product_name if available
+            # This handles cases where filename might not perfectly match the product_name in JSON
+            temp_product_name = filename.replace(".json", "").replace("_", " ").title()
+            solution_data = load_solution_data(temp_product_name)
+            if solution_data and solution_data.get("product_name"):
+                 lecturer_solutions_by_product[solution_data["product_name"]] = solution_data
+            elif solution_data: # Fallback to filename if product_name isn't in JSON
+                lecturer_solutions_by_product[temp_product_name] = solution_data
 
     # Group student data by username
     student_data_grouped = defaultdict(list)
@@ -209,36 +209,38 @@ if __name__ == "__main__":
         for user_dir in os.listdir(DATA_DIR):
             user_path = os.path.join(DATA_DIR, user_dir)
             if os.path.isdir(user_path):
-                # The user_dir name is the formatted username (e.g., "JSmith")
-                # We need the full username for the report title, which isn't directly in the folder name.
-                # Assuming the first JSON file in the user's directory will contain the full username,
-                # or we can derive it from the folder name (e.g., JSmith -> J. Smith or John Smith)
-                # For simplicity, let's use the folder name as a unique identifier for now.
-                # If you need full name, you'd need to parse it from one of their product JSONs.
+                # We need the *formatted* username (e.g., JSmith) from the JSON for the folder structure
+                # and potentially the *full* username (e.g., John Smith) for the report title.
+                # The `username` key in the JSON is the formatted one from the form.
                 
-                # Let's try to get the full username from the first file found for a student
-                full_username_for_report = user_dir # Default to folder name
-                
+                user_formatted_name_from_folder = user_dir # e.g., "PMueller"
+                full_username_for_report = user_dir # Default to folder name, will try to update from data
+
                 for filename in os.listdir(user_path):
                     if filename.endswith(".json"):
                         file_path = os.path.join(user_path, filename)
-                        student_data_grouped[user_dir].append(file_path)
-                        # Attempt to get full username from the first file
-                        if not full_username_for_report or full_username_for_report == user_dir:
+                        student_data_grouped[user_formatted_name_from_folder].append(file_path)
+                        
+                        # Try to get the full username from the first file found for this student
+                        # The 'username' key in the JSON is the *formatted* one like "JSmith"
+                        # The user's prompt says "Enter your first and last name (e.g., 'Peter Mueller'). Will be formatted as 'PMueller'."
+                        # So, the `username` field in the JSON is the *formatted* one.
+                        # If you need "Peter Mueller" in the report title, you'd need to store it in the JSON
+                        # or derive it (which is harder). For now, we use the formatted username from the JSON.
+                        if full_username_for_report == user_dir: # Only update if not already set from a previous file
                             try:
                                 with open(file_path, "r", encoding="utf-8") as f:
                                     data = json.load(f)
-                                    if data.get("username"): # This is the formatted username like JSmith
-                                        # You might need a more robust way to get "John Smith" from "JSmith"
-                                        # For now, we'll use the formatted one.
-                                        full_username_for_report = data["username"]
+                                    if data.get("username"): 
+                                        full_username_for_report = data["username"] 
                             except:
                                 pass # Ignore errors if file is malformed
 
-                # Store the full username with the list of files
-                if student_data_grouped[user_dir]:
-                    student_data_grouped[full_username_for_report] = student_data_grouped.pop(user_dir)
+                # After processing all files for a user_dir, update the key to use the actual formatted username
+                if student_data_grouped[user_formatted_name_from_folder]:
+                    student_data_grouped[full_username_for_report] = student_data_grouped.pop(user_formatted_name_from_folder)
+
 
     for username, product_files in student_data_grouped.items():
         if product_files:
-            generate_student_report(username, product_files, lecturer_solutions_by_product, LANG)
+            generate_student_report(username, product_files, lecturer_solutions_by_product, current_lang_dict)

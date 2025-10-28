@@ -42,7 +42,7 @@
   "product_description_prefix": "<p style=\"margin: 0 0 5px 0;\">",
   "product_description_suffix": "</p><a href=\"{url}\" target=\"_blank\" style=\"color: #1E88E5; text-decoration: none;\">{url}</a>",
   "risk_section_title_from_user": "Risiko eines “Adversarial Attacks”",
-  "continuous_learning_section_title_from_user": "Continuous Learning & Feedback Loops",
+  "continuous_learning_section_title_from_user": "Kontinuierliches Lernen & Feedback-Schleifen",
 
   "dashboard_title": "UX4AI-Dashboard",
   "dashboard_header": "UX4AI-Produktanalyse - Dashboard",
@@ -71,10 +71,10 @@
 
   "product_comparison_label": "Produktvergleich",
   "showing_user_avg_label": "Benutzerdurchschnitte werden angezeigt",
-  "showing_solution_label": "Lösungen werden angezeigt",
+  "showing_solution_label": "Dozentenlösungen werden angezeigt",
 
-  "user_average_label": "Benutzerdurchschnitt",
-  "solution_label": "Lösung",
+  "user_average_label": "Ihr Durchschnitt",
+  "solution_label": "Dozent",
 
   "displaying_avg_scores_for": "Zeige durchschnittliche Bewertungen für **{product}**",
   "aggregated_from": "Aggregiert aus **{count}** Nutzereingabe(n).",
@@ -82,7 +82,13 @@
   "ai_is_product_label": "KI ist das Produkt",
   "risk_label": "Risiko",
   "analytics_label": "Analytik",
-  "solution_details_label": "Lösungsdetails",
+  "solution_details_label": "Dozentenlösung Details",
   "no_solution_file_found": "Keine Lösungsdatei gefunden.",
-  "no_data_found_for": "Keine Daten gefunden für {product}"
+  "no_data_found_for": "Keine Daten gefunden für {product}",
+
+  "report_title": "UX4AI Workshop Bericht",
+  "product_label": "Produkt",
+  "question_column_header": "Frage",
+  "user_answer_column_header": "Ihre Antwort",
+  "lecturer_answer_column_header": "Antwort des Dozenten"
 }
