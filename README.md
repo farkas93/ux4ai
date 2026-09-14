@@ -14,4 +14,10 @@ uv run python -m aipm_toolkit.app
 
 Set `AIPM_DATABASE_URL` for PostgreSQL. The default SQLite URL is intended only for a quick local smoke test; integration and production use PostgreSQL.
 
-Phase 3 adds the Dimension Explorer with versioned definitions for the five required dimensions, explicit `Unassessed`/`Estimated`/`Unknown` states, 0.1-step scores, rationales, evidence, uncertainty, and revision protection. Historical comparators and radar/table comparison are intentionally next; no baseline values are invented in this phase.
+The current implementation includes the Dimension Explorer and a historical baseline catalog. Import the legacy instructor references with:
+
+```bash
+uv run python -m aipm_toolkit.import_baselines solutions --publish
+```
+
+The importer preserves source records for instructor-only access, keeps valid zero scores, reports invalid values, and publishes only aggregate-ready reference data to teams. Teams can select one published comparator and save a purpose/scope snapshot from the Project Brief workspace. Historical comparators are classroom assessments, not rankings or current product ratings.

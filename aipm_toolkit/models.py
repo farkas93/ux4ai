@@ -128,6 +128,66 @@ class DimensionEstimate(Base):
     __table_args__ = (UniqueConstraint("project_id", "dimension_key", name="uq_project_dimension_key"),)
 
 
+class Product(Base):
+    __tablename__ = "products"
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    display_name: Mapped[str] = mapped_column(String(200), nullable=False)
+    description: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    canonical_url: Mapped[str | None] = mapped_column(String(2048))
+    aliases: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    __table_args__ = (UniqueConstraint("display_name", name="uq_product_display_name"),)
+
+
+class BaselineDataset(Base):
+    __tablename__ = "baseline_datasets"
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    product_id: Mapped[UUID] = mapped_column(ForeignKey("products.id"), nullable=False)
+    source_type: Mapped[str] = mapped_column(String(30), nullable=False)
+    cohort_label: Mapped[str] = mapped_column(String(200), nullable=False)
+    scale_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    provenance_notes: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    published: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    __table_args__ = (UniqueConstraint("product_id", "source_type", "cohort_label", name="uq_baseline_dataset_identity"),)
+
+
+class BaselineAssessment(Base):
+    __tablename__ = "baseline_assessments"
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    dataset_id: Mapped[UUID] = mapped_column(ForeignKey("baseline_datasets.id"), nullable=False)
+    source_record_id: Mapped[str] = mapped_column(String(300), nullable=False)
+    dimension_key: Mapped[str] = mapped_column(String(40), nullable=False)
+    score: Mapped[float | None] = mapped_column(nullable=True)
+    original_value: Mapped[str | None] = mapped_column(String(100))
+    raw_record: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    __table_args__ = (UniqueConstraint("dataset_id", "source_record_id", "dimension_key", name="uq_baseline_source_dimension"),)
+
+
+class ComparisonSnapshot(Base):
+    __tablename__ = "comparison_snapshots"
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    project_id: Mapped[UUID] = mapped_column(ForeignKey("projects.id"), nullable=False)
+    product_id: Mapped[UUID] = mapped_column(ForeignKey("products.id"), nullable=False)
+    dataset_id: Mapped[UUID] = mapped_column(ForeignKey("baseline_datasets.id"), nullable=False)
+    purpose: Mapped[str] = mapped_column(String(30), nullable=False)
+    scope_explanation: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+
+
 class Hypothesis(Base):
     __tablename__ = "hypotheses"
 

@@ -10,6 +10,7 @@ from .assessment_services import (
     save_project_estimates,
 )
 from .auth import AuthenticationError, RevisionConflict, authenticate, get_authenticated_user
+from .baseline_services import published_datasets, select_comparator
 from .db import SessionLocal
 from .dimensions import DEFAULT_DIMENSIONS
 from .models import Role
@@ -141,6 +142,23 @@ def save_estimates_from_ui(token: str, project_id: str | None, *values):
     return "Dimension assessments saved."
 
 
+def load_comparator_choices():
+    with SessionLocal() as db:
+        return gr.update(choices=[(name, str(dataset_id)) for name, dataset_id in published_datasets(db)])
+
+
+def save_comparator_from_ui(token: str, project_id: str | None, dataset_id: str | None, purpose: str, scope: str):
+    if not project_id or not dataset_id:
+        return "Select a project and comparator first."
+    with SessionLocal() as db:
+        try:
+            user = get_authenticated_user(db, token)
+            select_comparator(db, user, UUID(project_id), UUID(dataset_id), purpose, scope)
+        except (AuthenticationError, ValueError) as exc:
+            return str(exc)
+    return "Comparator selection saved as a snapshot. Previous snapshots remain unchanged."
+
+
 def build_app():
     with gr.Blocks(title="AIPM Toolkit") as app:
         token = gr.State(None)
@@ -187,11 +205,18 @@ def build_app():
                         gr.Textbox(label="Uncertainty", lines=2),
                     ])
             save_assessments_button = gr.Button("Save dimension assessments", variant="primary")
+            gr.Markdown("## Comparator")
+            gr.Markdown("Historical profiles are classroom assessments, not current product ratings or rankings.")
+            comparator = gr.Dropdown(label="Historical comparator", choices=[])
+            comparator_purpose = gr.Radio(label="Comparison purpose", choices=[("Task comparator", "task_comparator"), ("Design contrast", "design_contrast")], value="task_comparator")
+            comparator_scope = gr.Textbox(label="Comparison scope or explanation", lines=2)
+            save_comparator_button = gr.Button("Save comparator selection")
         submit.click(login, [username, password], [status, token, login_panel, workspace_panel]).then(workspace, token, [workspace_text, login_panel, instructor_panel, team_panel, project_dropdown])
         create_button.click(create_project_from_ui, [token, new_project_name], [status, project_dropdown, product_name, project_revision])
-        project_dropdown.change(load_project_from_ui, [token, project_dropdown], [project_title, product_name, description, target_user, job, problem, hypothesis, product_type, figma_url, project_id, project_revision]).then(load_estimates_from_ui, [token, project_id], assessment_components)
+        project_dropdown.change(load_project_from_ui, [token, project_dropdown], [project_title, product_name, description, target_user, job, problem, hypothesis, product_type, figma_url, project_id, project_revision]).then(load_estimates_from_ui, [token, project_id], assessment_components).then(load_comparator_choices, outputs=comparator)
         save_button.click(save_project_from_ui, [token, project_id, project_revision, product_name, product_type, description, target_user, job, problem, hypothesis, figma_url], [status, project_revision])
         save_assessments_button.click(save_estimates_from_ui, [token, project_id, *assessment_components], status)
+        save_comparator_button.click(save_comparator_from_ui, [token, project_id, comparator, comparator_purpose, comparator_scope], status)
     return app
 
 
