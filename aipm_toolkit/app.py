@@ -4,8 +4,14 @@ from uuid import UUID
 
 import gradio as gr
 
+from .assessment_services import (
+    ensure_scale_definitions,
+    get_project_estimates,
+    save_project_estimates,
+)
 from .auth import AuthenticationError, RevisionConflict, authenticate, get_authenticated_user
 from .db import SessionLocal
+from .dimensions import DEFAULT_DIMENSIONS
 from .models import Role
 from .services import (
     create_project,
@@ -94,6 +100,47 @@ def save_project_from_ui(token: str, project_id: str | None, revision: int | Non
     return "Saved.", project.revision
 
 
+def load_estimates_from_ui(token: str, project_id: str | None):
+    blank = []
+    if not project_id:
+        return [value for _ in DEFAULT_DIMENSIONS for value in ("unassessed", None, "", None, "", "")]
+    with SessionLocal() as db:
+        try:
+            user = get_authenticated_user(db, token)
+            ensure_scale_definitions(db)
+            estimates = get_project_estimates(db, user, UUID(project_id))
+        except (AuthenticationError, ValueError):
+            return [value for _ in DEFAULT_DIMENSIONS for value in ("unassessed", None, "", None, "", "")]
+    for estimate in estimates:
+        blank.extend([estimate.status, estimate.score, estimate.rationale, estimate.basis, estimate.evidence, estimate.uncertainty])
+    return blank
+
+
+def save_estimates_from_ui(token: str, project_id: str | None, *values):
+    if not project_id:
+        return "Select a project before saving dimension assessments."
+    records = []
+    for index, definition in enumerate(DEFAULT_DIMENSIONS):
+        offset = index * 6
+        records.append({
+            "dimension_key": definition["key"],
+            "status": values[offset],
+            "score": values[offset + 1],
+            "rationale": values[offset + 2],
+            "basis": values[offset + 3],
+            "evidence": values[offset + 4],
+            "uncertainty": values[offset + 5],
+        })
+    with SessionLocal() as db:
+        try:
+            user = get_authenticated_user(db, token)
+            ensure_scale_definitions(db)
+            save_project_estimates(db, user, UUID(project_id), records)
+        except (AuthenticationError, RevisionConflict, ValueError) as exc:
+            return str(exc)
+    return "Dimension assessments saved."
+
+
 def build_app():
     with gr.Blocks(title="AIPM Toolkit") as app:
         token = gr.State(None)
@@ -125,10 +172,26 @@ def build_app():
             save_button = gr.Button("Save brief", variant="primary")
             project_id = gr.State(None)
             project_revision = gr.State(None)
+            gr.Markdown("## Dimension Explorer")
+            gr.Markdown("Higher scores are not inherently better. Mark a dimension Unknown when the team cannot make a reasoned estimate yet.")
+            assessment_components = []
+            for definition in DEFAULT_DIMENSIONS:
+                with gr.Accordion(definition["title"], open=False):
+                    gr.Markdown(f"**0:** {definition['low_anchor']}  |  **5:** {definition['high_anchor']}\n\n{definition['explanation']}")
+                    assessment_components.extend([
+                        gr.Radio(label="Assessment status", choices=[("Unassessed", "unassessed"), ("Estimated", "estimated"), ("Unknown", "unknown")], value="unassessed"),
+                        gr.Slider(label="Score", minimum=0, maximum=5, step=0.1, value=None),
+                        gr.Textbox(label="Rationale", lines=2),
+                        gr.Radio(label="Basis", choices=[("Intended design", "intended_design"), ("Prototype-observed behavior", "prototype_observed"), ("Mixed", "mixed")]),
+                        gr.Textbox(label="Evidence / observation", lines=2),
+                        gr.Textbox(label="Uncertainty", lines=2),
+                    ])
+            save_assessments_button = gr.Button("Save dimension assessments", variant="primary")
         submit.click(login, [username, password], [status, token, login_panel, workspace_panel]).then(workspace, token, [workspace_text, login_panel, instructor_panel, team_panel, project_dropdown])
         create_button.click(create_project_from_ui, [token, new_project_name], [status, project_dropdown, product_name, project_revision])
-        project_dropdown.change(load_project_from_ui, [token, project_dropdown], [project_title, product_name, description, target_user, job, problem, hypothesis, product_type, figma_url, project_id, project_revision])
+        project_dropdown.change(load_project_from_ui, [token, project_dropdown], [project_title, product_name, description, target_user, job, problem, hypothesis, product_type, figma_url, project_id, project_revision]).then(load_estimates_from_ui, [token, project_id], assessment_components)
         save_button.click(save_project_from_ui, [token, project_id, project_revision, product_name, product_type, description, target_user, job, problem, hypothesis, figma_url], [status, project_revision])
+        save_assessments_button.click(save_estimates_from_ui, [token, project_id, *assessment_components], status)
     return app
 
 

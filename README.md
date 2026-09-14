@@ -14,4 +14,4 @@ uv run python -m aipm_toolkit.app
 
 Set `AIPM_DATABASE_URL` for PostgreSQL. The default SQLite URL is intended only for a quick local smoke test; integration and production use PostgreSQL.
 
-Phase 2 adds a team Project Brief with draft creation, persisted brief fields, Figma URL validation, and one authoritative main value hypothesis. The remaining workshop sections and production cookie-setting FastAPI adapter are added in subsequent phases.
+Phase 3 adds the Dimension Explorer with versioned definitions for the five required dimensions, explicit `Unassessed`/`Estimated`/`Unknown` states, 0.1-step scores, rationales, evidence, uncertainty, and revision protection. Historical comparators and radar/table comparison are intentionally next; no baseline values are invented in this phase.

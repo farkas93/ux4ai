@@ -18,6 +18,18 @@ class HypothesisKind(StrEnum):
     SUPPORTING = "supporting"
 
 
+class AssessmentStatus(StrEnum):
+    UNASSESSED = "unassessed"
+    ESTIMATED = "estimated"
+    UNKNOWN = "unknown"
+
+
+class AssessmentBasis(StrEnum):
+    INTENDED_DESIGN = "intended_design"
+    PROTOTYPE_OBSERVED = "prototype_observed"
+    MIXED = "mixed"
+
+
 class Course(Base):
     __tablename__ = "courses"
 
@@ -76,6 +88,44 @@ class Project(Base):
     revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     team: Mapped[Team] = relationship(back_populates="projects")
     hypotheses: Mapped[list["Hypothesis"]] = relationship(back_populates="project")
+    dimension_estimates: Mapped[list["DimensionEstimate"]] = relationship(back_populates="project")
+
+
+class ScaleDefinition(Base):
+    __tablename__ = "scale_definitions"
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    key: Mapped[str] = mapped_column(String(40), nullable=False)
+    version: Mapped[int] = mapped_column(Integer, nullable=False)
+    title: Mapped[str] = mapped_column(String(200), nullable=False)
+    explanation: Mapped[str] = mapped_column(Text, nullable=False)
+    low_anchor: Mapped[str] = mapped_column(String(200), nullable=False)
+    high_anchor: Mapped[str] = mapped_column(String(200), nullable=False)
+    midpoint: Mapped[str | None] = mapped_column(String(300))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    __table_args__ = (UniqueConstraint("key", "version", name="uq_scale_definition_key_version"),)
+
+
+class DimensionEstimate(Base):
+    __tablename__ = "dimension_estimates"
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    project_id: Mapped[UUID] = mapped_column(ForeignKey("projects.id"), nullable=False)
+    dimension_key: Mapped[str] = mapped_column(String(40), nullable=False)
+    scale_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default=AssessmentStatus.UNASSESSED.value)
+    score: Mapped[float | None] = mapped_column(nullable=True)
+    rationale: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    basis: Mapped[str | None] = mapped_column(String(30))
+    evidence: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    uncertainty: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    project: Mapped[Project] = relationship(back_populates="dimension_estimates")
+    __table_args__ = (UniqueConstraint("project_id", "dimension_key", name="uq_project_dimension_key"),)
 
 
 class Hypothesis(Base):
