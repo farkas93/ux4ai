@@ -1,3 +1,4 @@
+from urllib.parse import urlparse
 from uuid import UUID
 
 from sqlalchemy import select, update
@@ -36,6 +37,38 @@ def create_project(db: Session, actor: User, product_name: str) -> Project:
     db.add(Hypothesis(project_id=project.id, kind=HypothesisKind.MAIN.value))
     db.commit()
     return project
+
+
+def list_projects(db: Session, actor: User) -> list[Project]:
+    if actor.role == Role.INSTRUCTOR.value:
+        return list(db.scalars(select(Project).order_by(Project.updated_at.desc())))
+    if actor.team_id is None:
+        return []
+    return list(db.scalars(select(Project).where(Project.team_id == actor.team_id).order_by(Project.updated_at.desc())))
+
+
+def validate_figma_url(value: str | None) -> str | None:
+    if not value:
+        return None
+    parsed = urlparse(value.strip())
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+        raise ValueError("Figma URL must use HTTP or HTTPS")
+    return value.strip()
+
+
+def update_main_hypothesis(db: Session, actor: User, project_id: UUID, revision: int, statement: str) -> Hypothesis:
+    hypothesis = get_main_hypothesis(db, actor, project_id)
+    result = db.execute(
+        update(Hypothesis)
+        .where(Hypothesis.id == hypothesis.id, Hypothesis.revision == revision)
+        .values(statement=statement.strip(), revision=revision + 1)
+    )
+    if result.rowcount != 1:
+        db.rollback()
+        raise RevisionConflict("The hypothesis changed since it was loaded")
+    db.commit()
+    db.expire(hypothesis)
+    return db.get(Hypothesis, hypothesis.id)
 
 
 def get_main_hypothesis(db: Session, actor: User, project_id: UUID) -> Hypothesis:
