@@ -1,0 +1,36 @@
+[project]
+name = "aipm-toolkit"
+version = "0.1.0"
+description = "AIPM Toolkit workshop workspace"
+requires-python = ">=3.11,<3.14"
+dependencies = [
+  "argon2-cffi==25.1.0",
+  "alembic==1.16.5",
+  "gradio==5.44.1",
+  "pydantic-settings==2.10.1",
+  "psycopg[binary]==3.2.10",
+  "sqlalchemy==2.0.43",
+]
+
+[build-system]
+requires = ["setuptools==80.9.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["aipm_toolkit*"]
+
+[project.optional-dependencies]
+test = [
+  "pytest==8.4.2",
+  "pytest-cov==7.0.0",
+  "sqlite-utils==3.38",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--strict-markers"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+exclude = ["user_server.py", "dashboard_server.py", "generate_summary_report.py", "per_student_report.py", "convert_reports_to_pdf.py"]
