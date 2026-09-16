@@ -13,7 +13,12 @@ from .auth import AuthenticationError, RevisionConflict, authenticate, get_authe
 from .baseline_services import published_datasets, select_comparator
 from .db import SessionLocal
 from .dimensions import DEFAULT_DIMENSIONS
-from .experiment_services import completion_checklist, create_experiment, update_experiment
+from .experiment_services import (
+    completion_checklist,
+    create_experiment,
+    save_reflection,
+    update_experiment,
+)
 from .export_services import write_export_files
 from .hypothesis_services import add_relation, create_hypothesis, create_note, list_notes
 from .instructor_services import course_overview, import_baselines_as_instructor
@@ -282,6 +287,30 @@ def export_project_from_ui(token: str, project_id: str | None):
     return "Exports generated.", json_path, markdown_path
 
 
+def save_risk_reflection_from_ui(token: str, project_id: str | None, score, entry: str, behavior: str, affected: str, consequence: str, safeguard: str, uncertainty: str):
+    if not project_id:
+        return "Select a project first."
+    with SessionLocal() as db:
+        try:
+            user = get_authenticated_user(db, token)
+            save_reflection(db, user, UUID(project_id), "adversarial_risk", uncertainty, subjective_score=score, attack_entry_point=entry, unwanted_behavior=behavior, affected_data_action=affected, consequence=consequence, proposed_safeguard=safeguard)
+        except (AuthenticationError, ValueError) as exc:
+            return str(exc)
+    return "Adversarial-risk reflection saved. The score is a subjective discussion input, not a calibrated security assessment."
+
+
+def save_feedback_reflection_from_ui(token: str, project_id: str | None, signal: str, meaning: str, change: str, human: str, evaluation: str):
+    if not project_id:
+        return "Select a project first."
+    with SessionLocal() as db:
+        try:
+            user = get_authenticated_user(db, token)
+            save_reflection(db, user, UUID(project_id), "feedback_loop", "", signal_to_collect=signal, signal_meaning=meaning, possible_product_change=change, human_interpretation_needed=human, evaluation_after_change=evaluation)
+        except (AuthenticationError, ValueError) as exc:
+            return str(exc)
+    return "Feedback-loop reflection saved."
+
+
 def instructor_overview_from_ui(token: str):
     with SessionLocal() as db:
         try:
@@ -414,6 +443,23 @@ def build_app():
             export_button = gr.Button("Generate JSON and Markdown exports")
             json_download = gr.File(label="JSON export")
             markdown_download = gr.File(label="Markdown export")
+            gr.Markdown("## Adversarial-Risk Reflection")
+            gr.Markdown("Distinguish malicious manipulation from ordinary incorrect outputs. Any score here is a discussion input, not a calibrated security assessment.")
+            risk_score = gr.Slider(label="Optional subjective risk estimate", minimum=0, maximum=5, step=0.1, value=None)
+            risk_entry = gr.Textbox(label="Plausible attack entry point", lines=2)
+            risk_behavior = gr.Textbox(label="Unwanted behavior", lines=2)
+            risk_affected = gr.Textbox(label="Affected data or action", lines=2)
+            risk_consequence = gr.Textbox(label="Consequence", lines=2)
+            risk_safeguard = gr.Textbox(label="Proposed safeguard", lines=2)
+            risk_uncertainty = gr.Textbox(label="Remaining uncertainty", lines=2)
+            save_risk_button = gr.Button("Save risk reflection")
+            gr.Markdown("## Feedback-Loop Reflection")
+            feedback_signal = gr.Textbox(label="Signal to collect", lines=2)
+            feedback_meaning = gr.Textbox(label="What the signal might reveal", lines=2)
+            feedback_change = gr.Textbox(label="Possible product change", lines=2)
+            feedback_human = gr.Textbox(label="Human interpretation or approval needed", lines=2)
+            feedback_evaluation = gr.Textbox(label="Evaluation after the change", lines=2)
+            save_feedback_button = gr.Button("Save feedback-loop reflection")
         submit.click(login, [username, password], [status, token, login_panel, workspace_panel]).then(workspace, token, [workspace_text, login_panel, instructor_panel, team_panel, project_dropdown])
         create_button.click(create_project_from_ui, [token, new_project_name], [status, project_dropdown, product_name, project_revision])
         project_dropdown.change(load_project_from_ui, [token, project_dropdown], [project_title, product_name, description, target_user, job, problem, hypothesis, product_type, figma_url, project_id, project_revision]).then(load_estimates_from_ui, [token, project_id], assessment_components).then(load_comparator_choices, outputs=comparator).then(load_backlog_from_ui, [token, project_id], [notes_display, hypotheses_display, hypothesis_note, relation_source, relation_target]).then(lambda choices: choices, relation_source, experiment_primary).then(checklist_text, [token, project_id], checklist_display)
@@ -426,6 +472,8 @@ def build_app():
         create_experiment_button.click(save_experiment_plan, [token, project_id, experiment_primary, experiment_title, experiment_method], [status, experiment_id, experiment_revision]).then(checklist_text, [token, project_id], checklist_display)
         save_experiment_button.click(save_experiment_details, [token, project_id, experiment_id, experiment_revision, experiment_procedure, experiment_participants, experiment_baseline, experiment_metric, experiment_success, experiment_guardrail, experiment_resources, experiment_owner, experiment_date, experiment_status, experiment_results, experiment_links, experiment_limitations, experiment_conclusion, experiment_decision], [status, experiment_revision]).then(checklist_text, [token, project_id], checklist_display)
         export_button.click(export_project_from_ui, [token, project_id], [status, json_download, markdown_download])
+        save_risk_button.click(save_risk_reflection_from_ui, [token, project_id, risk_score, risk_entry, risk_behavior, risk_affected, risk_consequence, risk_safeguard, risk_uncertainty], status)
+        save_feedback_button.click(save_feedback_reflection_from_ui, [token, project_id, feedback_signal, feedback_meaning, feedback_change, feedback_human, feedback_evaluation], status)
     return app
 
 

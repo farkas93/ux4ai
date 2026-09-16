@@ -29,3 +29,5 @@ Experiments can be planned against one primary hypothesis, updated with procedur
 Summary & Export provides authorized, versioned JSON and Markdown downloads. Exports include comparator provenance, notes, hypotheses, relationships, experiments, reflections, and the required prototype-profile warning; credentials, passwords, and historical identities are excluded.
 
 Instructor accounts now have a course overview with per-project checklist progress and an instructor-only baseline import/publish panel. Team accounts cannot access either operation.
+
+The workspace also includes separate adversarial-risk and feedback-loop reflections. Risk scores are optional subjective discussion inputs; they are not mixed into the five dimension profile or presented as calibrated security assessments.

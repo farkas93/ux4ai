@@ -48,7 +48,7 @@ def update_experiment(db: Session, actor: User, experiment_id: UUID, revision: i
     return experiment
 
 
-def save_reflection(db: Session, actor: User, project_id: UUID, reflection_type: str, content: str) -> ProjectReflection:
+def save_reflection(db: Session, actor: User, project_id: UUID, reflection_type: str, content: str, **fields) -> ProjectReflection:
     get_project(db, actor, project_id)
     if reflection_type not in {"adversarial_risk", "feedback_loop"}:
         raise ValueError("Invalid reflection type")
@@ -57,6 +57,15 @@ def save_reflection(db: Session, actor: User, project_id: UUID, reflection_type:
         reflection = ProjectReflection(project_id=project_id, reflection_type=reflection_type, revision=1)
         db.add(reflection)
     reflection.content = content
+    if reflection_type == "adversarial_risk" and fields.get("subjective_score") is not None:
+        score = fields["subjective_score"]
+        if not 0 <= score <= 5:
+            raise ValueError("Risk discussion score must be between 0 and 5")
+        reflection.subjective_score = score
+    allowed = {"attack_entry_point", "unwanted_behavior", "affected_data_action", "consequence", "proposed_safeguard", "signal_to_collect", "signal_meaning", "possible_product_change", "human_interpretation_needed", "evaluation_after_change"}
+    for key, value in fields.items():
+        if key in allowed:
+            setattr(reflection, key, value or "")
     reflection.revision += 1
     db.commit()
     return reflection
