@@ -21,3 +21,5 @@ uv run python -m aipm_toolkit.import_baselines solutions --publish
 ```
 
 The importer preserves source records for instructor-only access, keeps valid zero scores, reports invalid values, and publishes only aggregate-ready reference data to teams. Teams can select one published comparator and save a purpose/scope snapshot from the Project Brief workspace. Historical comparators are classroom assessments, not rankings or current product ratings.
+
+The workspace also includes structured Notes and a Hypothesis Backlog. Notes can be linked to dimensions and used as provenance when creating supporting hypotheses. Hypothesis relationships are project-scoped; self-links and dependency cycles are rejected.

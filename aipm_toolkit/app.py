@@ -13,7 +13,8 @@ from .auth import AuthenticationError, RevisionConflict, authenticate, get_authe
 from .baseline_services import published_datasets, select_comparator
 from .db import SessionLocal
 from .dimensions import DEFAULT_DIMENSIONS
-from .models import Role
+from .hypothesis_services import add_relation, create_hypothesis, create_note, list_notes
+from .models import Hypothesis, Role
 from .services import (
     create_project,
     get_project,
@@ -159,6 +160,77 @@ def save_comparator_from_ui(token: str, project_id: str | None, dataset_id: str 
     return "Comparator selection saved as a snapshot. Previous snapshots remain unchanged."
 
 
+def _hypotheses(db, project_id: str) -> list[Hypothesis]:
+    return list(db.query(Hypothesis).filter(Hypothesis.project_id == UUID(project_id)).order_by(Hypothesis.kind, Hypothesis.created_at))
+
+
+def _hypothesis_text(items: list[Hypothesis]) -> str:
+    return "\n".join(f"[{item.kind}] {item.statement} | impact: {item.impact_if_wrong} | evidence: {item.evidence_strength} | status: {item.workflow_status}" for item in items) or "No hypotheses yet."
+
+
+def _notes_text(items) -> str:
+    return "\n".join(f"[{item.note_type}] {item.text}" for item in items) or "No notes yet."
+
+
+def load_backlog_from_ui(token: str, project_id: str | None):
+    if not project_id:
+        return "No notes yet.", "No hypotheses yet.", gr.update(choices=[]), gr.update(choices=[]), gr.update(choices=[])
+    with SessionLocal() as db:
+        try:
+            user = get_authenticated_user(db, token)
+            notes = list_notes(db, user, UUID(project_id))
+            hypotheses = _hypotheses(db, project_id)
+        except AuthenticationError:
+            return "Session expired.", "Session expired.", gr.update(choices=[]), gr.update(choices=[]), gr.update(choices=[])
+    choices = [(item.statement[:80], str(item.id)) for item in hypotheses]
+    note_choices = [(item.text[:80], str(item.id)) for item in notes]
+    return _notes_text(notes), _hypothesis_text(hypotheses), gr.update(choices=note_choices), gr.update(choices=choices), gr.update(choices=choices)
+
+
+def save_note_from_ui(token: str, project_id: str | None, note_type: str, text: str, dimensions: list[str]):
+    if not project_id:
+        return "Select a project first.", "No notes yet."
+    dimension_keys = [definition["key"] for definition in DEFAULT_DIMENSIONS if definition["title"] in (dimensions or [])]
+    with SessionLocal() as db:
+        try:
+            user = get_authenticated_user(db, token)
+            create_note(db, user, UUID(project_id), note_type, text, dimension_keys)
+            notes = list_notes(db, user, UUID(project_id))
+        except (AuthenticationError, ValueError) as exc:
+            return str(exc), ""
+    return "Note saved.", _notes_text(notes)
+
+
+def save_hypothesis_from_ui(token: str, project_id: str | None, statement: str, value_link: str, impact: str, evidence: str, evidence_rationale: str, note_id: str | None):
+    if not project_id:
+        return "Select a project first.", "", gr.update(choices=[])
+    with SessionLocal() as db:
+        try:
+            user = get_authenticated_user(db, token)
+            hypothesis = create_hypothesis(db, user, UUID(project_id), statement, value_link=value_link, note_id=UUID(note_id) if note_id else None)
+            hypothesis.impact_if_wrong = impact
+            hypothesis.evidence_strength = evidence
+            hypothesis.evidence_rationale = evidence_rationale
+            db.commit()
+            hypotheses = _hypotheses(db, project_id)
+        except (AuthenticationError, ValueError) as exc:
+            return str(exc), "", gr.update(choices=[])
+    choices = [(item.statement[:80], str(item.id)) for item in hypotheses]
+    return "Supporting hypothesis saved.", _hypothesis_text(hypotheses), gr.update(choices=choices)
+
+
+def save_relation_from_ui(token: str, project_id: str | None, relation_type: str, source_id: str | None, target_id: str | None):
+    if not project_id or not source_id or not target_id:
+        return "Select a project and two hypotheses."
+    with SessionLocal() as db:
+        try:
+            user = get_authenticated_user(db, token)
+            add_relation(db, user, UUID(project_id), relation_type, UUID(source_id), UUID(target_id))
+        except (AuthenticationError, ValueError) as exc:
+            return str(exc)
+    return "Hypothesis relationship saved."
+
+
 def build_app():
     with gr.Blocks(title="AIPM Toolkit") as app:
         token = gr.State(None)
@@ -211,12 +283,35 @@ def build_app():
             comparator_purpose = gr.Radio(label="Comparison purpose", choices=[("Task comparator", "task_comparator"), ("Design contrast", "design_contrast")], value="task_comparator")
             comparator_scope = gr.Textbox(label="Comparison scope or explanation", lines=2)
             save_comparator_button = gr.Button("Save comparator selection")
+            gr.Markdown("## Notes")
+            note_type = gr.Dropdown(label="Note type", choices=[("Observation", "observation"), ("Assumption", "assumption"), ("Question", "question"), ("Design decision", "design_decision")], value="observation")
+            note_text = gr.Textbox(label="Note", lines=3)
+            note_dimensions = gr.CheckboxGroup(label="Linked dimensions", choices=[definition["title"] for definition in DEFAULT_DIMENSIONS])
+            save_note_button = gr.Button("Save note")
+            notes_display = gr.Textbox(label="Saved notes", interactive=False, lines=5)
+            gr.Markdown("## Hypothesis Backlog")
+            hypothesis_statement = gr.Textbox(label="Supporting hypothesis statement", lines=3)
+            hypothesis_value_link = gr.Textbox(label="Why it matters / value link", lines=2)
+            hypothesis_impact = gr.Dropdown(label="Impact if wrong", choices=["unknown", "low", "medium", "high"], value="unknown")
+            hypothesis_evidence = gr.Dropdown(label="Evidence strength", choices=["unknown", "none", "limited", "moderate", "strong"], value="unknown")
+            hypothesis_evidence_rationale = gr.Textbox(label="Evidence rationale", lines=2)
+            hypothesis_note = gr.Dropdown(label="Originating note (optional)", choices=[])
+            save_hypothesis_button = gr.Button("Create supporting hypothesis")
+            hypotheses_display = gr.Textbox(label="Hypothesis backlog", interactive=False, lines=7)
+            gr.Markdown("### Link hypotheses")
+            relation_type = gr.Dropdown(label="Relationship", choices=[("Contributes to", "contributes_to"), ("Depends on", "depends_on"), ("Alternative to", "alternative_to"), ("In tension with", "in_tension_with")], value="contributes_to")
+            relation_source = gr.Dropdown(label="From hypothesis", choices=[])
+            relation_target = gr.Dropdown(label="To hypothesis", choices=[])
+            save_relation_button = gr.Button("Save relationship")
         submit.click(login, [username, password], [status, token, login_panel, workspace_panel]).then(workspace, token, [workspace_text, login_panel, instructor_panel, team_panel, project_dropdown])
         create_button.click(create_project_from_ui, [token, new_project_name], [status, project_dropdown, product_name, project_revision])
-        project_dropdown.change(load_project_from_ui, [token, project_dropdown], [project_title, product_name, description, target_user, job, problem, hypothesis, product_type, figma_url, project_id, project_revision]).then(load_estimates_from_ui, [token, project_id], assessment_components).then(load_comparator_choices, outputs=comparator)
+        project_dropdown.change(load_project_from_ui, [token, project_dropdown], [project_title, product_name, description, target_user, job, problem, hypothesis, product_type, figma_url, project_id, project_revision]).then(load_estimates_from_ui, [token, project_id], assessment_components).then(load_comparator_choices, outputs=comparator).then(load_backlog_from_ui, [token, project_id], [notes_display, hypotheses_display, hypothesis_note, relation_source, relation_target])
         save_button.click(save_project_from_ui, [token, project_id, project_revision, product_name, product_type, description, target_user, job, problem, hypothesis, figma_url], [status, project_revision])
         save_assessments_button.click(save_estimates_from_ui, [token, project_id, *assessment_components], status)
         save_comparator_button.click(save_comparator_from_ui, [token, project_id, comparator, comparator_purpose, comparator_scope], status)
+        save_note_button.click(save_note_from_ui, [token, project_id, note_type, note_text, note_dimensions], [status, notes_display])
+        save_hypothesis_button.click(save_hypothesis_from_ui, [token, project_id, hypothesis_statement, hypothesis_value_link, hypothesis_impact, hypothesis_evidence, hypothesis_evidence_rationale, hypothesis_note], [status, hypotheses_display, relation_source]).then(load_backlog_from_ui, [token, project_id], [notes_display, hypotheses_display, hypothesis_note, relation_source, relation_target])
+        save_relation_button.click(save_relation_from_ui, [token, project_id, relation_type, relation_source, relation_target], status)
     return app
 
 

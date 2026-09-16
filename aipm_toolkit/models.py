@@ -30,6 +30,20 @@ class AssessmentBasis(StrEnum):
     MIXED = "mixed"
 
 
+class NoteType(StrEnum):
+    OBSERVATION = "observation"
+    ASSUMPTION = "assumption"
+    QUESTION = "question"
+    DESIGN_DECISION = "design_decision"
+
+
+class RelationshipType(StrEnum):
+    CONTRIBUTES_TO = "contributes_to"
+    DEPENDS_ON = "depends_on"
+    ALTERNATIVE_TO = "alternative_to"
+    IN_TENSION_WITH = "in_tension_with"
+
+
 class Course(Base):
     __tablename__ = "courses"
 
@@ -195,11 +209,67 @@ class Hypothesis(Base):
     project_id: Mapped[UUID] = mapped_column(ForeignKey("projects.id"), nullable=False)
     kind: Mapped[str] = mapped_column(String(20), nullable=False)
     statement: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    value_link: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    expected_tradeoff: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    impact_if_wrong: Mapped[str] = mapped_column(String(20), default="unknown", nullable=False)
+    evidence_strength: Mapped[str] = mapped_column(String(20), default="unknown", nullable=False)
+    evidence_rationale: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    workflow_status: Mapped[str] = mapped_column(String(30), default="draft", nullable=False)
+    review_conclusion: Mapped[str] = mapped_column(String(40), default="not_assessed", nullable=False)
+    next_decision: Mapped[str] = mapped_column(String(20), default="undecided", nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     project: Mapped[Project] = relationship(back_populates="hypotheses")
-    __table_args__ = (UniqueConstraint("project_id", "kind", name="uq_project_hypothesis_kind"),)
+
+
+class Note(Base):
+    __tablename__ = "notes"
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    project_id: Mapped[UUID] = mapped_column(ForeignKey("projects.id"), nullable=False)
+    note_type: Mapped[str] = mapped_column(String(30), nullable=False)
+    text: Mapped[str] = mapped_column(Text, nullable=False)
+    comparator_snapshot_id: Mapped[UUID | None] = mapped_column(ForeignKey("comparison_snapshots.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+
+
+class NoteDimension(Base):
+    __tablename__ = "note_dimensions"
+
+    note_id: Mapped[UUID] = mapped_column(ForeignKey("notes.id"), primary_key=True)
+    dimension_key: Mapped[str] = mapped_column(String(40), primary_key=True)
+
+
+class HypothesisDimension(Base):
+    __tablename__ = "hypothesis_dimensions"
+
+    hypothesis_id: Mapped[UUID] = mapped_column(ForeignKey("hypotheses.id"), primary_key=True)
+    dimension_key: Mapped[str] = mapped_column(String(40), primary_key=True)
+
+
+class HypothesisSource(Base):
+    __tablename__ = "hypothesis_sources"
+
+    hypothesis_id: Mapped[UUID] = mapped_column(ForeignKey("hypotheses.id"), primary_key=True)
+    note_id: Mapped[UUID | None] = mapped_column(ForeignKey("notes.id"), primary_key=True, nullable=True)
+    comparison_snapshot_id: Mapped[UUID | None] = mapped_column(ForeignKey("comparison_snapshots.id"), primary_key=True, nullable=True)
+
+
+class HypothesisRelation(Base):
+    __tablename__ = "hypothesis_relations"
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    project_id: Mapped[UUID] = mapped_column(ForeignKey("projects.id"), nullable=False)
+    relation_type: Mapped[str] = mapped_column(String(30), nullable=False)
+    from_hypothesis_id: Mapped[UUID] = mapped_column(ForeignKey("hypotheses.id"), nullable=False)
+    to_hypothesis_id: Mapped[UUID] = mapped_column(ForeignKey("hypotheses.id"), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    __table_args__ = (UniqueConstraint("project_id", "relation_type", "from_hypothesis_id", "to_hypothesis_id", name="uq_hypothesis_relation"),)
 
 
 class SessionRecord(Base):
