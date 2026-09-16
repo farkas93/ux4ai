@@ -272,6 +272,47 @@ class HypothesisRelation(Base):
     __table_args__ = (UniqueConstraint("project_id", "relation_type", "from_hypothesis_id", "to_hypothesis_id", name="uq_hypothesis_relation"),)
 
 
+class Experiment(Base):
+    __tablename__ = "experiments"
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    project_id: Mapped[UUID] = mapped_column(ForeignKey("projects.id"), nullable=False)
+    primary_hypothesis_id: Mapped[UUID] = mapped_column(ForeignKey("hypotheses.id"), nullable=False)
+    title: Mapped[str] = mapped_column(String(200), nullable=False)
+    method: Mapped[str] = mapped_column(String(40), nullable=False)
+    procedure: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    participants: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    comparison_baseline: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    metric: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    success_criterion: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    guardrail: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    resources: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    owner: Mapped[str] = mapped_column(String(200), default="", nullable=False)
+    planned_date: Mapped[str | None] = mapped_column(String(30))
+    status: Mapped[str] = mapped_column(String(30), default="planned", nullable=False)
+    results: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    evidence_links: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    limitations: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    conclusion: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    resulting_decision: Mapped[str] = mapped_column(String(30), default="undecided", nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+
+
+class ProjectReflection(Base):
+    __tablename__ = "project_reflections"
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    project_id: Mapped[UUID] = mapped_column(ForeignKey("projects.id"), nullable=False)
+    reflection_type: Mapped[str] = mapped_column(String(30), nullable=False)
+    content: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    __table_args__ = (UniqueConstraint("project_id", "reflection_type", name="uq_project_reflection_type"),)
+
+
 class SessionRecord(Base):
     __tablename__ = "sessions"
 
