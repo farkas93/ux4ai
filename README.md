@@ -27,3 +27,5 @@ The workspace also includes structured Notes and a Hypothesis Backlog. Notes can
 Experiments can be planned against one primary hypothesis, updated with procedures, metrics, success criteria, guardrails, results, limitations, and decisions. Completing an experiment never automatically marks its hypothesis as supported. The workshop checklist requires a planned next experiment but remains guidance rather than a product-readiness score.
 
 Summary & Export provides authorized, versioned JSON and Markdown downloads. Exports include comparator provenance, notes, hypotheses, relationships, experiments, reflections, and the required prototype-profile warning; credentials, passwords, and historical identities are excluded.
+
+Instructor accounts now have a course overview with per-project checklist progress and an instructor-only baseline import/publish panel. Team accounts cannot access either operation.

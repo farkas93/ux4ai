@@ -16,6 +16,7 @@ from .dimensions import DEFAULT_DIMENSIONS
 from .experiment_services import completion_checklist, create_experiment, update_experiment
 from .export_services import write_export_files
 from .hypothesis_services import add_relation, create_hypothesis, create_note, list_notes
+from .instructor_services import course_overview, import_baselines_as_instructor
 from .models import Hypothesis, Role
 from .services import (
     create_project,
@@ -281,6 +282,28 @@ def export_project_from_ui(token: str, project_id: str | None):
     return "Exports generated.", json_path, markdown_path
 
 
+def instructor_overview_from_ui(token: str):
+    with SessionLocal() as db:
+        try:
+            user = get_authenticated_user(db, token)
+            rows = course_overview(db, user)
+        except (AuthenticationError, ValueError) as exc:
+            return str(exc)
+    if not rows:
+        return "No projects yet."
+    return "\n".join(f"{row['team_alias']} | {row['product_name']} | checklist {row['completed_items']}/{row['total_items']} | id {row['project_id']}" for row in rows)
+
+
+def import_baselines_from_ui(token: str, directory: str, cohort: str, publish: bool):
+    with SessionLocal() as db:
+        try:
+            user = get_authenticated_user(db, token)
+            report = import_baselines_as_instructor(db, user, directory, cohort, publish)
+        except (AuthenticationError, ValueError) as exc:
+            return str(exc), ""
+    return f"Imported {report['records']} records from {report['files']} files.", str(report)
+
+
 def build_app():
     with gr.Blocks(title="AIPM Toolkit") as app:
         token = gr.State(None)
@@ -292,7 +315,17 @@ def build_app():
         with gr.Column(visible=False) as workspace_panel:
             workspace_text = gr.Markdown()
         with gr.Column(visible=False) as instructor_panel:
-            gr.Markdown("## Instructor area\nCourse progress, teams, baseline imports, and catalog administration will appear here.")
+            gr.Markdown("## Instructor area")
+            refresh_overview_button = gr.Button("Refresh course overview")
+            overview_display = gr.Textbox(label="Course progress", interactive=False, lines=8)
+            refresh_overview_button.click(instructor_overview_from_ui, token, overview_display)
+            gr.Markdown("### Baseline import")
+            import_directory = gr.Textbox(label="JSON directory", value="solutions")
+            import_cohort = gr.Textbox(label="Cohort label", value="Legacy instructor reference")
+            publish_import = gr.Checkbox(label="Publish after import", value=False)
+            import_button = gr.Button("Import baseline JSON files")
+            import_report = gr.Textbox(label="Import report", interactive=False, lines=5)
+            import_button.click(import_baselines_from_ui, [token, import_directory, import_cohort, publish_import], [status, import_report])
         with gr.Column(visible=False) as team_panel:
             gr.Markdown("## Project Brief")
             with gr.Row():
