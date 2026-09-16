@@ -345,6 +345,18 @@ def import_baselines_from_ui(token: str, directory: str, cohort: str, publish: b
     return f"Imported {report['records']} records from {report['files']} files.", str(report)
 
 
+def section_context(section: str) -> str:
+    descriptions = {
+        "Project Brief": "Context: define the product concept, target user, job, problem, prototype, and main value hypothesis.",
+        "Dimension Explorer": "Estimate: assess all five dimensions and record evidence or explicit unknowns.",
+        "Notes": "Reflect: capture observations, assumptions, questions, and design decisions.",
+        "Hypothesis Backlog": "Hypothesize and prioritize: connect supporting hypotheses to value and identify uncertainty.",
+        "Experiments": "Plan a test: define one next experiment without automatically declaring a hypothesis supported.",
+        "Summary & Export": "Review: inspect checklist progress and download the project record.",
+    }
+    return descriptions.get(section, descriptions["Project Brief"])
+
+
 def build_app():
     with gr.Blocks(title="AIPM Toolkit") as app:
         token = gr.State(None)
@@ -368,7 +380,10 @@ def build_app():
             import_report = gr.Textbox(label="Import report", interactive=False, lines=5)
             import_button.click(import_baselines_from_ui, [token, import_directory, import_cohort, publish_import], [status, import_report])
         with gr.Column(visible=False) as team_panel:
-            gr.Markdown("## Project Brief")
+            section_selector = gr.Radio(label="Current section", choices=["Project Brief", "Dimension Explorer", "Notes", "Hypothesis Backlog", "Experiments", "Summary & Export"], value="Project Brief")
+            section_context_display = gr.Markdown(section_context("Project Brief"))
+            section_selector.change(section_context, section_selector, section_context_display)
+            gr.Markdown("## 1. Project Brief")
             with gr.Row():
                 project_dropdown = gr.Dropdown(label="Your projects", choices=[], interactive=True)
                 new_project_name = gr.Textbox(label="New product name", placeholder="Only the product name is required")
@@ -386,7 +401,7 @@ def build_app():
             save_button = gr.Button("Save brief", variant="primary")
             project_id = gr.State(None)
             project_revision = gr.State(None)
-            gr.Markdown("## Dimension Explorer")
+            gr.Markdown("## 2. Dimension Explorer")
             gr.Markdown("Higher scores are not inherently better. Mark a dimension Unknown when the team cannot make a reasoned estimate yet.")
             assessment_components = []
             for definition in DEFAULT_DIMENSIONS:
@@ -401,19 +416,19 @@ def build_app():
                         gr.Textbox(label="Uncertainty", lines=2),
                     ])
             save_assessments_button = gr.Button("Save dimension assessments", variant="primary")
-            gr.Markdown("## Comparator")
+            gr.Markdown("## 2. Dimension Explorer: Comparator")
             gr.Markdown("Historical profiles are classroom assessments, not current product ratings or rankings.")
             comparator = gr.Dropdown(label="Historical comparator", choices=[])
             comparator_purpose = gr.Radio(label="Comparison purpose", choices=[("Task comparator", "task_comparator"), ("Design contrast", "design_contrast")], value="task_comparator")
             comparator_scope = gr.Textbox(label="Comparison scope or explanation", lines=2)
             save_comparator_button = gr.Button("Save comparator selection")
-            gr.Markdown("## Notes")
+            gr.Markdown("## 3. Notes")
             note_type = gr.Dropdown(label="Note type", choices=[("Observation", "observation"), ("Assumption", "assumption"), ("Question", "question"), ("Design decision", "design_decision")], value="observation")
             note_text = gr.Textbox(label="Note", lines=3)
             note_dimensions = gr.CheckboxGroup(label="Linked dimensions", choices=[definition["title"] for definition in DEFAULT_DIMENSIONS])
             save_note_button = gr.Button("Save note")
             notes_display = gr.Textbox(label="Saved notes", interactive=False, lines=5)
-            gr.Markdown("## Hypothesis Backlog")
+            gr.Markdown("## 4. Hypothesis Backlog")
             hypothesis_statement = gr.Textbox(label="Supporting hypothesis statement", lines=3)
             hypothesis_value_link = gr.Textbox(label="Why it matters / value link", lines=2)
             hypothesis_impact = gr.Dropdown(label="Impact if wrong", choices=["unknown", "low", "medium", "high"], value="unknown")
@@ -427,7 +442,7 @@ def build_app():
             relation_source = gr.Dropdown(label="From hypothesis", choices=[])
             relation_target = gr.Dropdown(label="To hypothesis", choices=[])
             save_relation_button = gr.Button("Save relationship")
-            gr.Markdown("## Experiments")
+            gr.Markdown("## 5. Experiments")
             experiment_primary = gr.Dropdown(label="Primary hypothesis", choices=[])
             experiment_title = gr.Textbox(label="Experiment title")
             experiment_method = gr.Dropdown(label="Method", choices=[("Prototype walkthrough", "prototype_walkthrough"), ("User interview", "user_interview"), ("Comparative usability test", "comparative_usability_test"), ("Model/output evaluation", "model_output_evaluation"), ("Technical feasibility test", "technical_feasibility_test"), ("Cost estimate/simulation", "cost_estimate_simulation"), ("Pilot", "pilot"), ("Other", "other")], value="prototype_walkthrough")
@@ -452,7 +467,7 @@ def build_app():
             save_experiment_button = gr.Button("Save experiment")
             checklist_display = gr.Textbox(label="Workshop checklist", interactive=False, lines=8)
             priority_display = gr.Textbox(label="Priority guidance", interactive=False, lines=8)
-            gr.Markdown("## Summary & Export")
+            gr.Markdown("## 6. Summary & Export")
             export_button = gr.Button("Generate JSON and Markdown exports")
             json_download = gr.File(label="JSON export")
             markdown_download = gr.File(label="Markdown export")

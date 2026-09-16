@@ -31,3 +31,5 @@ Summary & Export provides authorized, versioned JSON and Markdown downloads. Exp
 Instructor accounts now have a course overview with per-project checklist progress and an instructor-only baseline import/publish panel. Team accounts cannot access either operation.
 
 The workspace also includes separate adversarial-risk and feedback-loop reflections. Risk scores are optional subjective discussion inputs; they are not mixed into the five dimension profile or presented as calibrated security assessments.
+
+The team workspace now exposes the six workshop sections through an explicit section selector and numbered context headings. The integration suite exercises a representative create, reload, assess, hypothesize, experiment, and export journey.
