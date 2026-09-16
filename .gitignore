@@ -1,6 +1,7 @@
 .gradio/
 data/
 reports/
+__pycache__/
 .venv/
 *.egg-info/
 *.db
