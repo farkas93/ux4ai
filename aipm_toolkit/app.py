@@ -45,6 +45,19 @@ def login(username: str, password: str):
     return gr.update(value=f"Signed in as {user.username}"), token, gr.update(visible=False), gr.update(visible=True)
 
 
+def auto_login(request: gr.Request):
+    cookies = getattr(getattr(request, "request", None), "cookies", {}) if request else {}
+    raw_token = cookies.get("aipm_session")
+    if not raw_token:
+        return "Please sign in.", None, gr.update(visible=True), gr.update(visible=False)
+    with SessionLocal() as db:
+        try:
+            user = get_authenticated_user(db, raw_token)
+        except AuthenticationError:
+            return "Session expired. Please sign in again.", None, gr.update(visible=True), gr.update(visible=False)
+    return f"Signed in as {user.username}", raw_token, gr.update(visible=False), gr.update(visible=True)
+
+
 def workspace(token: str):
     with SessionLocal() as db:
         try:
@@ -502,6 +515,7 @@ def build_app():
         export_button.click(export_project_from_ui, [token, project_id], [status, json_download, markdown_download])
         save_risk_button.click(save_risk_reflection_from_ui, [token, project_id, risk_score, risk_entry, risk_behavior, risk_affected, risk_consequence, risk_safeguard, risk_uncertainty], status)
         save_feedback_button.click(save_feedback_reflection_from_ui, [token, project_id, feedback_signal, feedback_meaning, feedback_change, feedback_human, feedback_evaluation], status)
+        app.load(auto_login, outputs=[status, token, login_panel, workspace_panel]).then(workspace, token, [workspace_text, login_panel, instructor_panel, team_panel, project_dropdown])
     return app
 
 

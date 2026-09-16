@@ -12,6 +12,14 @@ uv run python -m aipm_toolkit.seed team-a change-this-team-password --role team 
 uv run python -m aipm_toolkit.app
 ```
 
+For the authenticated server entry point, use:
+
+```bash
+uv run uvicorn aipm_toolkit.server:app --host 127.0.0.1 --port 7860
+```
+
+Open `http://127.0.0.1:7860/auth/login`. The server entry point protects `/app` with a database-backed HttpOnly session cookie and mounts the Gradio workspace there. `python -m aipm_toolkit.app` remains a development fallback for the standalone shell.
+
 Set `AIPM_DATABASE_URL` for PostgreSQL. The default SQLite URL is intended only for a quick local smoke test; integration and production use PostgreSQL.
 
 The current implementation includes the Dimension Explorer and a historical baseline catalog. Import the legacy instructor references with:
