@@ -7,8 +7,17 @@ from aipm_toolkit.experiment_services import (
     save_reflection,
     update_experiment,
 )
-from aipm_toolkit.hypothesis_services import create_hypothesis
-from aipm_toolkit.models import Course, Role, Team, User
+from aipm_toolkit.hypothesis_services import add_relation, create_hypothesis
+from aipm_toolkit.models import (
+    BaselineDataset,
+    ComparisonSnapshot,
+    Course,
+    Hypothesis,
+    Product,
+    Role,
+    Team,
+    User,
+)
 from aipm_toolkit.services import create_project
 
 
@@ -55,3 +64,25 @@ def test_completion_requires_planned_experiment_and_reflection_is_separate(db):
     assert completion_checklist(db, user, project.id)["Next experiment defined"] is True
     reflection = save_reflection(db, user, project.id, "adversarial_risk", "Prompt injection could alter an action.")
     assert reflection.reflection_type == "adversarial_risk"
+
+
+def test_checklist_derives_comparator_links_and_priority(db):
+    user, project = user_project(db, "derived")
+    from sqlalchemy import select
+    main = db.scalar(select(Hypothesis).where(Hypothesis.project_id == project.id, Hypothesis.kind == "main"))
+    main.statement = "Main value claim"
+    supporting = create_hypothesis(db, user, project.id, "Supporting claim", value_link="Main value")
+    product = Product(display_name="Comparator")
+    db.add(product)
+    db.flush()
+    dataset = BaselineDataset(product_id=product.id, source_type="instructor_reference", cohort_label="Cohort", scale_version=1, published=True)
+    db.add(dataset)
+    db.flush()
+    db.add(ComparisonSnapshot(project_id=project.id, product_id=product.id, dataset_id=dataset.id, purpose="task_comparator"))
+    db.commit()
+    add_relation(db, user, project.id, "contributes_to", supporting.id, main.id)
+    create_experiment(db, user, project.id, supporting.id, "Priority test", "pilot")
+    checklist = completion_checklist(db, user, project.id)
+    assert checklist["Comparator selected"] is True
+    assert checklist["Hypotheses connected to value"] is True
+    assert checklist["Priority hypothesis selected"] is True

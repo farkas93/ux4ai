@@ -4,7 +4,14 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from .auth import AuthorizationError, RevisionConflict
-from .models import Experiment, Hypothesis, ProjectReflection, User
+from .models import (
+    ComparisonSnapshot,
+    Experiment,
+    Hypothesis,
+    HypothesisRelation,
+    ProjectReflection,
+    User,
+)
 from .services import get_project
 
 METHODS = {"prototype_walkthrough", "user_interview", "comparative_usability_test", "model_output_evaluation", "technical_feasibility_test", "cost_estimate_simulation", "pilot", "other"}
@@ -77,12 +84,46 @@ def completion_checklist(db: Session, actor: User, project_id: UUID) -> dict[str
     estimates = list(getattr(project, "dimension_estimates", []))
     experiments = list_experiments(db, actor, project_id)
     supporting = list(db.scalars(select(Hypothesis).where(Hypothesis.project_id == project_id, Hypothesis.kind == "supporting")))
+    main_id = main.id if main else None
+    relations = list(db.scalars(select(HypothesisRelation).where(HypothesisRelation.project_id == project_id, HypothesisRelation.relation_type == "contributes_to")))
+    graph = {}
+    for relation in relations:
+        graph.setdefault(relation.from_hypothesis_id, set()).add(relation.to_hypothesis_id)
+    connected = False
+    for item in supporting:
+        stack = [item.id]
+        visited = set()
+        while stack:
+            current = stack.pop()
+            if current == main_id:
+                connected = True
+                break
+            if current not in visited:
+                visited.add(current)
+                stack.extend(graph.get(current, ()))
+        if connected:
+            break
+    snapshots = db.scalar(select(ComparisonSnapshot.id).where(ComparisonSnapshot.project_id == project_id).limit(1))
     return {
         "Project brief complete": bool(project.product_name and project.short_description and project.target_user and project.job_to_be_done and project.current_problem and main and main.statement),
         "5/5 dimensions assessed or marked unknown": len(estimates) == 5 and all(item.status in {"estimated", "unknown"} for item in estimates),
-        "Comparator selected": False,
+        "Comparator selected": snapshots is not None,
         "2 supporting hypotheses created": len(supporting) >= 2,
-        "Hypotheses connected to value": False,
-        "Priority hypothesis selected": False,
+        "Hypotheses connected to value": connected,
+        "Priority hypothesis selected": any(item.primary_hypothesis_id in {hypothesis.id for hypothesis in supporting} for item in experiments),
         "Next experiment defined": any(item.status == "planned" for item in experiments),
     }
+
+
+def priority_guidance(db: Session, actor: User, project_id: UUID) -> str:
+    get_project(db, actor, project_id)
+    hypotheses = list(db.scalars(select(Hypothesis).where(Hypothesis.project_id == project_id, Hypothesis.kind == "supporting").order_by(Hypothesis.impact_if_wrong, Hypothesis.evidence_strength)))
+    if not hypotheses:
+        return "No supporting hypotheses yet. Unknown impact or evidence stays outside the scored priority matrix."
+    lines = ["Unknown impact or evidence: Needs assessment"]
+    for item in hypotheses:
+        if item.impact_if_wrong == "unknown" or item.evidence_strength == "unknown":
+            lines.append(f"- Needs assessment: {item.statement}")
+        else:
+            lines.append(f"- Impact {item.impact_if_wrong} / Evidence {item.evidence_strength}: {item.statement}")
+    return "\n".join(lines)

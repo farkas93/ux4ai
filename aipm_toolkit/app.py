@@ -16,6 +16,7 @@ from .dimensions import DEFAULT_DIMENSIONS
 from .experiment_services import (
     completion_checklist,
     create_experiment,
+    priority_guidance,
     save_reflection,
     update_experiment,
 )
@@ -275,6 +276,17 @@ def checklist_text(token: str, project_id: str | None):
     return "\n".join(f"{'[x]' if complete else '[ ]'} {label}" for label, complete in checklist.items())
 
 
+def priority_text(token: str, project_id: str | None):
+    if not project_id:
+        return "Select a project to see priority guidance."
+    with SessionLocal() as db:
+        try:
+            user = get_authenticated_user(db, token)
+            return priority_guidance(db, user, UUID(project_id))
+        except AuthenticationError:
+            return "Session expired."
+
+
 def export_project_from_ui(token: str, project_id: str | None):
     if not project_id:
         return "Select a project before exporting.", None, None
@@ -439,6 +451,7 @@ def build_app():
             experiment_decision = gr.Dropdown(label="Resulting decision", choices=["continue", "revise", "retest", "stop", "undecided"], value="undecided")
             save_experiment_button = gr.Button("Save experiment")
             checklist_display = gr.Textbox(label="Workshop checklist", interactive=False, lines=8)
+            priority_display = gr.Textbox(label="Priority guidance", interactive=False, lines=8)
             gr.Markdown("## Summary & Export")
             export_button = gr.Button("Generate JSON and Markdown exports")
             json_download = gr.File(label="JSON export")
@@ -462,15 +475,15 @@ def build_app():
             save_feedback_button = gr.Button("Save feedback-loop reflection")
         submit.click(login, [username, password], [status, token, login_panel, workspace_panel]).then(workspace, token, [workspace_text, login_panel, instructor_panel, team_panel, project_dropdown])
         create_button.click(create_project_from_ui, [token, new_project_name], [status, project_dropdown, product_name, project_revision])
-        project_dropdown.change(load_project_from_ui, [token, project_dropdown], [project_title, product_name, description, target_user, job, problem, hypothesis, product_type, figma_url, project_id, project_revision]).then(load_estimates_from_ui, [token, project_id], assessment_components).then(load_comparator_choices, outputs=comparator).then(load_backlog_from_ui, [token, project_id], [notes_display, hypotheses_display, hypothesis_note, relation_source, relation_target]).then(lambda choices: choices, relation_source, experiment_primary).then(checklist_text, [token, project_id], checklist_display)
+        project_dropdown.change(load_project_from_ui, [token, project_dropdown], [project_title, product_name, description, target_user, job, problem, hypothesis, product_type, figma_url, project_id, project_revision]).then(load_estimates_from_ui, [token, project_id], assessment_components).then(load_comparator_choices, outputs=comparator).then(load_backlog_from_ui, [token, project_id], [notes_display, hypotheses_display, hypothesis_note, relation_source, relation_target]).then(lambda choices: choices, relation_source, experiment_primary).then(checklist_text, [token, project_id], checklist_display).then(priority_text, [token, project_id], priority_display)
         save_button.click(save_project_from_ui, [token, project_id, project_revision, product_name, product_type, description, target_user, job, problem, hypothesis, figma_url], [status, project_revision])
         save_assessments_button.click(save_estimates_from_ui, [token, project_id, *assessment_components], status)
         save_comparator_button.click(save_comparator_from_ui, [token, project_id, comparator, comparator_purpose, comparator_scope], status)
         save_note_button.click(save_note_from_ui, [token, project_id, note_type, note_text, note_dimensions], [status, notes_display])
         save_hypothesis_button.click(save_hypothesis_from_ui, [token, project_id, hypothesis_statement, hypothesis_value_link, hypothesis_impact, hypothesis_evidence, hypothesis_evidence_rationale, hypothesis_note], [status, hypotheses_display, relation_source]).then(load_backlog_from_ui, [token, project_id], [notes_display, hypotheses_display, hypothesis_note, relation_source, relation_target])
         save_relation_button.click(save_relation_from_ui, [token, project_id, relation_type, relation_source, relation_target], status)
-        create_experiment_button.click(save_experiment_plan, [token, project_id, experiment_primary, experiment_title, experiment_method], [status, experiment_id, experiment_revision]).then(checklist_text, [token, project_id], checklist_display)
-        save_experiment_button.click(save_experiment_details, [token, project_id, experiment_id, experiment_revision, experiment_procedure, experiment_participants, experiment_baseline, experiment_metric, experiment_success, experiment_guardrail, experiment_resources, experiment_owner, experiment_date, experiment_status, experiment_results, experiment_links, experiment_limitations, experiment_conclusion, experiment_decision], [status, experiment_revision]).then(checklist_text, [token, project_id], checklist_display)
+        create_experiment_button.click(save_experiment_plan, [token, project_id, experiment_primary, experiment_title, experiment_method], [status, experiment_id, experiment_revision]).then(checklist_text, [token, project_id], checklist_display).then(priority_text, [token, project_id], priority_display)
+        save_experiment_button.click(save_experiment_details, [token, project_id, experiment_id, experiment_revision, experiment_procedure, experiment_participants, experiment_baseline, experiment_metric, experiment_success, experiment_guardrail, experiment_resources, experiment_owner, experiment_date, experiment_status, experiment_results, experiment_links, experiment_limitations, experiment_conclusion, experiment_decision], [status, experiment_revision]).then(checklist_text, [token, project_id], checklist_display).then(priority_text, [token, project_id], priority_display)
         export_button.click(export_project_from_ui, [token, project_id], [status, json_download, markdown_download])
         save_risk_button.click(save_risk_reflection_from_ui, [token, project_id, risk_score, risk_entry, risk_behavior, risk_affected, risk_consequence, risk_safeguard, risk_uncertainty], status)
         save_feedback_button.click(save_feedback_reflection_from_ui, [token, project_id, feedback_signal, feedback_meaning, feedback_change, feedback_human, feedback_evaluation], status)
