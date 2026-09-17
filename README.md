@@ -41,3 +41,5 @@ Instructor accounts now have a course overview with per-project checklist progre
 The workspace also includes separate adversarial-risk and feedback-loop reflections. Risk scores are optional subjective discussion inputs; they are not mixed into the five dimension profile or presented as calibrated security assessments.
 
 The team workspace now exposes the six workshop sections through an explicit section selector and numbered context headings. The integration suite exercises a representative create, reload, assess, hypothesize, experiment, and export journey.
+
+Project Brief text and selection changes are tracked as dirty input and flushed through a two-second autosave timer. Failed or conflicting saves keep the dirty state and report the failure; the explicit Save brief action remains available.

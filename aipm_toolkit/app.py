@@ -126,6 +126,20 @@ def save_project_from_ui(token: str, project_id: str | None, revision: int | Non
     return "Saved.", project.revision
 
 
+def save_project_action(token: str, project_id: str | None, revision: int | None, product_name: str, product_type: str | None, description: str, target_user: str, job: str, problem: str, hypothesis: str, figma_url: str):
+    status, new_revision = save_project_from_ui(token, project_id, revision, product_name, product_type, description, target_user, job, problem, hypothesis, figma_url)
+    return status, new_revision, not status.startswith("Saved")
+
+
+def autosave_project_from_ui(token: str, project_id: str | None, revision: int | None, dirty: bool, product_name: str, product_type: str | None, description: str, target_user: str, job: str, problem: str, hypothesis: str, figma_url: str):
+    if not dirty:
+        return gr.update(), revision, dirty
+    status, new_revision = save_project_from_ui(token, project_id, revision, product_name, product_type, description, target_user, job, problem, hypothesis, figma_url)
+    if status.startswith("Saved"):
+        return "Saved automatically.", new_revision, False
+    return f"Save failed: {status}", new_revision, True
+
+
 def load_estimates_from_ui(token: str, project_id: str | None):
     blank = []
     if not project_id:
@@ -446,6 +460,11 @@ def build_app():
             save_button = gr.Button("Save brief", variant="primary")
             project_id = gr.State(None)
             project_revision = gr.State(None)
+            brief_dirty = gr.State(False)
+            brief_timer = gr.Timer(2.0)
+            brief_fields = [product_name, product_type, description, target_user, job, problem, hypothesis, figma_url]
+            for brief_field in brief_fields:
+                brief_field.input(lambda: True, outputs=brief_dirty)
             gr.Markdown("## 2. Dimension Explorer")
             gr.Markdown("Higher scores are not inherently better. Mark a dimension Unknown when the team cannot make a reasoned estimate yet.")
             assessment_components = []
@@ -538,8 +557,9 @@ def build_app():
             save_feedback_button = gr.Button("Save feedback-loop reflection")
         submit.click(login, [username, password], [status, token, login_panel, workspace_panel]).then(workspace, token, [workspace_text, login_panel, instructor_panel, team_panel, project_dropdown])
         create_button.click(create_project_from_ui, [token, new_project_name], [status, project_dropdown, product_name, project_revision])
-        project_dropdown.change(load_project_from_ui, [token, project_dropdown], [project_title, product_name, description, target_user, job, problem, hypothesis, product_type, figma_url, project_id, project_revision]).then(load_estimates_from_ui, [token, project_id], assessment_components).then(load_comparator_choices, outputs=comparator).then(load_backlog_from_ui, [token, project_id], [notes_display, hypotheses_display, hypothesis_note, relation_source, relation_target]).then(lambda choices: choices, relation_source, experiment_primary).then(checklist_text, [token, project_id], checklist_display).then(priority_text, [token, project_id], priority_display)
-        save_button.click(save_project_from_ui, [token, project_id, project_revision, product_name, product_type, description, target_user, job, problem, hypothesis, figma_url], [status, project_revision])
+        project_dropdown.change(load_project_from_ui, [token, project_dropdown], [project_title, product_name, description, target_user, job, problem, hypothesis, product_type, figma_url, project_id, project_revision]).then(load_estimates_from_ui, [token, project_id], assessment_components).then(load_comparator_choices, outputs=comparator).then(load_backlog_from_ui, [token, project_id], [notes_display, hypotheses_display, hypothesis_note, relation_source, relation_target]).then(lambda choices: choices, relation_source, experiment_primary).then(checklist_text, [token, project_id], checklist_display).then(priority_text, [token, project_id], priority_display).then(lambda: False, outputs=brief_dirty)
+        save_button.click(save_project_action, [token, project_id, project_revision, product_name, product_type, description, target_user, job, problem, hypothesis, figma_url], [status, project_revision, brief_dirty])
+        brief_timer.tick(autosave_project_from_ui, [token, project_id, project_revision, brief_dirty, product_name, product_type, description, target_user, job, problem, hypothesis, figma_url], [status, project_revision, brief_dirty])
         save_assessments_button.click(save_estimates_from_ui, [token, project_id, *assessment_components], status)
         save_comparator_button.click(save_comparator_from_ui, [token, project_id, comparator, comparator_purpose, comparator_scope], [status, comparator_snapshot_id]).then(load_comparison_from_ui, [token, project_id, comparator_snapshot_id], [comparison_chart, comparison_table])
         save_note_button.click(save_note_from_ui, [token, project_id, note_type, note_text, note_dimensions], [status, notes_display])
