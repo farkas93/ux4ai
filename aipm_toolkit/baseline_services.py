@@ -109,7 +109,9 @@ def select_comparator(db: Session, actor: User, project_id: UUID, dataset_id: UU
         raise AuthorizationError("Baseline dataset is not available")
     if purpose not in {"task_comparator", "design_contrast"}:
         raise ValueError("Invalid comparison purpose")
-    snapshot = ComparisonSnapshot(project_id=project_id, product_id=dataset.product_id, dataset_id=dataset.id, purpose=purpose, scope_explanation=scope_explanation)
+    aggregates = aggregate_dataset(db, dataset.id)
+    frozen_profile = {key: {"median": values["median"], "p25": values["p25"], "p75": values["p75"], "count": values["count"]} for key, values in aggregates.items()}
+    snapshot = ComparisonSnapshot(project_id=project_id, product_id=dataset.product_id, dataset_id=dataset.id, purpose=purpose, scope_explanation=scope_explanation, frozen_profile=json.dumps(frozen_profile, sort_keys=True))
     db.add(snapshot)
     db.commit()
     return snapshot

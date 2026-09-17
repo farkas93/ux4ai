@@ -197,6 +197,7 @@ class ComparisonSnapshot(Base):
     dataset_id: Mapped[UUID] = mapped_column(ForeignKey("baseline_datasets.id"), nullable=False)
     purpose: Mapped[str] = mapped_column(String(30), nullable=False)
     scope_explanation: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    frozen_profile: Mapped[str] = mapped_column(Text, default="{}", nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1)

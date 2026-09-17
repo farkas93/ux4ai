@@ -3,6 +3,7 @@
 from uuid import UUID
 
 import gradio as gr
+import plotly.graph_objects as go
 
 from .assessment_services import (
     ensure_scale_definitions,
@@ -11,6 +12,7 @@ from .assessment_services import (
 )
 from .auth import AuthenticationError, RevisionConflict, authenticate, get_authenticated_user
 from .baseline_services import published_datasets, select_comparator
+from .comparison_services import comparator_name, comparison_rows
 from .db import SessionLocal
 from .dimensions import DEFAULT_DIMENSIONS
 from .experiment_services import (
@@ -172,14 +174,44 @@ def load_comparator_choices():
 
 def save_comparator_from_ui(token: str, project_id: str | None, dataset_id: str | None, purpose: str, scope: str):
     if not project_id or not dataset_id:
-        return "Select a project and comparator first."
+        return "Select a project and comparator first.", None
     with SessionLocal() as db:
         try:
             user = get_authenticated_user(db, token)
-            select_comparator(db, user, UUID(project_id), UUID(dataset_id), purpose, scope)
+            snapshot = select_comparator(db, user, UUID(project_id), UUID(dataset_id), purpose, scope)
         except (AuthenticationError, ValueError) as exc:
-            return str(exc)
-    return "Comparator selection saved as a snapshot. Previous snapshots remain unchanged."
+            return str(exc), None
+    return "Comparator selection saved as a frozen snapshot. Previous snapshots remain unchanged.", str(snapshot.id)
+
+
+def load_comparison_from_ui(token: str, project_id: str | None, snapshot_id: str | None):
+    if not project_id or not snapshot_id:
+        return go.Figure(), "Save a comparator selection to view the comparison."
+    with SessionLocal() as db:
+        try:
+            user = get_authenticated_user(db, token)
+            rows = comparison_rows(db, user, UUID(project_id), UUID(snapshot_id))
+            name = comparator_name(db, UUID(snapshot_id))
+        except (AuthenticationError, ValueError) as exc:
+            return go.Figure(), str(exc)
+    labels = [row["dimension"] for row in rows]
+    ours = [row["our_score"] for row in rows]
+    baseline = [row["baseline_median"] for row in rows]
+    theta = labels + [labels[0]]
+    ours_closed = ours + [ours[0]]
+    baseline_closed = baseline + [baseline[0]]
+    fig = go.Figure()
+    fig.add_trace(go.Scatterpolar(r=ours_closed, theta=theta, name="Our estimate", line={"color": "#1f77b4"}, fill="none"))
+    fig.add_trace(go.Scatterpolar(r=baseline_closed, theta=theta, name=f"Historical median: {name}", line={"color": "#d62728", "dash": "dash"}, fill="none"))
+    fig.update_layout(polar={"radialaxis": {"visible": True, "range": [0, 5]}}, showlegend=True, title="Prototype and historical comparison")
+    lines = ["Dimension | Our score | Baseline median | Baseline spread | Difference | Compatibility", "---|---:|---:|---|---:|---"]
+    for row in rows:
+        ours_value = "unknown" if row["our_score"] is None else f"{row['our_score']:.1f}"
+        median_value = "unknown" if row["baseline_median"] is None else f"{row['baseline_median']:.1f}"
+        spread = "unknown" if row["baseline_p25"] is None else f"{row['baseline_p25']:.1f}-{row['baseline_p75']:.1f} (n={row['count']})"
+        difference = "not calculated" if row["difference"] is None else f"{row['difference']:+.1f}"
+        lines.append(f"{row['dimension']} | {ours_value} | {median_value} | {spread} | {difference} | {'Compatible' if row['compatible'] else 'Incompatible'}")
+    return fig, "\n".join(lines)
 
 
 def _hypotheses(db, project_id: str) -> list[Hypothesis]:
@@ -435,6 +467,9 @@ def build_app():
             comparator_purpose = gr.Radio(label="Comparison purpose", choices=[("Task comparator", "task_comparator"), ("Design contrast", "design_contrast")], value="task_comparator")
             comparator_scope = gr.Textbox(label="Comparison scope or explanation", lines=2)
             save_comparator_button = gr.Button("Save comparator selection")
+            comparator_snapshot_id = gr.State(None)
+            comparison_chart = gr.Plot(label="Comparison radar")
+            comparison_table = gr.Textbox(label="Comparison table", interactive=False, lines=8)
             gr.Markdown("## 3. Notes")
             note_type = gr.Dropdown(label="Note type", choices=[("Observation", "observation"), ("Assumption", "assumption"), ("Question", "question"), ("Design decision", "design_decision")], value="observation")
             note_text = gr.Textbox(label="Note", lines=3)
@@ -506,7 +541,7 @@ def build_app():
         project_dropdown.change(load_project_from_ui, [token, project_dropdown], [project_title, product_name, description, target_user, job, problem, hypothesis, product_type, figma_url, project_id, project_revision]).then(load_estimates_from_ui, [token, project_id], assessment_components).then(load_comparator_choices, outputs=comparator).then(load_backlog_from_ui, [token, project_id], [notes_display, hypotheses_display, hypothesis_note, relation_source, relation_target]).then(lambda choices: choices, relation_source, experiment_primary).then(checklist_text, [token, project_id], checklist_display).then(priority_text, [token, project_id], priority_display)
         save_button.click(save_project_from_ui, [token, project_id, project_revision, product_name, product_type, description, target_user, job, problem, hypothesis, figma_url], [status, project_revision])
         save_assessments_button.click(save_estimates_from_ui, [token, project_id, *assessment_components], status)
-        save_comparator_button.click(save_comparator_from_ui, [token, project_id, comparator, comparator_purpose, comparator_scope], status)
+        save_comparator_button.click(save_comparator_from_ui, [token, project_id, comparator, comparator_purpose, comparator_scope], [status, comparator_snapshot_id]).then(load_comparison_from_ui, [token, project_id, comparator_snapshot_id], [comparison_chart, comparison_table])
         save_note_button.click(save_note_from_ui, [token, project_id, note_type, note_text, note_dimensions], [status, notes_display])
         save_hypothesis_button.click(save_hypothesis_from_ui, [token, project_id, hypothesis_statement, hypothesis_value_link, hypothesis_impact, hypothesis_evidence, hypothesis_evidence_rationale, hypothesis_note], [status, hypotheses_display, relation_source]).then(load_backlog_from_ui, [token, project_id], [notes_display, hypotheses_display, hypothesis_note, relation_source, relation_target])
         save_relation_button.click(save_relation_from_ui, [token, project_id, relation_type, relation_source, relation_target], status)
