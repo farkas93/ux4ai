@@ -24,6 +24,7 @@ from .dimensions import DEFAULT_DIMENSIONS
 from .experiment_services import (
     completion_checklist,
     create_experiment,
+    list_experiments,
     priority_guidance,
     save_reflection,
     update_experiment,
@@ -43,7 +44,7 @@ from .instructor_services import (
     import_baselines_as_instructor,
     provision_team_account,
 )
-from .models import Hypothesis, Note, Role
+from .models import Experiment, Hypothesis, Note, Role
 from .services import (
     create_project,
     get_project,
@@ -405,6 +406,33 @@ def save_experiment_plan(token: str, project_id: str | None, primary_id: str | N
     return "Experiment plan created. Add the procedure and success criteria below.", str(experiment.id), experiment.revision
 
 
+def load_experiment_choices(token: str, project_id: str | None):
+    if not project_id:
+        return gr.update(choices=[])
+    with SessionLocal() as db:
+        try:
+            user = get_authenticated_user(db, token)
+            experiments = list_experiments(db, user, UUID(project_id))
+        except AuthenticationError:
+            return gr.update(choices=[])
+    return gr.update(choices=[(item.title[:80], str(item.id)) for item in experiments])
+
+
+def load_experiment_edit_from_ui(token: str, experiment_id: str | None):
+    if not experiment_id:
+        return "", "prototype_walkthrough", "", "", "", "", "", "", "", "", "planned", "", "", "", "", "undecided", None
+    with SessionLocal() as db:
+        try:
+            user = get_authenticated_user(db, token)
+            experiment = db.get(Experiment, UUID(experiment_id))
+            if experiment is None:
+                raise ValueError("Experiment not found")
+            get_project(db, user, experiment.project_id)
+        except (AuthenticationError, AuthorizationError, ValueError) as exc:
+            return str(exc), "prototype_walkthrough", "", "", "", "", "", "", "", "", "planned", "", "", "", "", "undecided", None
+    return (experiment.title, experiment.method, experiment.procedure, experiment.participants, experiment.comparison_baseline, experiment.metric, experiment.success_criterion, experiment.guardrail, experiment.resources, experiment.owner, experiment.planned_date, experiment.status, experiment.results, experiment.evidence_links, experiment.limitations, experiment.conclusion, experiment.resulting_decision, experiment.revision)
+
+
 def save_experiment_details(token: str, project_id: str | None, experiment_id: str | None, revision: int | None, procedure: str, participants: str, baseline: str, metric: str, success: str, guardrail: str, resources: str, owner: str, planned_date: str, status_value: str, results: str, evidence_links: str, limitations: str, conclusion: str, decision: str):
     if not project_id or not experiment_id or revision is None:
         return "Create an experiment plan first.", revision
@@ -633,6 +661,7 @@ def build_app():
             relation_target = gr.Dropdown(label="To hypothesis", choices=[])
             save_relation_button = gr.Button("Save relationship")
             gr.Markdown("## 5. Experiments")
+            experiment_selector = gr.Dropdown(label="Reopen experiment", choices=[])
             experiment_primary = gr.Dropdown(label="Primary hypothesis", choices=[])
             experiment_title = gr.Textbox(label="Experiment title")
             experiment_method = gr.Dropdown(label="Method", choices=[("Prototype walkthrough", "prototype_walkthrough"), ("User interview", "user_interview"), ("Comparative usability test", "comparative_usability_test"), ("Model/output evaluation", "model_output_evaluation"), ("Technical feasibility test", "technical_feasibility_test"), ("Cost estimate/simulation", "cost_estimate_simulation"), ("Pilot", "pilot"), ("Other", "other")], value="prototype_walkthrough")
@@ -681,7 +710,7 @@ def build_app():
         submit.click(login, [username, password], [status, token, login_panel, workspace_panel]).then(workspace, token, [workspace_text, login_panel, instructor_panel, team_panel, project_dropdown])
         create_button.click(create_project_from_ui, [token, new_project_name], [status, project_dropdown, product_name, project_revision])
         with gr.Row():
-            project_dropdown.change(load_project_from_ui, [token, project_dropdown], [project_title, product_name, description, target_user, job, problem, hypothesis, product_type, figma_url, project_id, project_revision]).then(load_estimates_from_ui, [token, project_id], assessment_components + [assessment_revisions]).then(load_comparator_choices, outputs=comparator).then(load_backlog_from_ui, [token, project_id], [notes_display, hypotheses_display, hypothesis_note, relation_source, relation_target, note_edit_selector, hypothesis_edit_selector]).then(lambda choices: choices, relation_source, experiment_primary).then(checklist_text, [token, project_id], checklist_display).then(priority_text, [token, project_id], priority_display).then(lambda: False, outputs=brief_dirty).then(lambda: False, outputs=assessment_dirty)
+            project_dropdown.change(load_project_from_ui, [token, project_dropdown], [project_title, product_name, description, target_user, job, problem, hypothesis, product_type, figma_url, project_id, project_revision]).then(load_estimates_from_ui, [token, project_id], assessment_components + [assessment_revisions]).then(load_comparator_choices, outputs=comparator).then(load_backlog_from_ui, [token, project_id], [notes_display, hypotheses_display, hypothesis_note, relation_source, relation_target, note_edit_selector, hypothesis_edit_selector]).then(lambda choices: choices, relation_source, experiment_primary).then(load_experiment_choices, [token, project_id], experiment_selector).then(checklist_text, [token, project_id], checklist_display).then(priority_text, [token, project_id], priority_display).then(lambda: False, outputs=brief_dirty).then(lambda: False, outputs=assessment_dirty)
             save_button.click(save_project_action, [token, project_id, project_revision, product_name, product_type, description, target_user, job, problem, hypothesis, figma_url], [status, project_revision, brief_dirty])
             brief_timer.tick(autosave_project_from_ui, [token, project_id, project_revision, brief_dirty, product_name, product_type, description, target_user, job, problem, hypothesis, figma_url], [status, project_revision, brief_dirty])
             save_assessments_button.click(save_assessments_action, [token, project_id, assessment_revisions, *assessment_components], [status, assessment_revisions, assessment_dirty])
@@ -694,8 +723,9 @@ def build_app():
         hypothesis_edit_selector.change(load_hypothesis_edit_from_ui, [token, hypothesis_edit_selector], [hypothesis_edit_statement, hypothesis_edit_value, hypothesis_edit_impact, hypothesis_edit_evidence, hypothesis_edit_rationale, hypothesis_edit_revision])
         update_hypothesis_button.click(save_hypothesis_edit_from_ui, [token, hypothesis_edit_selector, hypothesis_edit_revision, hypothesis_edit_statement, hypothesis_edit_value, hypothesis_edit_impact, hypothesis_edit_evidence, hypothesis_edit_rationale], [status, hypothesis_edit_revision, hypotheses_display]).then(load_backlog_from_ui, [token, project_id], [notes_display, hypotheses_display, hypothesis_note, relation_source, relation_target, note_edit_selector, hypothesis_edit_selector])
         save_relation_button.click(save_relation_from_ui, [token, project_id, relation_type, relation_source, relation_target], status)
-        create_experiment_button.click(save_experiment_plan, [token, project_id, experiment_primary, experiment_title, experiment_method], [status, experiment_id, experiment_revision]).then(checklist_text, [token, project_id], checklist_display).then(priority_text, [token, project_id], priority_display)
+        create_experiment_button.click(save_experiment_plan, [token, project_id, experiment_primary, experiment_title, experiment_method], [status, experiment_id, experiment_revision]).then(load_experiment_choices, [token, project_id], experiment_selector).then(checklist_text, [token, project_id], checklist_display).then(priority_text, [token, project_id], priority_display)
         save_experiment_button.click(save_experiment_details, [token, project_id, experiment_id, experiment_revision, experiment_procedure, experiment_participants, experiment_baseline, experiment_metric, experiment_success, experiment_guardrail, experiment_resources, experiment_owner, experiment_date, experiment_status, experiment_results, experiment_links, experiment_limitations, experiment_conclusion, experiment_decision], [status, experiment_revision]).then(checklist_text, [token, project_id], checklist_display).then(priority_text, [token, project_id], priority_display)
+        experiment_selector.change(load_experiment_edit_from_ui, [token, experiment_selector], [experiment_title, experiment_method, experiment_procedure, experiment_participants, experiment_baseline, experiment_metric, experiment_success, experiment_guardrail, experiment_resources, experiment_owner, experiment_date, experiment_status, experiment_results, experiment_links, experiment_limitations, experiment_conclusion, experiment_decision, experiment_revision]).then(lambda selected: selected, experiment_selector, experiment_id)
         export_button.click(export_project_from_ui, [token, project_id], [status, json_download, markdown_download])
         save_risk_button.click(save_risk_reflection_from_ui, [token, project_id, risk_score, risk_entry, risk_behavior, risk_affected, risk_consequence, risk_safeguard, risk_uncertainty], status)
         save_feedback_button.click(save_feedback_reflection_from_ui, [token, project_id, feedback_signal, feedback_meaning, feedback_change, feedback_human, feedback_evaluation], status)
