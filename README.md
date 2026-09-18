@@ -60,4 +60,6 @@ The workspace also includes separate adversarial-risk and feedback-loop reflecti
 
 The team workspace now exposes the six workshop sections through an explicit section selector and numbered context headings. The integration suite exercises a representative create, reload, assess, hypothesize, experiment, and export journey.
 
+English and German resource catalogs are validated at startup. The workspace language selector changes section context text while preserving stable internal keys and stored project content; remaining field labels will be migrated to the same catalog in the next localization pass.
+
 Project Brief text and selection changes are tracked as dirty input and flushed through a two-second autosave timer. Failed or conflicting saves keep the dirty state and report the failure; the explicit Save brief action remains available.

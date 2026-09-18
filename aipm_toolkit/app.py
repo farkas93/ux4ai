@@ -24,6 +24,7 @@ from .experiment_services import (
 )
 from .export_services import write_export_files
 from .hypothesis_services import add_relation, create_hypothesis, create_note, list_notes
+from .i18n import load_catalog
 from .instructor_services import (
     course_overview,
     import_baselines_as_instructor,
@@ -418,15 +419,8 @@ def provision_team_from_ui(token: str, course_name: str, alias: str, password: s
     return f"Team account '{team.alias}' created. Share the password securely and do not store it in project content."
 
 
-def section_context(section: str) -> str:
-    descriptions = {
-        "Project Brief": "Context: define the product concept, target user, job, problem, prototype, and main value hypothesis.",
-        "Dimension Explorer": "Estimate: assess all five dimensions and record evidence or explicit unknowns.",
-        "Notes": "Reflect: capture observations, assumptions, questions, and design decisions.",
-        "Hypothesis Backlog": "Hypothesize and prioritize: connect supporting hypotheses to value and identify uncertainty.",
-        "Experiments": "Plan a test: define one next experiment without automatically declaring a hypothesis supported.",
-        "Summary & Export": "Review: inspect checklist progress and download the project record.",
-    }
+def section_context(section: str, language: str = "en") -> str:
+    descriptions = load_catalog(language)["sections"]
     return descriptions.get(section, descriptions["Project Brief"])
 
 
@@ -459,9 +453,11 @@ def build_app():
             create_team_button = gr.Button("Create team account")
             create_team_button.click(provision_team_from_ui, [token, team_course, team_alias, team_password], status)
         with gr.Column(visible=False) as team_panel:
+            language_selector = gr.Dropdown(label="Language / Sprache", choices=[("English", "en"), ("Deutsch", "de")], value="en")
             section_selector = gr.Radio(label="Current section", choices=["Project Brief", "Dimension Explorer", "Notes", "Hypothesis Backlog", "Experiments", "Summary & Export"], value="Project Brief")
-            section_context_display = gr.Markdown(section_context("Project Brief"))
-            section_selector.change(section_context, section_selector, section_context_display)
+            section_context_display = gr.Markdown(section_context("Project Brief", "en"))
+            section_selector.change(section_context, [section_selector, language_selector], section_context_display)
+            language_selector.change(section_context, [section_selector, language_selector], section_context_display)
             gr.Markdown("## 1. Project Brief")
             with gr.Row():
                 project_dropdown = gr.Dropdown(label="Your projects", choices=[], interactive=True)

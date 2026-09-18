@@ -1,0 +1,11 @@
+{
+  "language_name": "English",
+  "sections": {
+    "Project Brief": "Context: define the product concept, target user, job, problem, prototype, and main value hypothesis.",
+    "Dimension Explorer": "Estimate: assess all five dimensions and record evidence or explicit unknowns.",
+    "Notes": "Reflect: capture observations, assumptions, questions, and design decisions.",
+    "Hypothesis Backlog": "Hypothesize and prioritize: connect supporting hypotheses to value and identify uncertainty.",
+    "Experiments": "Plan a test: define one next experiment without automatically declaring a hypothesis supported.",
+    "Summary & Export": "Review: inspect checklist progress and download the project record."
+  }
+}

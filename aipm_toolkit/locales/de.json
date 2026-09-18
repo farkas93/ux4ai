@@ -1,0 +1,11 @@
+{
+  "language_name": "Deutsch",
+  "sections": {
+    "Project Brief": "Kontext: Produktidee, Zielgruppe, Aufgabe, Problem, Prototyp und zentrale Wertehypothese definieren.",
+    "Dimension Explorer": "Einschaetzung: Alle fuenf Dimensionen bewerten und Belege oder ausdrueckliche Unbekannte festhalten.",
+    "Notes": "Reflexion: Beobachtungen, Annahmen, Fragen und Designentscheidungen festhalten.",
+    "Hypothesis Backlog": "Hypothesen bilden und priorisieren: Unterstuetzungshypothesen mit Wert verknuepfen und Unsicherheit erkennen.",
+    "Experiments": "Test planen: Ein naechstes Experiment definieren, ohne eine Hypothese automatisch als bestaetigt zu markieren.",
+    "Summary & Export": "Ueberblick: Checklistenfortschritt pruefen und das Projekt herunterladen."
+  }
+}
