@@ -20,6 +20,22 @@ uv run uvicorn aipm_toolkit.server:app --host 127.0.0.1 --port 7860
 
 Open `http://127.0.0.1:7860/auth/login`. The server entry point protects `/app` with a database-backed HttpOnly session cookie and mounts the Gradio workspace there. `python -m aipm_toolkit.app` remains a development fallback for the standalone shell.
 
+## PostgreSQL container
+
+The intended local runtime uses PostgreSQL through Compose:
+
+```bash
+docker compose up --build
+```
+
+Open `http://127.0.0.1:7860/auth/login`. The app waits for PostgreSQL, applies Alembic migrations, and then starts Uvicorn. The Compose password is for local development only and must be replaced for any shared or deployed environment. Set `AIPM_COOKIE_SECURE=true` when serving through HTTPS.
+
+To run the optional PostgreSQL smoke test against an existing database:
+
+```bash
+AIPM_TEST_DATABASE_URL='postgresql+psycopg://user:password@localhost:5432/aipm_test' uv run --extra test pytest -m postgres
+```
+
 Set `AIPM_DATABASE_URL` for PostgreSQL. The default SQLite URL is intended only for a quick local smoke test; integration and production use PostgreSQL.
 
 The current implementation includes the Dimension Explorer and a historical baseline catalog. Import the legacy instructor references with:
