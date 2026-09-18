@@ -10,7 +10,13 @@ from .assessment_services import (
     get_project_estimates,
     save_project_estimates,
 )
-from .auth import AuthenticationError, RevisionConflict, authenticate, get_authenticated_user
+from .auth import (
+    AuthenticationError,
+    AuthorizationError,
+    RevisionConflict,
+    authenticate,
+    get_authenticated_user,
+)
 from .baseline_services import published_datasets, select_comparator
 from .comparison_services import comparator_name, comparison_rows
 from .db import SessionLocal
@@ -23,14 +29,21 @@ from .experiment_services import (
     update_experiment,
 )
 from .export_services import write_export_files
-from .hypothesis_services import add_relation, create_hypothesis, create_note, list_notes
+from .hypothesis_services import (
+    add_relation,
+    create_hypothesis,
+    create_note,
+    list_notes,
+    update_hypothesis,
+    update_note,
+)
 from .i18n import load_catalog
 from .instructor_services import (
     course_overview,
     import_baselines_as_instructor,
     provision_team_account,
 )
-from .models import Hypothesis, Role
+from .models import Hypothesis, Note, Role
 from .services import (
     create_project,
     get_project,
@@ -266,17 +279,17 @@ def _notes_text(items) -> str:
 
 def load_backlog_from_ui(token: str, project_id: str | None):
     if not project_id:
-        return "No notes yet.", "No hypotheses yet.", gr.update(choices=[]), gr.update(choices=[]), gr.update(choices=[])
+        return "No notes yet.", "No hypotheses yet.", gr.update(choices=[]), gr.update(choices=[]), gr.update(choices=[]), gr.update(choices=[]), gr.update(choices=[])
     with SessionLocal() as db:
         try:
             user = get_authenticated_user(db, token)
             notes = list_notes(db, user, UUID(project_id))
             hypotheses = _hypotheses(db, project_id)
         except AuthenticationError:
-            return "Session expired.", "Session expired.", gr.update(choices=[]), gr.update(choices=[]), gr.update(choices=[])
+            return "Session expired.", "Session expired.", gr.update(choices=[]), gr.update(choices=[]), gr.update(choices=[]), gr.update(choices=[]), gr.update(choices=[])
     choices = [(item.statement[:80], str(item.id)) for item in hypotheses]
     note_choices = [(item.text[:80], str(item.id)) for item in notes]
-    return _notes_text(notes), _hypothesis_text(hypotheses), gr.update(choices=note_choices), gr.update(choices=choices), gr.update(choices=choices)
+    return _notes_text(notes), _hypothesis_text(hypotheses), gr.update(choices=note_choices), gr.update(choices=choices), gr.update(choices=choices), gr.update(choices=note_choices), gr.update(choices=choices)
 
 
 def save_note_from_ui(token: str, project_id: str | None, note_type: str, text: str, dimensions: list[str]):
@@ -291,6 +304,63 @@ def save_note_from_ui(token: str, project_id: str | None, note_type: str, text: 
         except (AuthenticationError, ValueError) as exc:
             return str(exc), ""
     return "Note saved.", _notes_text(notes)
+
+
+def load_note_edit_from_ui(token: str, note_id: str | None):
+    if not note_id:
+        return "observation", "", None
+    with SessionLocal() as db:
+        try:
+            user = get_authenticated_user(db, token)
+            note = db.get(Note, UUID(note_id))
+            if note is None:
+                raise ValueError("Note not found")
+            get_project(db, user, note.project_id)
+        except (AuthenticationError, ValueError, AuthorizationError) as exc:
+            return str(exc), "", None
+    return note.note_type, note.text, note.revision
+
+
+def save_note_edit_from_ui(token: str, note_id: str | None, revision: int | None, note_type: str, text: str, dimensions: list[str]):
+    if not note_id or revision is None:
+        return "Select a saved note first.", None, ""
+    dimension_keys = [definition["key"] for definition in DEFAULT_DIMENSIONS if definition["title"] in (dimensions or [])]
+    with SessionLocal() as db:
+        try:
+            user = get_authenticated_user(db, token)
+            note = update_note(db, user, UUID(note_id), revision, note_type, text, dimension_keys)
+            notes = list_notes(db, user, note.project_id)
+        except (AuthenticationError, AuthorizationError, RevisionConflict, ValueError) as exc:
+            return str(exc), revision, ""
+    return "Note updated.", note.revision, _notes_text(notes)
+
+
+def load_hypothesis_edit_from_ui(token: str, hypothesis_id: str | None):
+    if not hypothesis_id:
+        return "", "", "unknown", "unknown", "", None
+    with SessionLocal() as db:
+        try:
+            user = get_authenticated_user(db, token)
+            hypothesis = db.get(Hypothesis, UUID(hypothesis_id))
+            if hypothesis is None:
+                raise ValueError("Hypothesis not found")
+            get_project(db, user, hypothesis.project_id)
+        except (AuthenticationError, AuthorizationError, ValueError) as exc:
+            return str(exc), "", "unknown", "unknown", "", None
+    return hypothesis.statement, hypothesis.value_link, hypothesis.impact_if_wrong, hypothesis.evidence_strength, hypothesis.evidence_rationale, hypothesis.revision
+
+
+def save_hypothesis_edit_from_ui(token: str, hypothesis_id: str | None, revision: int | None, statement: str, value_link: str, impact: str, evidence: str, evidence_rationale: str):
+    if not hypothesis_id or revision is None:
+        return "Select a saved hypothesis first.", None, ""
+    with SessionLocal() as db:
+        try:
+            user = get_authenticated_user(db, token)
+            hypothesis = update_hypothesis(db, user, UUID(hypothesis_id), revision, statement=statement, value_link=value_link, impact_if_wrong=impact, evidence_strength=evidence, evidence_rationale=evidence_rationale)
+            hypotheses = _hypotheses(db, str(hypothesis.project_id))
+        except (AuthenticationError, AuthorizationError, RevisionConflict, ValueError) as exc:
+            return str(exc), revision, ""
+    return "Hypothesis updated.", hypothesis.revision, _hypothesis_text(hypotheses)
 
 
 def save_hypothesis_from_ui(token: str, project_id: str | None, statement: str, value_link: str, impact: str, evidence: str, evidence_rationale: str, note_id: str | None):
@@ -535,6 +605,11 @@ def build_app():
             note_dimensions = gr.CheckboxGroup(label="Linked dimensions", choices=[definition["title"] for definition in DEFAULT_DIMENSIONS])
             save_note_button = gr.Button("Save note")
             notes_display = gr.Textbox(label="Saved notes", interactive=False, lines=5)
+            note_edit_selector = gr.Dropdown(label="Reopen note", choices=[])
+            note_edit_type = gr.Dropdown(label="Edited note type", choices=[("Observation", "observation"), ("Assumption", "assumption"), ("Question", "question"), ("Design decision", "design_decision")], value="observation")
+            note_edit_text = gr.Textbox(label="Edited note", lines=3)
+            note_edit_revision = gr.State(None)
+            update_note_button = gr.Button("Update note")
             gr.Markdown("## 4. Hypothesis Backlog")
             hypothesis_statement = gr.Textbox(label="Supporting hypothesis statement", lines=3)
             hypothesis_value_link = gr.Textbox(label="Why it matters / value link", lines=2)
@@ -544,6 +619,14 @@ def build_app():
             hypothesis_note = gr.Dropdown(label="Originating note (optional)", choices=[])
             save_hypothesis_button = gr.Button("Create supporting hypothesis")
             hypotheses_display = gr.Textbox(label="Hypothesis backlog", interactive=False, lines=7)
+            hypothesis_edit_selector = gr.Dropdown(label="Reopen hypothesis", choices=[])
+            hypothesis_edit_statement = gr.Textbox(label="Edited hypothesis statement", lines=3)
+            hypothesis_edit_value = gr.Textbox(label="Edited value link", lines=2)
+            hypothesis_edit_impact = gr.Dropdown(label="Edited impact if wrong", choices=["unknown", "low", "medium", "high"], value="unknown")
+            hypothesis_edit_evidence = gr.Dropdown(label="Edited evidence strength", choices=["unknown", "none", "limited", "moderate", "strong"], value="unknown")
+            hypothesis_edit_rationale = gr.Textbox(label="Edited evidence rationale", lines=2)
+            hypothesis_edit_revision = gr.State(None)
+            update_hypothesis_button = gr.Button("Update hypothesis")
             gr.Markdown("### Link hypotheses")
             relation_type = gr.Dropdown(label="Relationship", choices=[("Contributes to", "contributes_to"), ("Depends on", "depends_on"), ("Alternative to", "alternative_to"), ("In tension with", "in_tension_with")], value="contributes_to")
             relation_source = gr.Dropdown(label="From hypothesis", choices=[])
@@ -598,14 +681,18 @@ def build_app():
         submit.click(login, [username, password], [status, token, login_panel, workspace_panel]).then(workspace, token, [workspace_text, login_panel, instructor_panel, team_panel, project_dropdown])
         create_button.click(create_project_from_ui, [token, new_project_name], [status, project_dropdown, product_name, project_revision])
         with gr.Row():
-            project_dropdown.change(load_project_from_ui, [token, project_dropdown], [project_title, product_name, description, target_user, job, problem, hypothesis, product_type, figma_url, project_id, project_revision]).then(load_estimates_from_ui, [token, project_id], assessment_components + [assessment_revisions]).then(load_comparator_choices, outputs=comparator).then(load_backlog_from_ui, [token, project_id], [notes_display, hypotheses_display, hypothesis_note, relation_source, relation_target]).then(lambda choices: choices, relation_source, experiment_primary).then(checklist_text, [token, project_id], checklist_display).then(priority_text, [token, project_id], priority_display).then(lambda: False, outputs=brief_dirty).then(lambda: False, outputs=assessment_dirty)
+            project_dropdown.change(load_project_from_ui, [token, project_dropdown], [project_title, product_name, description, target_user, job, problem, hypothesis, product_type, figma_url, project_id, project_revision]).then(load_estimates_from_ui, [token, project_id], assessment_components + [assessment_revisions]).then(load_comparator_choices, outputs=comparator).then(load_backlog_from_ui, [token, project_id], [notes_display, hypotheses_display, hypothesis_note, relation_source, relation_target, note_edit_selector, hypothesis_edit_selector]).then(lambda choices: choices, relation_source, experiment_primary).then(checklist_text, [token, project_id], checklist_display).then(priority_text, [token, project_id], priority_display).then(lambda: False, outputs=brief_dirty).then(lambda: False, outputs=assessment_dirty)
             save_button.click(save_project_action, [token, project_id, project_revision, product_name, product_type, description, target_user, job, problem, hypothesis, figma_url], [status, project_revision, brief_dirty])
             brief_timer.tick(autosave_project_from_ui, [token, project_id, project_revision, brief_dirty, product_name, product_type, description, target_user, job, problem, hypothesis, figma_url], [status, project_revision, brief_dirty])
             save_assessments_button.click(save_assessments_action, [token, project_id, assessment_revisions, *assessment_components], [status, assessment_revisions, assessment_dirty])
             assessment_timer.tick(autosave_assessments_from_ui, [token, project_id, assessment_revisions, assessment_dirty, *assessment_components], [status, assessment_revisions, assessment_dirty])
         save_comparator_button.click(save_comparator_from_ui, [token, project_id, comparator, comparator_purpose, comparator_scope], [status, comparator_snapshot_id]).then(load_comparison_from_ui, [token, project_id, comparator_snapshot_id], [comparison_chart, comparison_table])
         save_note_button.click(save_note_from_ui, [token, project_id, note_type, note_text, note_dimensions], [status, notes_display])
-        save_hypothesis_button.click(save_hypothesis_from_ui, [token, project_id, hypothesis_statement, hypothesis_value_link, hypothesis_impact, hypothesis_evidence, hypothesis_evidence_rationale, hypothesis_note], [status, hypotheses_display, relation_source]).then(load_backlog_from_ui, [token, project_id], [notes_display, hypotheses_display, hypothesis_note, relation_source, relation_target])
+        save_hypothesis_button.click(save_hypothesis_from_ui, [token, project_id, hypothesis_statement, hypothesis_value_link, hypothesis_impact, hypothesis_evidence, hypothesis_evidence_rationale, hypothesis_note], [status, hypotheses_display, relation_source]).then(load_backlog_from_ui, [token, project_id], [notes_display, hypotheses_display, hypothesis_note, relation_source, relation_target, note_edit_selector, hypothesis_edit_selector])
+        note_edit_selector.change(load_note_edit_from_ui, [token, note_edit_selector], [note_edit_type, note_edit_text, note_edit_revision])
+        update_note_button.click(save_note_edit_from_ui, [token, note_edit_selector, note_edit_revision, note_edit_type, note_edit_text, note_dimensions], [status, note_edit_revision, notes_display]).then(load_backlog_from_ui, [token, project_id], [notes_display, hypotheses_display, hypothesis_note, relation_source, relation_target, note_edit_selector, hypothesis_edit_selector])
+        hypothesis_edit_selector.change(load_hypothesis_edit_from_ui, [token, hypothesis_edit_selector], [hypothesis_edit_statement, hypothesis_edit_value, hypothesis_edit_impact, hypothesis_edit_evidence, hypothesis_edit_rationale, hypothesis_edit_revision])
+        update_hypothesis_button.click(save_hypothesis_edit_from_ui, [token, hypothesis_edit_selector, hypothesis_edit_revision, hypothesis_edit_statement, hypothesis_edit_value, hypothesis_edit_impact, hypothesis_edit_evidence, hypothesis_edit_rationale], [status, hypothesis_edit_revision, hypotheses_display]).then(load_backlog_from_ui, [token, project_id], [notes_display, hypotheses_display, hypothesis_note, relation_source, relation_target, note_edit_selector, hypothesis_edit_selector])
         save_relation_button.click(save_relation_from_ui, [token, project_id, relation_type, relation_source, relation_target], status)
         create_experiment_button.click(save_experiment_plan, [token, project_id, experiment_primary, experiment_title, experiment_method], [status, experiment_id, experiment_revision]).then(checklist_text, [token, project_id], checklist_display).then(priority_text, [token, project_id], priority_display)
         save_experiment_button.click(save_experiment_details, [token, project_id, experiment_id, experiment_revision, experiment_procedure, experiment_participants, experiment_baseline, experiment_metric, experiment_success, experiment_guardrail, experiment_resources, experiment_owner, experiment_date, experiment_status, experiment_results, experiment_links, experiment_limitations, experiment_conclusion, experiment_decision], [status, experiment_revision]).then(checklist_text, [token, project_id], checklist_display).then(priority_text, [token, project_id], priority_display)

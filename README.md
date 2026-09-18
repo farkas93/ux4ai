@@ -70,6 +70,8 @@ Legacy reference imports preserve per-dimension scale metadata. The historical a
 
 The workspace also includes structured Notes and a Hypothesis Backlog. Notes can be linked to dimensions and used as provenance when creating supporting hypotheses. Hypothesis relationships are project-scoped; self-links and dependency cycles are rejected.
 
+Saved notes and hypotheses can be reopened from the workspace, edited, and saved with revision checks. Stale edits are rejected instead of silently overwriting newer content.
+
 Experiments can be planned against one primary hypothesis, updated with procedures, metrics, success criteria, guardrails, results, limitations, and decisions. Completing an experiment never automatically marks its hypothesis as supported. The workshop checklist requires a planned next experiment but remains guidance rather than a product-readiness score.
 
 Summary & Export provides authorized, versioned JSON and Markdown downloads. Exports include comparator provenance, notes, hypotheses, relationships, experiments, reflections, and the required prototype-profile warning; credentials, passwords, and historical identities are excluded.

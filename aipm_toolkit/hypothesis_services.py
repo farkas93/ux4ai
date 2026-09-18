@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from .auth import AuthorizationError, RevisionConflict
@@ -39,6 +39,28 @@ def create_note(db: Session, actor: User, project_id: UUID, note_type: str, text
 def list_notes(db: Session, actor: User, project_id: UUID) -> list[Note]:
     get_project(db, actor, project_id)
     return list(db.scalars(select(Note).where(Note.project_id == project_id).order_by(Note.created_at.desc())))
+
+
+def update_note(db: Session, actor: User, note_id: UUID, revision: int, note_type: str, text: str, dimensions: list[str] | None = None) -> Note:
+    note = db.get(Note, note_id)
+    if note is None:
+        raise AuthorizationError("Note not found")
+    get_project(db, actor, note.project_id)
+    if note.revision != revision:
+        raise RevisionConflict("The note changed since it was loaded")
+    if note_type not in {item.value for item in NoteType} or not text.strip():
+        raise ValueError("A note requires a valid type and text")
+    dimensions = dimensions or []
+    if not set(dimensions).issubset(DIMENSION_KEYS):
+        raise ValueError("Unknown note dimension")
+    note.note_type = note_type
+    note.text = text.strip()
+    db.execute(delete(NoteDimension).where(NoteDimension.note_id == note_id))
+    for dimension in dimensions:
+        db.add(NoteDimension(note_id=note_id, dimension_key=dimension))
+    note.revision += 1
+    db.commit()
+    return note
 
 
 def create_hypothesis(db: Session, actor: User, project_id: UUID, statement: str, *, kind: str = HypothesisKind.SUPPORTING.value, value_link: str = "", dimensions: list[str] | None = None, note_id: UUID | None = None) -> Hypothesis:

@@ -6,6 +6,7 @@ from aipm_toolkit.hypothesis_services import (
     create_hypothesis,
     create_note,
     update_hypothesis,
+    update_note,
 )
 from aipm_toolkit.models import Course, Hypothesis, Role, Team, User
 from aipm_toolkit.services import create_project
@@ -54,3 +55,16 @@ def test_evidence_rationale_and_revision_are_enforced(db):
     assert updated.evidence_strength == "strong"
     with pytest.raises(RevisionConflict):
         update_hypothesis(db, user, hypothesis.id, hypothesis.revision - 1, statement="Stale")
+
+
+def test_notes_and_hypotheses_can_be_reopened_and_updated(db):
+    user, project = users_and_project(db, "editing")
+    note = create_note(db, user, project.id, "observation", "Original note")
+    note_revision = note.revision
+    updated_note = update_note(db, user, note.id, note_revision, "question", "Updated note", ["autonomy"])
+    assert updated_note.text == "Updated note"
+    hypothesis = create_hypothesis(db, user, project.id, "Original claim")
+    updated_hypothesis = update_hypothesis(db, user, hypothesis.id, hypothesis.revision, statement="Updated claim", value_link="The value connection")
+    assert updated_hypothesis.statement == "Updated claim"
+    with pytest.raises(RevisionConflict):
+        update_note(db, user, note.id, note_revision, "question", "Stale note")
