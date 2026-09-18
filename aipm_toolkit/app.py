@@ -24,7 +24,11 @@ from .experiment_services import (
 )
 from .export_services import write_export_files
 from .hypothesis_services import add_relation, create_hypothesis, create_note, list_notes
-from .instructor_services import course_overview, import_baselines_as_instructor
+from .instructor_services import (
+    course_overview,
+    import_baselines_as_instructor,
+    provision_team_account,
+)
 from .models import Hypothesis, Role
 from .services import (
     create_project,
@@ -404,6 +408,16 @@ def import_baselines_from_ui(token: str, directory: str, cohort: str, publish: b
     return f"Imported {report['records']} records from {report['files']} files.", str(report)
 
 
+def provision_team_from_ui(token: str, course_name: str, alias: str, password: str):
+    with SessionLocal() as db:
+        try:
+            user = get_authenticated_user(db, token)
+            team = provision_team_account(db, user, course_name, alias, password)
+        except (AuthenticationError, ValueError) as exc:
+            return str(exc)
+    return f"Team account '{team.alias}' created. Share the password securely and do not store it in project content."
+
+
 def section_context(section: str) -> str:
     descriptions = {
         "Project Brief": "Context: define the product concept, target user, job, problem, prototype, and main value hypothesis.",
@@ -438,6 +452,12 @@ def build_app():
             import_button = gr.Button("Import baseline JSON files")
             import_report = gr.Textbox(label="Import report", interactive=False, lines=5)
             import_button.click(import_baselines_from_ui, [token, import_directory, import_cohort, publish_import], [status, import_report])
+            gr.Markdown("### Create team account")
+            team_course = gr.Textbox(label="Course name", value="AIPM Workshop")
+            team_alias = gr.Textbox(label="Team alias")
+            team_password = gr.Textbox(label="Initial team password", type="password")
+            create_team_button = gr.Button("Create team account")
+            create_team_button.click(provision_team_from_ui, [token, team_course, team_alias, team_password], status)
         with gr.Column(visible=False) as team_panel:
             section_selector = gr.Radio(label="Current section", choices=["Project Brief", "Dimension Explorer", "Notes", "Hypothesis Backlog", "Experiments", "Summary & Export"], value="Project Brief")
             section_context_display = gr.Markdown(section_context("Project Brief"))
