@@ -23,8 +23,9 @@ def comparison_rows(db: Session, actor: User, project_id: UUID, snapshot_id: UUI
         our_score = estimate.score if estimate and estimate.status == "estimated" else None
         baseline = frozen.get(key, {})
         baseline_median = baseline.get("median")
-        difference = our_score - baseline_median if our_score is not None and baseline_median is not None else None
-        rows.append({"dimension": key, "our_score": our_score, "baseline_median": baseline_median, "baseline_p25": baseline.get("p25"), "baseline_p75": baseline.get("p75"), "count": baseline.get("count", 0), "difference": difference, "compatible": True})
+        compatible = baseline.get("compatible", True)
+        difference = our_score - baseline_median if compatible and our_score is not None and baseline_median is not None else None
+        rows.append({"dimension": key, "our_score": our_score, "baseline_median": baseline_median, "baseline_p25": baseline.get("p25"), "baseline_p75": baseline.get("p75"), "count": baseline.get("count", 0), "difference": difference, "compatible": compatible})
     return rows
 
 

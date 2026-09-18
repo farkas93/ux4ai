@@ -34,6 +34,10 @@ def test_comparison_snapshot_freezes_profile_and_preserves_unknown_gap(db, tmp_p
     assert rows[0]["baseline_median"] == 2
     assert rows[0]["our_score"] is None
     assert rows[0]["difference"] is None
+    autonomy = next(row for row in rows if row["dimension"] == "autonomy")
+    assert autonomy["baseline_median"] == 2
+    assert autonomy["compatible"] is False
+    assert autonomy["difference"] is None
     snapshot.frozen_profile = snapshot.frozen_profile.replace("2.0", "4.0")
     db.commit()
     assert comparison_rows(db, user, project.id, snapshot.id)[0]["baseline_median"] == 4

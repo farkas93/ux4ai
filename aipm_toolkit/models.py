@@ -164,6 +164,7 @@ class BaselineDataset(Base):
     source_type: Mapped[str] = mapped_column(String(30), nullable=False)
     cohort_label: Mapped[str] = mapped_column(String(200), nullable=False)
     scale_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    scale_versions: Mapped[str] = mapped_column(Text, default="{}", nullable=False)
     provenance_notes: Mapped[str] = mapped_column(Text, default="", nullable=False)
     published: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

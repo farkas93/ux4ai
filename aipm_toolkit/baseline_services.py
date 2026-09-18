@@ -51,7 +51,7 @@ def import_legacy_reference_json(db: Session, directory: str | Path, cohort_labe
             db.flush()
         dataset = db.scalar(select(BaselineDataset).where(BaselineDataset.product_id == product.id, BaselineDataset.source_type == "instructor_reference", BaselineDataset.cohort_label == cohort_label))
         if dataset is None:
-            dataset = BaselineDataset(product_id=product.id, source_type="instructor_reference", cohort_label=cohort_label, scale_version=1, provenance_notes="Imported from a legacy instructor reference JSON; scope and date were not inferred.")
+            dataset = BaselineDataset(product_id=product.id, source_type="instructor_reference", cohort_label=cohort_label, scale_version=1, scale_versions=json.dumps({key: (0 if key == "autonomy" else 1) for key in DIMENSION_KEYS}), provenance_notes="Imported from a legacy instructor reference JSON; scope and date were not inferred. Legacy autonomy uses the historical Procedural to Full Agentic wording and is incompatible with the current autonomy scale.")
             db.add(dataset)
             db.flush()
         source_id = path.name
@@ -110,7 +110,8 @@ def select_comparator(db: Session, actor: User, project_id: UUID, dataset_id: UU
     if purpose not in {"task_comparator", "design_contrast"}:
         raise ValueError("Invalid comparison purpose")
     aggregates = aggregate_dataset(db, dataset.id)
-    frozen_profile = {key: {"median": values["median"], "p25": values["p25"], "p75": values["p75"], "count": values["count"]} for key, values in aggregates.items()}
+    scale_versions = json.loads(dataset.scale_versions or "{}")
+    frozen_profile = {key: {"median": values["median"], "p25": values["p25"], "p75": values["p75"], "count": values["count"], "compatible": scale_versions.get(key, 1) == 1} for key, values in aggregates.items()}
     snapshot = ComparisonSnapshot(project_id=project_id, product_id=dataset.product_id, dataset_id=dataset.id, purpose=purpose, scope_explanation=scope_explanation, frozen_profile=json.dumps(frozen_profile, sort_keys=True))
     db.add(snapshot)
     db.commit()

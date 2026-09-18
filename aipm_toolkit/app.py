@@ -215,7 +215,7 @@ def load_comparison_from_ui(token: str, project_id: str | None, snapshot_id: str
             return go.Figure(), str(exc)
     labels = [row["dimension"] for row in rows]
     ours = [row["our_score"] for row in rows]
-    baseline = [row["baseline_median"] for row in rows]
+    baseline = [row["baseline_median"] if row["compatible"] else None for row in rows]
     theta = labels + [labels[0]]
     ours_closed = ours + [ours[0]]
     baseline_closed = baseline + [baseline[0]]
