@@ -66,6 +66,13 @@ def login(username: str, password: str):
     return gr.update(value=f"Signed in as {user.username}"), token, gr.update(visible=False), gr.update(visible=True)
 
 
+def _resolve_token(token: str | None, request: gr.Request | None) -> str | None:
+    if request:
+        cookies = getattr(getattr(request, "request", None), "cookies", {})
+        return cookies.get("aipm_session") or token
+    return token
+
+
 def auto_login(request: gr.Request):
     cookies = getattr(getattr(request, "request", None), "cookies", {}) if request else {}
     raw_token = cookies.get("aipm_session")
@@ -76,10 +83,11 @@ def auto_login(request: gr.Request):
             user = get_authenticated_user(db, raw_token)
         except AuthenticationError:
             return "Session expired. Please sign in again.", None, gr.update(visible=True), gr.update(visible=False)
-    return f"Signed in as {user.username}", raw_token, gr.update(visible=False), gr.update(visible=True)
+    return f"Signed in as {user.username}", None, gr.update(visible=False), gr.update(visible=True)
 
 
-def workspace(token: str):
+def workspace(token: str | None, request: gr.Request | None = None):
+    token = _resolve_token(token, request)
     with SessionLocal() as db:
         try:
             user = get_authenticated_user(db, token)
@@ -93,7 +101,8 @@ def workspace(token: str):
     return "Select an existing project or create a new draft.", gr.update(visible=False), gr.update(visible=False), gr.update(visible=True), gr.update(choices=choices, value=choices[0][1] if choices else None)
 
 
-def create_project_from_ui(token: str, product_name: str):
+def create_project_from_ui(token: str, product_name: str, request: gr.Request | None = None):
+    token = _resolve_token(token, request)
     with SessionLocal() as db:
         try:
             user = get_authenticated_user(db, token)
@@ -104,7 +113,8 @@ def create_project_from_ui(token: str, product_name: str):
     return "Draft created. Your project brief is ready.", gr.update(choices=choices, value=str(project.id)), gr.update(value=project.product_name), gr.update(value=project.revision)
 
 
-def load_project_from_ui(token: str, project_id: str | None):
+def load_project_from_ui(token: str, project_id: str | None, request: gr.Request | None = None):
+    token = _resolve_token(token, request)
     if not project_id:
         return "", "", "", "", "", "", "", "", "", None, None
     with SessionLocal() as db:
@@ -129,7 +139,8 @@ def load_project_from_ui(token: str, project_id: str | None):
     )
 
 
-def save_project_from_ui(token: str, project_id: str | None, revision: int | None, product_name: str, product_type: str | None, description: str, target_user: str, job: str, problem: str, hypothesis: str, figma_url: str):
+def save_project_from_ui(token: str, project_id: str | None, revision: int | None, product_name: str, product_type: str | None, description: str, target_user: str, job: str, problem: str, hypothesis: str, figma_url: str, request: gr.Request | None = None):
+    token = _resolve_token(token, request)
     if not project_id or revision is None:
         return "Select a project first.", revision
     with SessionLocal() as db:
@@ -145,12 +156,14 @@ def save_project_from_ui(token: str, project_id: str | None, revision: int | Non
     return "Saved.", project.revision
 
 
-def save_project_action(token: str, project_id: str | None, revision: int | None, product_name: str, product_type: str | None, description: str, target_user: str, job: str, problem: str, hypothesis: str, figma_url: str):
+def save_project_action(token: str, project_id: str | None, revision: int | None, product_name: str, product_type: str | None, description: str, target_user: str, job: str, problem: str, hypothesis: str, figma_url: str, request: gr.Request | None = None):
+    token = _resolve_token(token, request)
     status, new_revision = save_project_from_ui(token, project_id, revision, product_name, product_type, description, target_user, job, problem, hypothesis, figma_url)
     return status, new_revision, not status.startswith("Saved")
 
 
-def autosave_project_from_ui(token: str, project_id: str | None, revision: int | None, dirty: bool, product_name: str, product_type: str | None, description: str, target_user: str, job: str, problem: str, hypothesis: str, figma_url: str):
+def autosave_project_from_ui(token: str, project_id: str | None, revision: int | None, dirty: bool, product_name: str, product_type: str | None, description: str, target_user: str, job: str, problem: str, hypothesis: str, figma_url: str, request: gr.Request | None = None):
+    token = _resolve_token(token, request)
     if not dirty:
         return gr.update(), revision, dirty
     status, new_revision = save_project_from_ui(token, project_id, revision, product_name, product_type, description, target_user, job, problem, hypothesis, figma_url)
@@ -159,7 +172,8 @@ def autosave_project_from_ui(token: str, project_id: str | None, revision: int |
     return f"Save failed: {status}", new_revision, True
 
 
-def load_estimates_from_ui(token: str, project_id: str | None):
+def load_estimates_from_ui(token: str, project_id: str | None, request: gr.Request | None = None):
+    token = _resolve_token(token, request)
     blank = []
     if not project_id:
         return [value for _ in DEFAULT_DIMENSIONS for value in ("unassessed", None, "", None, "", "")], []
@@ -177,7 +191,8 @@ def load_estimates_from_ui(token: str, project_id: str | None):
     return blank, revisions
 
 
-def save_estimates_from_ui(token: str, project_id: str | None, revisions: list[int] | None, *values):
+def save_estimates_from_ui(token: str, project_id: str | None, revisions: list[int] | None, *values, request: gr.Request | None = None):
+    token = _resolve_token(token, request)
     if not project_id:
         return "Select a project before saving dimension assessments.", revisions or []
     revisions = revisions or [None] * len(DEFAULT_DIMENSIONS)
@@ -205,12 +220,14 @@ def save_estimates_from_ui(token: str, project_id: str | None, revisions: list[i
     return "Dimension assessments saved.", [estimate.revision for estimate in saved]
 
 
-def save_assessments_action(token: str, project_id: str | None, revisions: list[int] | None, *values):
+def save_assessments_action(token: str, project_id: str | None, revisions: list[int] | None, *values, request: gr.Request | None = None):
+    token = _resolve_token(token, request)
     status, new_revisions = save_estimates_from_ui(token, project_id, revisions, *values)
     return status, new_revisions, not status.endswith("saved.")
 
 
-def autosave_assessments_from_ui(token: str, project_id: str | None, revisions: list[int] | None, dirty: bool, *values):
+def autosave_assessments_from_ui(token: str, project_id: str | None, revisions: list[int] | None, dirty: bool, *values, request: gr.Request | None = None):
+    token = _resolve_token(token, request)
     if not dirty:
         return gr.update(), revisions or [], dirty
     status, new_revisions = save_estimates_from_ui(token, project_id, revisions, *values)
@@ -224,7 +241,8 @@ def load_comparator_choices():
         return gr.update(choices=[(name, str(dataset_id)) for name, dataset_id in published_datasets(db)])
 
 
-def save_comparator_from_ui(token: str, project_id: str | None, dataset_id: str | None, purpose: str, scope: str):
+def save_comparator_from_ui(token: str, project_id: str | None, dataset_id: str | None, purpose: str, scope: str, request: gr.Request | None = None):
+    token = _resolve_token(token, request)
     if not project_id or not dataset_id:
         return "Select a project and comparator first.", None
     with SessionLocal() as db:
@@ -236,7 +254,8 @@ def save_comparator_from_ui(token: str, project_id: str | None, dataset_id: str 
     return "Comparator selection saved as a frozen snapshot. Previous snapshots remain unchanged.", str(snapshot.id)
 
 
-def load_comparison_from_ui(token: str, project_id: str | None, snapshot_id: str | None):
+def load_comparison_from_ui(token: str, project_id: str | None, snapshot_id: str | None, request: gr.Request | None = None):
+    token = _resolve_token(token, request)
     if not project_id or not snapshot_id:
         return go.Figure(), "Save a comparator selection to view the comparison."
     with SessionLocal() as db:
@@ -278,7 +297,8 @@ def _notes_text(items) -> str:
     return "\n".join(f"[{item.note_type}] {item.text}" for item in items) or "No notes yet."
 
 
-def load_backlog_from_ui(token: str, project_id: str | None):
+def load_backlog_from_ui(token: str, project_id: str | None, request: gr.Request | None = None):
+    token = _resolve_token(token, request)
     if not project_id:
         return "No notes yet.", "No hypotheses yet.", gr.update(choices=[]), gr.update(choices=[]), gr.update(choices=[]), gr.update(choices=[]), gr.update(choices=[])
     with SessionLocal() as db:
@@ -293,7 +313,8 @@ def load_backlog_from_ui(token: str, project_id: str | None):
     return _notes_text(notes), _hypothesis_text(hypotheses), gr.update(choices=note_choices), gr.update(choices=choices), gr.update(choices=choices), gr.update(choices=note_choices), gr.update(choices=choices)
 
 
-def save_note_from_ui(token: str, project_id: str | None, note_type: str, text: str, dimensions: list[str]):
+def save_note_from_ui(token: str, project_id: str | None, note_type: str, text: str, dimensions: list[str], request: gr.Request | None = None):
+    token = _resolve_token(token, request)
     if not project_id:
         return "Select a project first.", "No notes yet."
     dimension_keys = [definition["key"] for definition in DEFAULT_DIMENSIONS if definition["title"] in (dimensions or [])]
@@ -307,7 +328,8 @@ def save_note_from_ui(token: str, project_id: str | None, note_type: str, text: 
     return "Note saved.", _notes_text(notes)
 
 
-def load_note_edit_from_ui(token: str, note_id: str | None):
+def load_note_edit_from_ui(token: str, note_id: str | None, request: gr.Request | None = None):
+    token = _resolve_token(token, request)
     if not note_id:
         return "observation", "", None
     with SessionLocal() as db:
@@ -322,7 +344,8 @@ def load_note_edit_from_ui(token: str, note_id: str | None):
     return note.note_type, note.text, note.revision
 
 
-def save_note_edit_from_ui(token: str, note_id: str | None, revision: int | None, note_type: str, text: str, dimensions: list[str]):
+def save_note_edit_from_ui(token: str, note_id: str | None, revision: int | None, note_type: str, text: str, dimensions: list[str], request: gr.Request | None = None):
+    token = _resolve_token(token, request)
     if not note_id or revision is None:
         return "Select a saved note first.", None, ""
     dimension_keys = [definition["key"] for definition in DEFAULT_DIMENSIONS if definition["title"] in (dimensions or [])]
@@ -336,7 +359,8 @@ def save_note_edit_from_ui(token: str, note_id: str | None, revision: int | None
     return "Note updated.", note.revision, _notes_text(notes)
 
 
-def load_hypothesis_edit_from_ui(token: str, hypothesis_id: str | None):
+def load_hypothesis_edit_from_ui(token: str, hypothesis_id: str | None, request: gr.Request | None = None):
+    token = _resolve_token(token, request)
     if not hypothesis_id:
         return "", "", "unknown", "unknown", "", None
     with SessionLocal() as db:
@@ -351,7 +375,8 @@ def load_hypothesis_edit_from_ui(token: str, hypothesis_id: str | None):
     return hypothesis.statement, hypothesis.value_link, hypothesis.impact_if_wrong, hypothesis.evidence_strength, hypothesis.evidence_rationale, hypothesis.revision
 
 
-def save_hypothesis_edit_from_ui(token: str, hypothesis_id: str | None, revision: int | None, statement: str, value_link: str, impact: str, evidence: str, evidence_rationale: str):
+def save_hypothesis_edit_from_ui(token: str, hypothesis_id: str | None, revision: int | None, statement: str, value_link: str, impact: str, evidence: str, evidence_rationale: str, request: gr.Request | None = None):
+    token = _resolve_token(token, request)
     if not hypothesis_id or revision is None:
         return "Select a saved hypothesis first.", None, ""
     with SessionLocal() as db:
@@ -364,7 +389,8 @@ def save_hypothesis_edit_from_ui(token: str, hypothesis_id: str | None, revision
     return "Hypothesis updated.", hypothesis.revision, _hypothesis_text(hypotheses)
 
 
-def save_hypothesis_from_ui(token: str, project_id: str | None, statement: str, value_link: str, impact: str, evidence: str, evidence_rationale: str, note_id: str | None):
+def save_hypothesis_from_ui(token: str, project_id: str | None, statement: str, value_link: str, impact: str, evidence: str, evidence_rationale: str, note_id: str | None, request: gr.Request | None = None):
+    token = _resolve_token(token, request)
     if not project_id:
         return "Select a project first.", "", gr.update(choices=[])
     with SessionLocal() as db:
@@ -382,7 +408,8 @@ def save_hypothesis_from_ui(token: str, project_id: str | None, statement: str, 
     return "Supporting hypothesis saved.", _hypothesis_text(hypotheses), gr.update(choices=choices)
 
 
-def save_relation_from_ui(token: str, project_id: str | None, relation_type: str, source_id: str | None, target_id: str | None):
+def save_relation_from_ui(token: str, project_id: str | None, relation_type: str, source_id: str | None, target_id: str | None, request: gr.Request | None = None):
+    token = _resolve_token(token, request)
     if not project_id or not source_id or not target_id:
         return "Select a project and two hypotheses."
     with SessionLocal() as db:
@@ -394,7 +421,8 @@ def save_relation_from_ui(token: str, project_id: str | None, relation_type: str
     return "Hypothesis relationship saved."
 
 
-def save_experiment_plan(token: str, project_id: str | None, primary_id: str | None, title: str, method: str):
+def save_experiment_plan(token: str, project_id: str | None, primary_id: str | None, title: str, method: str, request: gr.Request | None = None):
+    token = _resolve_token(token, request)
     if not project_id or not primary_id:
         return "Select a project and primary hypothesis first.", None, None
     with SessionLocal() as db:
@@ -406,7 +434,8 @@ def save_experiment_plan(token: str, project_id: str | None, primary_id: str | N
     return "Experiment plan created. Add the procedure and success criteria below.", str(experiment.id), experiment.revision
 
 
-def load_experiment_choices(token: str, project_id: str | None):
+def load_experiment_choices(token: str, project_id: str | None, request: gr.Request | None = None):
+    token = _resolve_token(token, request)
     if not project_id:
         return gr.update(choices=[])
     with SessionLocal() as db:
@@ -418,7 +447,8 @@ def load_experiment_choices(token: str, project_id: str | None):
     return gr.update(choices=[(item.title[:80], str(item.id)) for item in experiments])
 
 
-def load_experiment_edit_from_ui(token: str, experiment_id: str | None):
+def load_experiment_edit_from_ui(token: str, experiment_id: str | None, request: gr.Request | None = None):
+    token = _resolve_token(token, request)
     if not experiment_id:
         return "", "prototype_walkthrough", "", "", "", "", "", "", "", "", "planned", "", "", "", "", "undecided", None
     with SessionLocal() as db:
@@ -433,7 +463,8 @@ def load_experiment_edit_from_ui(token: str, experiment_id: str | None):
     return (experiment.title, experiment.method, experiment.procedure, experiment.participants, experiment.comparison_baseline, experiment.metric, experiment.success_criterion, experiment.guardrail, experiment.resources, experiment.owner, experiment.planned_date, experiment.status, experiment.results, experiment.evidence_links, experiment.limitations, experiment.conclusion, experiment.resulting_decision, experiment.revision)
 
 
-def save_experiment_details(token: str, project_id: str | None, experiment_id: str | None, revision: int | None, procedure: str, participants: str, baseline: str, metric: str, success: str, guardrail: str, resources: str, owner: str, planned_date: str, status_value: str, results: str, evidence_links: str, limitations: str, conclusion: str, decision: str):
+def save_experiment_details(token: str, project_id: str | None, experiment_id: str | None, revision: int | None, procedure: str, participants: str, baseline: str, metric: str, success: str, guardrail: str, resources: str, owner: str, planned_date: str, status_value: str, results: str, evidence_links: str, limitations: str, conclusion: str, decision: str, request: gr.Request | None = None):
+    token = _resolve_token(token, request)
     if not project_id or not experiment_id or revision is None:
         return "Create an experiment plan first.", revision
     with SessionLocal() as db:
@@ -445,7 +476,8 @@ def save_experiment_details(token: str, project_id: str | None, experiment_id: s
     return "Experiment saved. Completion does not automatically support the hypothesis.", revision + 1
 
 
-def checklist_text(token: str, project_id: str | None):
+def checklist_text(token: str | None, project_id: str | None, request: gr.Request | None = None):
+    token = _resolve_token(token, request)
     if not project_id:
         return "Select a project to see the workshop checklist."
     with SessionLocal() as db:
@@ -457,7 +489,8 @@ def checklist_text(token: str, project_id: str | None):
     return "\n".join(f"{'[x]' if complete else '[ ]'} {label}" for label, complete in checklist.items())
 
 
-def priority_text(token: str, project_id: str | None):
+def priority_text(token: str | None, project_id: str | None, request: gr.Request | None = None):
+    token = _resolve_token(token, request)
     if not project_id:
         return "Select a project to see priority guidance."
     with SessionLocal() as db:
@@ -468,7 +501,8 @@ def priority_text(token: str, project_id: str | None):
             return "Session expired."
 
 
-def export_project_from_ui(token: str, project_id: str | None):
+def export_project_from_ui(token: str | None, project_id: str | None, request: gr.Request | None = None):
+    token = _resolve_token(token, request)
     if not project_id:
         return "Select a project before exporting.", None, None
     with SessionLocal() as db:
@@ -480,7 +514,8 @@ def export_project_from_ui(token: str, project_id: str | None):
     return "Exports generated.", json_path, markdown_path
 
 
-def save_risk_reflection_from_ui(token: str, project_id: str | None, score, entry: str, behavior: str, affected: str, consequence: str, safeguard: str, uncertainty: str):
+def save_risk_reflection_from_ui(token: str | None, project_id: str | None, score, entry: str, behavior: str, affected: str, consequence: str, safeguard: str, uncertainty: str, request: gr.Request | None = None):
+    token = _resolve_token(token, request)
     if not project_id:
         return "Select a project first."
     with SessionLocal() as db:
@@ -492,7 +527,8 @@ def save_risk_reflection_from_ui(token: str, project_id: str | None, score, entr
     return "Adversarial-risk reflection saved. The score is a subjective discussion input, not a calibrated security assessment."
 
 
-def save_feedback_reflection_from_ui(token: str, project_id: str | None, signal: str, meaning: str, change: str, human: str, evaluation: str):
+def save_feedback_reflection_from_ui(token: str | None, project_id: str | None, signal: str, meaning: str, change: str, human: str, evaluation: str, request: gr.Request | None = None):
+    token = _resolve_token(token, request)
     if not project_id:
         return "Select a project first."
     with SessionLocal() as db:
@@ -504,7 +540,8 @@ def save_feedback_reflection_from_ui(token: str, project_id: str | None, signal:
     return "Feedback-loop reflection saved."
 
 
-def instructor_overview_from_ui(token: str):
+def instructor_overview_from_ui(token: str | None, request: gr.Request | None = None):
+    token = _resolve_token(token, request)
     with SessionLocal() as db:
         try:
             user = get_authenticated_user(db, token)
@@ -516,7 +553,8 @@ def instructor_overview_from_ui(token: str):
     return "\n".join(f"{row['team_alias']} | {row['product_name']} | checklist {row['completed_items']}/{row['total_items']} | id {row['project_id']}" for row in rows)
 
 
-def import_baselines_from_ui(token: str, directory: str, cohort: str, publish: bool):
+def import_baselines_from_ui(token: str | None, directory: str, cohort: str, publish: bool, request: gr.Request | None = None):
+    token = _resolve_token(token, request)
     with SessionLocal() as db:
         try:
             user = get_authenticated_user(db, token)
@@ -526,7 +564,8 @@ def import_baselines_from_ui(token: str, directory: str, cohort: str, publish: b
     return f"Imported {report['records']} records from {report['files']} files.", str(report)
 
 
-def provision_team_from_ui(token: str, course_name: str, alias: str, password: str):
+def provision_team_from_ui(token: str | None, course_name: str, alias: str, password: str, request: gr.Request | None = None):
+    token = _resolve_token(token, request)
     with SessionLocal() as db:
         try:
             user = get_authenticated_user(db, token)

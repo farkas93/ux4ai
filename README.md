@@ -20,6 +20,8 @@ uv run uvicorn aipm_toolkit.server:app --host 127.0.0.1 --port 7860
 
 Open `http://127.0.0.1:7860/auth/login`. The server entry point protects `/app` with a database-backed HttpOnly session cookie and mounts the Gradio workspace there. `python -m aipm_toolkit.app` remains a development fallback for the standalone shell.
 
+In the production-mounted workspace, callbacks prefer the authenticated request cookie over any client-side state value. The standalone Gradio fallback still supports its local development sign-in flow.
+
 ## PostgreSQL container
 
 The intended local runtime uses PostgreSQL through Compose:

@@ -2,6 +2,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
+from aipm_toolkit.app import _resolve_token
 from aipm_toolkit.auth import hash_password
 from aipm_toolkit.db import Base
 from aipm_toolkit.models import Role, User
@@ -31,3 +32,14 @@ def test_cookie_session_protects_app_and_supports_logout(tmp_path):
     logout = client.get("/auth/logout", follow_redirects=False)
     assert logout.status_code == 303
     assert client.get("/app", follow_redirects=False).status_code == 303
+
+
+def test_gradio_callback_identity_prefers_request_cookie():
+    class Request:
+        class Inner:
+            def __init__(self):
+                self.cookies = {"aipm_session": "cookie-session"}
+
+        request = Inner()
+
+    assert _resolve_token("client-state-token", Request()) == "cookie-session"
