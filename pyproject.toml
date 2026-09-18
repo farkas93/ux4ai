@@ -30,12 +30,17 @@ test = [
   "httpx==0.28.1",
   "sqlite-utils==3.38",
 ]
+e2e = [
+  "playwright==1.55.0",
+  "pytest-playwright==0.7.1",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "--strict-markers"
 markers = [
   "postgres: requires a PostgreSQL database configured through AIPM_TEST_DATABASE_URL",
+  "e2e: requires a running AIPM server and Playwright Chromium",
 ]
 
 [tool.ruff]

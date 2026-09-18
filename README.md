@@ -36,6 +36,26 @@ To run the optional PostgreSQL smoke test against an existing database:
 AIPM_TEST_DATABASE_URL='postgresql+psycopg://user:password@localhost:5432/aipm_test' uv run --extra test pytest -m postgres
 ```
 
+## Browser E2E smoke test
+
+Install the optional browser dependencies and Chromium once:
+
+```bash
+uv sync --extra e2e
+uv run playwright install chromium
+```
+
+With the authenticated server running and `AIPM_E2E_PASSWORD` set in the environment, execute the browser smoke test:
+
+```bash
+export AIPM_E2E_PASSWORD
+AIPM_E2E_URL='http://127.0.0.1:7860' \
+AIPM_E2E_USERNAME='team-a' \
+uv run --extra e2e pytest -m e2e
+```
+
+The ordinary test suite skips this test unless those environment variables are present.
+
 Set `AIPM_DATABASE_URL` for PostgreSQL. The default SQLite URL is intended only for a quick local smoke test; integration and production use PostgreSQL.
 
 The current implementation includes the Dimension Explorer and a historical baseline catalog. Import the legacy instructor references with:
