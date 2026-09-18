@@ -85,3 +85,5 @@ The team workspace now exposes the six workshop sections through an explicit sec
 English and German resource catalogs are validated at startup. The workspace language selector changes section context text while preserving stable internal keys and stored project content; remaining field labels will be migrated to the same catalog in the next localization pass.
 
 Project Brief text and selection changes are tracked as dirty input and flushed through a two-second autosave timer. Failed or conflicting saves keep the dirty state and report the failure; the explicit Save brief action remains available.
+
+Dimension assessments also round-trip server revisions and use the same dirty-state timer, so repeated saves update the loaded assessment rather than being treated as accidental stale writes.

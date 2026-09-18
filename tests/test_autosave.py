@@ -17,3 +17,11 @@ def test_autosave_does_not_write_when_clean(monkeypatch):
     _status, revision, dirty = app_module.autosave_project_from_ui("token", "project", 2, False, "Product", None, "", "", "", "", "", "")
     assert revision == 2
     assert dirty is False
+
+
+def test_assessment_save_returns_new_revisions(monkeypatch):
+    monkeypatch.setattr(app_module, "save_estimates_from_ui", lambda *args: ("Dimension assessments saved.", [2, 2, 2, 2, 2]))
+    status, revisions, dirty = app_module.save_assessments_action("token", "project", [1] * 5, *(["unknown", None, "", None, "", ""] * 5))
+    assert status.endswith("saved.")
+    assert revisions == [2, 2, 2, 2, 2]
+    assert dirty is False

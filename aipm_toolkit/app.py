@@ -148,22 +148,25 @@ def autosave_project_from_ui(token: str, project_id: str | None, revision: int |
 def load_estimates_from_ui(token: str, project_id: str | None):
     blank = []
     if not project_id:
-        return [value for _ in DEFAULT_DIMENSIONS for value in ("unassessed", None, "", None, "", "")]
+        return [value for _ in DEFAULT_DIMENSIONS for value in ("unassessed", None, "", None, "", "")], []
     with SessionLocal() as db:
         try:
             user = get_authenticated_user(db, token)
             ensure_scale_definitions(db)
             estimates = get_project_estimates(db, user, UUID(project_id))
         except (AuthenticationError, ValueError):
-            return [value for _ in DEFAULT_DIMENSIONS for value in ("unassessed", None, "", None, "", "")]
+            return [value for _ in DEFAULT_DIMENSIONS for value in ("unassessed", None, "", None, "", "")], []
+    revisions = []
     for estimate in estimates:
         blank.extend([estimate.status, estimate.score, estimate.rationale, estimate.basis, estimate.evidence, estimate.uncertainty])
-    return blank
+        revisions.append(estimate.revision)
+    return blank, revisions
 
 
-def save_estimates_from_ui(token: str, project_id: str | None, *values):
+def save_estimates_from_ui(token: str, project_id: str | None, revisions: list[int] | None, *values):
     if not project_id:
-        return "Select a project before saving dimension assessments."
+        return "Select a project before saving dimension assessments.", revisions or []
+    revisions = revisions or [None] * len(DEFAULT_DIMENSIONS)
     records = []
     for index, definition in enumerate(DEFAULT_DIMENSIONS):
         offset = index * 6
@@ -175,15 +178,31 @@ def save_estimates_from_ui(token: str, project_id: str | None, *values):
             "basis": values[offset + 3],
             "evidence": values[offset + 4],
             "uncertainty": values[offset + 5],
+            "revision": revisions[index],
         })
     with SessionLocal() as db:
         try:
             user = get_authenticated_user(db, token)
             ensure_scale_definitions(db)
             save_project_estimates(db, user, UUID(project_id), records)
+            saved = get_project_estimates(db, user, UUID(project_id))
         except (AuthenticationError, RevisionConflict, ValueError) as exc:
-            return str(exc)
-    return "Dimension assessments saved."
+            return str(exc), revisions
+    return "Dimension assessments saved.", [estimate.revision for estimate in saved]
+
+
+def save_assessments_action(token: str, project_id: str | None, revisions: list[int] | None, *values):
+    status, new_revisions = save_estimates_from_ui(token, project_id, revisions, *values)
+    return status, new_revisions, not status.endswith("saved.")
+
+
+def autosave_assessments_from_ui(token: str, project_id: str | None, revisions: list[int] | None, dirty: bool, *values):
+    if not dirty:
+        return gr.update(), revisions or [], dirty
+    status, new_revisions = save_estimates_from_ui(token, project_id, revisions, *values)
+    if status.endswith("saved."):
+        return "Dimension assessments saved automatically.", new_revisions, False
+    return f"Save failed: {status}", new_revisions, True
 
 
 def load_comparator_choices():
@@ -494,7 +513,12 @@ def build_app():
                         gr.Radio(label="Basis", choices=[("Intended design", "intended_design"), ("Prototype-observed behavior", "prototype_observed"), ("Mixed", "mixed")]),
                         gr.Textbox(label="Evidence / observation", lines=2),
                         gr.Textbox(label="Uncertainty", lines=2),
-                    ])
+                     ])
+            assessment_revisions = gr.State([])
+            assessment_dirty = gr.State(False)
+            assessment_timer = gr.Timer(2.0)
+            for assessment_field in assessment_components:
+                assessment_field.input(lambda: True, outputs=assessment_dirty)
             save_assessments_button = gr.Button("Save dimension assessments", variant="primary")
             gr.Markdown("## 2. Dimension Explorer: Comparator")
             gr.Markdown("Historical profiles are classroom assessments, not current product ratings or rankings.")
@@ -573,10 +597,12 @@ def build_app():
             save_feedback_button = gr.Button("Save feedback-loop reflection")
         submit.click(login, [username, password], [status, token, login_panel, workspace_panel]).then(workspace, token, [workspace_text, login_panel, instructor_panel, team_panel, project_dropdown])
         create_button.click(create_project_from_ui, [token, new_project_name], [status, project_dropdown, product_name, project_revision])
-        project_dropdown.change(load_project_from_ui, [token, project_dropdown], [project_title, product_name, description, target_user, job, problem, hypothesis, product_type, figma_url, project_id, project_revision]).then(load_estimates_from_ui, [token, project_id], assessment_components).then(load_comparator_choices, outputs=comparator).then(load_backlog_from_ui, [token, project_id], [notes_display, hypotheses_display, hypothesis_note, relation_source, relation_target]).then(lambda choices: choices, relation_source, experiment_primary).then(checklist_text, [token, project_id], checklist_display).then(priority_text, [token, project_id], priority_display).then(lambda: False, outputs=brief_dirty)
-        save_button.click(save_project_action, [token, project_id, project_revision, product_name, product_type, description, target_user, job, problem, hypothesis, figma_url], [status, project_revision, brief_dirty])
-        brief_timer.tick(autosave_project_from_ui, [token, project_id, project_revision, brief_dirty, product_name, product_type, description, target_user, job, problem, hypothesis, figma_url], [status, project_revision, brief_dirty])
-        save_assessments_button.click(save_estimates_from_ui, [token, project_id, *assessment_components], status)
+        with gr.Row():
+            project_dropdown.change(load_project_from_ui, [token, project_dropdown], [project_title, product_name, description, target_user, job, problem, hypothesis, product_type, figma_url, project_id, project_revision]).then(load_estimates_from_ui, [token, project_id], assessment_components + [assessment_revisions]).then(load_comparator_choices, outputs=comparator).then(load_backlog_from_ui, [token, project_id], [notes_display, hypotheses_display, hypothesis_note, relation_source, relation_target]).then(lambda choices: choices, relation_source, experiment_primary).then(checklist_text, [token, project_id], checklist_display).then(priority_text, [token, project_id], priority_display).then(lambda: False, outputs=brief_dirty).then(lambda: False, outputs=assessment_dirty)
+            save_button.click(save_project_action, [token, project_id, project_revision, product_name, product_type, description, target_user, job, problem, hypothesis, figma_url], [status, project_revision, brief_dirty])
+            brief_timer.tick(autosave_project_from_ui, [token, project_id, project_revision, brief_dirty, product_name, product_type, description, target_user, job, problem, hypothesis, figma_url], [status, project_revision, brief_dirty])
+            save_assessments_button.click(save_assessments_action, [token, project_id, assessment_revisions, *assessment_components], [status, assessment_revisions, assessment_dirty])
+            assessment_timer.tick(autosave_assessments_from_ui, [token, project_id, assessment_revisions, assessment_dirty, *assessment_components], [status, assessment_revisions, assessment_dirty])
         save_comparator_button.click(save_comparator_from_ui, [token, project_id, comparator, comparator_purpose, comparator_scope], [status, comparator_snapshot_id]).then(load_comparison_from_ui, [token, project_id, comparator_snapshot_id], [comparison_chart, comparison_table])
         save_note_button.click(save_note_from_ui, [token, project_id, note_type, note_text, note_dimensions], [status, notes_display])
         save_hypothesis_button.click(save_hypothesis_from_ui, [token, project_id, hypothesis_statement, hypothesis_value_link, hypothesis_impact, hypothesis_evidence, hypothesis_evidence_rationale, hypothesis_note], [status, hypotheses_display, relation_source]).then(load_backlog_from_ui, [token, project_id], [notes_display, hypotheses_display, hypothesis_note, relation_source, relation_target])

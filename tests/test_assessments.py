@@ -51,3 +51,17 @@ def test_invalid_score_and_stale_revision_are_rejected(db):
     save_project_estimates(db, user, project.id, valid)
     with pytest.raises(RevisionConflict):
         save_project_estimates(db, user, project.id, valid)
+
+
+def test_assessments_can_be_saved_repeatedly_with_returned_revisions(db):
+    user = team_user(db)
+    project = create_project(db, user, "Assessment prototype")
+    ensure_scale_definitions(db)
+    first = [{"dimension_key": key, "status": "unknown", "score": None, "revision": 1} for key in DIMENSION_KEYS]
+    saved = save_project_estimates(db, user, project.id, first)
+    saved_revisions = [item.revision for item in saved]
+    second = [{"dimension_key": key, "status": "unknown", "score": None, "revision": revision} for key, revision in zip(DIMENSION_KEYS, saved_revisions)]
+    second[0]["rationale"] = "Updated after discussion"
+    updated = save_project_estimates(db, user, project.id, second)
+    assert updated[0].revision > saved_revisions[0]
+    assert updated[0].rationale == "Updated after discussion"
