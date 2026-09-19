@@ -17,8 +17,8 @@ from .callbacks import (
     load_comparator_choices,
     load_estimates_from_ui,
     load_experiment_choices,
+    load_placements_from_ui,
     login,
-    priority_text,
     provision_team_from_ui,
     workspace,
 )
@@ -117,7 +117,6 @@ def build_app():
             (backlog["hypotheses_display"], "hypotheses", "Hypothesis backlog"),
             (priority["experiment_selector"], "experiments", "Reopen experiment"),
             (summary["checklist_display"], "checklist", "Workshop checklist"),
-            (priority["priority_display"], "priority", "Priority matrix"),
             (summary["json_download"], "json_export", "JSON export"),
             (summary["markdown_download"], "markdown_export", "Markdown export"),
             (assessment["risk_score"], "risk_score", "Optional subjective risk estimate"),
@@ -162,9 +161,13 @@ def build_app():
             load_backlog_from_ui,
             [token, project_id],
             [backlog["notes_display"], backlog["hypotheses_display"], backlog["hypothesis_note"], backlog["relation_source"], backlog["relation_target"], backlog["note_edit_selector"], backlog["hypothesis_edit_selector"]],
-        ).then(lambda choices: choices, backlog["relation_source"], priority["experiment_primary"]).then(load_experiment_choices, [token, project_id], priority["experiment_selector"]).then(checklist_text, [token, project_id], summary["checklist_display"]).then(priority_text, [token, project_id], priority["priority_display"]).then(
+        ).then(lambda choices: choices, backlog["relation_source"], priority["experiment_primary"]).then(load_experiment_choices, [token, project_id], priority["experiment_selector"]).then(checklist_text, [token, project_id], summary["checklist_display"]).then(
             backlog_columns_from_ui,
             [token, project_id],
             [backlog["assumption_selector"], backlog["question_selector"], backlog["assumptions_display"], backlog["questions_display"]],
+        ).then(
+            load_placements_from_ui,
+            [token, project_id],
+            priority["placement_outputs"] + [priority["ranking_display"], priority["matrix_fig"]],
         )
     return app

@@ -42,6 +42,7 @@ from ..hypothesis_services import (
     create_hypothesis,
     create_note,
     list_notes,
+    set_placement,
     update_hypothesis,
     update_note,
 )
@@ -643,6 +644,82 @@ def priority_text(token: str | None, project_id: str | None, request: gr.Request
             return priority_guidance(db, user, UUID(project_id))
         except AuthenticationError:
             return "Session expired."
+
+
+PLACEMENT_SLOTS = 10
+
+
+def _ranking_items(ids, statements, risks, evidences):
+    items = []
+    for index in range(len(ids)):
+        if not ids[index]:
+            continue
+        risk = risks[index] if risks[index] is not None else 0.0
+        evidence = evidences[index] if evidences[index] is not None else 0.0
+        priority = risk + (10 - evidence)
+        items.append({"index": index, "statement": statements[index], "risk": risk, "evidence": evidence, "priority": priority})
+    items.sort(key=lambda item: (-item["priority"], item["index"]))
+    return items
+
+
+def ranked_backlog_from_ui(*args):
+    slot_count = len(args) // 4
+    ids = args[0:slot_count]
+    statements = args[slot_count:slot_count * 2]
+    risks = args[slot_count * 2:slot_count * 3]
+    evidences = args[slot_count * 3:slot_count * 4]
+    items = _ranking_items(ids, statements, risks, evidences)
+    if not items:
+        return "No supporting hypotheses to rank yet.", go.Figure()
+    lines = ["Backlog ranking (risk + (10 - evidence); ties keep creation order)"]
+    for rank, item in enumerate(items, start=1):
+        lines.append(f"{rank}. [risk {item['risk']:.1f} | evidence {item['evidence']:.1f}] {item['statement']}")
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=[item["evidence"] for item in items], y=[item["risk"] for item in items], mode="markers+text", text=[f"H{rank}" for rank, _ in enumerate(items, start=1)], textposition="top center", customdata=[item["statement"] for item in items], hovertemplate="%{customdata}<br>risk %{y:.1f} | evidence %{x:.1f}<extra></extra>", marker={"size": 12, "color": "#1f77b4"}))
+    fig.update_layout(xaxis={"title": "Evidence provided", "range": [0, 10]}, yaxis={"title": "Risk to project", "range": [0, 10]}, title="Risk versus evidence matrix")
+    return "\n".join(lines), fig
+
+
+def save_placement_from_ui(token: str | None, hypothesis_id: str | None, revision: int | None, risk, evidence, request: gr.Request | None = None):
+    token = _resolve_token(token, request)
+    if not hypothesis_id or revision is None:
+        return gr.update(), revision
+    try:
+        with SessionLocal() as db:
+            user = get_authenticated_user(db, token)
+            hypothesis = set_placement(db, user, UUID(hypothesis_id), revision, risk, evidence)
+            return gr.update(), hypothesis.revision
+    except (AuthenticationError, AuthorizationError, RevisionConflict, ValueError) as exc:
+        return gr.update(value=f"Placement save failed: {exc}"), revision
+
+
+def load_placements_from_ui(token: str | None, project_id: str | None, request: gr.Request | None = None):
+    token = _resolve_token(token, request)
+    hypotheses = []
+    if project_id:
+        with SessionLocal() as db:
+            try:
+                user = get_authenticated_user(db, token)
+                get_project(db, user, UUID(project_id))
+                hypotheses = list(db.scalars(select(Hypothesis).where(Hypothesis.project_id == UUID(project_id), Hypothesis.kind == "supporting").order_by(Hypothesis.created_at)))[:PLACEMENT_SLOTS]
+            except (AuthenticationError, ValueError, AuthorizationError):
+                hypotheses = []
+    outputs = []
+    for index in range(PLACEMENT_SLOTS):
+        if index < len(hypotheses):
+            hypothesis = hypotheses[index]
+            outputs.extend([
+                gr.update(visible=True, label=f"H{index + 1}", open=False),
+                hypothesis.statement,
+                hypothesis.priority_risk,
+                hypothesis.priority_evidence,
+                str(hypothesis.id),
+                hypothesis.revision,
+            ])
+        else:
+            outputs.extend([gr.update(visible=False, label=f"H{index + 1}", open=False), "", 0.0, 0.0, None, None])
+    ranking, fig = ranked_backlog_from_ui(*[output for slot in [(hypotheses[index].id if index < len(hypotheses) else None, hypotheses[index].statement if index < len(hypotheses) else "", hypotheses[index].priority_risk if index < len(hypotheses) else 0.0, hypotheses[index].priority_evidence if index < len(hypotheses) else 0.0) for index in range(PLACEMENT_SLOTS)] for output in slot])
+    return outputs, ranking, fig
 
 
 def export_project_from_ui(token: str | None, project_id: str | None, request: gr.Request | None = None):

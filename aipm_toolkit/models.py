@@ -221,6 +221,8 @@ class Hypothesis(Base):
     workflow_status: Mapped[str] = mapped_column(String(30), default="draft", nullable=False)
     review_conclusion: Mapped[str] = mapped_column(String(40), default="not_assessed", nullable=False)
     next_decision: Mapped[str] = mapped_column(String(20), default="undecided", nullable=False)
+    priority_risk: Mapped[float] = mapped_column(default=0.0, nullable=False)
+    priority_evidence: Mapped[float] = mapped_column(default=0.0, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1)

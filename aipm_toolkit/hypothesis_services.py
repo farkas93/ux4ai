@@ -106,6 +106,23 @@ def update_hypothesis(db: Session, actor: User, hypothesis_id: UUID, revision: i
     return hypothesis
 
 
+def set_placement(db: Session, actor: User, hypothesis_id: UUID, revision: int, risk: float, evidence: float) -> Hypothesis:
+    hypothesis = db.get(Hypothesis, hypothesis_id)
+    if hypothesis is None:
+        raise AuthorizationError("Hypothesis not found")
+    get_project(db, actor, hypothesis.project_id)
+    if hypothesis.revision != revision:
+        raise RevisionConflict("The hypothesis changed since it was loaded")
+    for name, value in (("risk", risk), ("evidence", evidence)):
+        if value is None or not 0 <= value <= 10:
+            raise ValueError(f"Placement {name} must be between 0 and 10")
+    hypothesis.priority_risk = float(risk)
+    hypothesis.priority_evidence = float(evidence)
+    hypothesis.revision += 1
+    db.commit()
+    return hypothesis
+
+
 def _relation_pair(relation_type: str, source: UUID, target: UUID) -> tuple[UUID, UUID]:
     if relation_type in {RelationshipType.ALTERNATIVE_TO.value, RelationshipType.IN_TENSION_WITH.value}:
         return tuple(sorted((source, target), key=str))
