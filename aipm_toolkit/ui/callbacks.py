@@ -5,10 +5,12 @@ authenticated actor from the request cookie and delegate to application
 services.
 """
 
+import json
 from uuid import UUID
 
 import gradio as gr
 import plotly.graph_objects as go
+from sqlalchemy import select
 
 from ..assessment_services import (
     ensure_scale_definitions,
@@ -23,7 +25,7 @@ from ..auth import (
     get_authenticated_user,
 )
 from ..baseline_services import published_datasets, select_comparator
-from ..comparison_services import comparator_name, comparison_rows
+from ..comparison_services import comparison_rows
 from ..db import SessionLocal
 from ..dimensions import DEFAULT_DIMENSIONS
 from ..experiment_services import (
@@ -50,7 +52,15 @@ from ..instructor_services import (
     provision_team_account,
 )
 from ..lifecycle_services import delete_project
-from ..models import Experiment, Hypothesis, HypothesisDimension, Note, Role
+from ..models import (
+    ComparisonSnapshot,
+    Experiment,
+    Hypothesis,
+    HypothesisDimension,
+    Note,
+    NoteDimension,
+    Role,
+)
 from ..services import (
     create_project,
     get_project,
@@ -247,6 +257,91 @@ def load_comparator_choices():
         return gr.update(choices=[(name, str(dataset_id)) for name, dataset_id in published_datasets(db)])
 
 
+def load_frozen_profile_from_ui(token: str | None, project_id: str | None, snapshot_id: str | None, request: gr.Request | None = None):
+    token = _resolve_token(token, request)
+    if not project_id or not snapshot_id:
+        return {}
+    with SessionLocal() as db:
+        try:
+            user = get_authenticated_user(db, token)
+            snapshot = db.get(ComparisonSnapshot, UUID(snapshot_id))
+            if snapshot is None or snapshot.project_id != UUID(project_id):
+                raise ValueError("Snapshot not found")
+            get_project(db, user, snapshot.project_id)
+        except (AuthenticationError, ValueError, AuthorizationError):
+            return {}
+    return json.loads(snapshot.frozen_profile or "{}")
+
+
+def comparison_table_from_ui(token: str | None, project_id: str | None, snapshot_id: str | None, request: gr.Request | None = None):
+    token = _resolve_token(token, request)
+    if not project_id or not snapshot_id:
+        return "Select a comparator to see the comparison table."
+    with SessionLocal() as db:
+        try:
+            user = get_authenticated_user(db, token)
+            rows = comparison_rows(db, user, UUID(project_id), UUID(snapshot_id))
+        except (AuthenticationError, ValueError) as exc:
+            return str(exc)
+    lines = ["Dimension | Our score | Baseline median | Baseline spread | Difference | Compatibility", "---|---:|---:|---|---:|---"]
+    for row in rows:
+        ours_value = "unknown" if row["our_score"] is None else f"{row['our_score']:.1f}"
+        median_value = "unknown" if row["baseline_median"] is None else f"{row['baseline_median']:.1f}"
+        spread = "unknown" if row["baseline_p25"] is None else f"{row['baseline_p25']:.1f}-{row['baseline_p75']:.1f} (n={row['count']})"
+        difference = "not calculated" if row["difference"] is None else f"{row['difference']:+.1f}"
+        lines.append(f"{row['dimension']} | {ours_value} | {median_value} | {spread} | {difference} | {'Compatible' if row['compatible'] else 'Incompatible'}")
+    return "\n".join(lines)
+
+
+def live_profile_from_ui(frozen_state: dict | None, *values):
+    """Draw the spider chart from currently entered form values plus an optional frozen baseline."""
+    frozen = frozen_state or {}
+    labels = [definition["key"] for definition in DEFAULT_DIMENSIONS]
+    ours = []
+    for index in range(len(DEFAULT_DIMENSIONS)):
+        offset = index * 6
+        status = values[offset]
+        score = values[offset + 1]
+        ours.append(score if status == "estimated" and score is not None else None)
+    fig = go.Figure()
+    theta = labels + [labels[0]]
+    fig.add_trace(go.Scatterpolar(r=[value for value in ours] + [ours[0]], theta=theta, name="Our profile (current form)", line={"color": "#1f77b4"}, fill="none"))
+    baseline = [None if not frozen.get(key, {}).get("compatible", True) else frozen.get(key, {}).get("median") for key in labels]
+    if any(value is not None for value in baseline):
+        fig.add_trace(go.Scatterpolar(r=baseline + [baseline[0]], theta=theta, name="Historical median", line={"color": "#d62728", "dash": "dash"}, fill="none"))
+    fig.update_layout(polar={"radialaxis": {"visible": True, "range": [0, 5]}}, showlegend=True, title="Live dimension profile (0-5; gaps = unknown)")
+    return fig
+
+
+def dimension_notes_from_ui(token: str | None, project_id: str | None, dimension_key: str, request: gr.Request | None = None):
+    token = _resolve_token(token, request)
+    if not project_id or not dimension_key:
+        return "No notes for this dimension yet."
+    with SessionLocal() as db:
+        try:
+            user = get_authenticated_user(db, token)
+            get_project(db, user, UUID(project_id))
+            rows = db.execute(select(Note.note_type, Note.text).join(NoteDimension, NoteDimension.note_id == Note.id).where(Note.project_id == UUID(project_id), NoteDimension.dimension_key == dimension_key).order_by(Note.created_at)).all()
+        except AuthenticationError:
+            return "Session expired."
+    if not rows:
+        return "No notes for this dimension yet."
+    return "\n".join(f"[{note_type}] {text}" for note_type, text in rows)
+
+
+def add_dimension_note_from_ui(token: str | None, project_id: str | None, dimension_key: str, note_type: str, text: str, request: gr.Request | None = None):
+    token = _resolve_token(token, request)
+    if not project_id or not dimension_key:
+        return "Select a product first.", ""
+    with SessionLocal() as db:
+        try:
+            user = get_authenticated_user(db, token)
+            create_note(db, user, UUID(project_id), note_type, text, [dimension_key])
+        except (AuthenticationError, ValueError) as exc:
+            return str(exc), ""
+    return "Note added to this dimension.", dimension_notes_from_ui(token, project_id, dimension_key)
+
+
 def save_comparator_from_ui(token: str, project_id: str | None, dataset_id: str | None, purpose: str, scope: str, request: gr.Request | None = None):
     token = _resolve_token(token, request)
     if not project_id or not dataset_id:
@@ -258,37 +353,6 @@ def save_comparator_from_ui(token: str, project_id: str | None, dataset_id: str 
         except (AuthenticationError, ValueError) as exc:
             return str(exc), None
     return "Comparator selection saved as a frozen snapshot. Previous snapshots remain unchanged.", str(snapshot.id)
-
-
-def load_comparison_from_ui(token: str, project_id: str | None, snapshot_id: str | None, request: gr.Request | None = None):
-    token = _resolve_token(token, request)
-    if not project_id or not snapshot_id:
-        return go.Figure(), "Save a comparator selection to view the comparison."
-    with SessionLocal() as db:
-        try:
-            user = get_authenticated_user(db, token)
-            rows = comparison_rows(db, user, UUID(project_id), UUID(snapshot_id))
-            name = comparator_name(db, UUID(snapshot_id))
-        except (AuthenticationError, ValueError) as exc:
-            return go.Figure(), str(exc)
-    labels = [row["dimension"] for row in rows]
-    ours = [row["our_score"] for row in rows]
-    baseline = [row["baseline_median"] if row["compatible"] else None for row in rows]
-    theta = labels + [labels[0]]
-    ours_closed = ours + [ours[0]]
-    baseline_closed = baseline + [baseline[0]]
-    fig = go.Figure()
-    fig.add_trace(go.Scatterpolar(r=ours_closed, theta=theta, name="Our estimate", line={"color": "#1f77b4"}, fill="none"))
-    fig.add_trace(go.Scatterpolar(r=baseline_closed, theta=theta, name=f"Historical median: {name}", line={"color": "#d62728", "dash": "dash"}, fill="none"))
-    fig.update_layout(polar={"radialaxis": {"visible": True, "range": [0, 5]}}, showlegend=True, title="Prototype and historical comparison")
-    lines = ["Dimension | Our score | Baseline median | Baseline spread | Difference | Compatibility", "---|---:|---:|---|---:|---"]
-    for row in rows:
-        ours_value = "unknown" if row["our_score"] is None else f"{row['our_score']:.1f}"
-        median_value = "unknown" if row["baseline_median"] is None else f"{row['baseline_median']:.1f}"
-        spread = "unknown" if row["baseline_p25"] is None else f"{row['baseline_p25']:.1f}-{row['baseline_p75']:.1f} (n={row['count']})"
-        difference = "not calculated" if row["difference"] is None else f"{row['difference']:+.1f}"
-        lines.append(f"{row['dimension']} | {ours_value} | {median_value} | {spread} | {difference} | {'Compatible' if row['compatible'] else 'Incompatible'}")
-    return fig, "\n".join(lines)
 
 
 def _hypotheses(db, project_id: str) -> list[Hypothesis]:

@@ -8,8 +8,10 @@ from .callbacks import (
     auto_login,
     checklist_text,
     delete_product_from_ui,
+    dimension_notes_from_ui,
     import_baselines_from_ui,
     instructor_overview_from_ui,
+    live_profile_from_ui,
     load_backlog_from_ui,
     load_comparator_choices,
     load_estimates_from_ui,
@@ -96,6 +98,7 @@ def build_app():
                 priority = tabs_priority.build_priority_tab(token, project_id, status)
                 summary = tabs_summary.build_summary_tab(token, project_id, status, setup["project_dropdown"])
             instructor_panel = _build_instructor_panel(token, status, setup["project_dropdown"])
+        dimension_note_outputs = assessment["dimension_note_lists"]
 
         label_bindings = [
             (language_selector, "language", "Language / Sprache"),
@@ -134,7 +137,27 @@ def build_app():
             load_estimates_from_ui,
             [token, project_id],
             assessment["assessment_components"] + [assessment["assessment_revisions"]],
-        ).then(lambda: False, outputs=assessment["assessment_dirty"]).then(load_comparator_choices, outputs=assessment["comparator"]).then(
+        ).then(lambda: False, outputs=assessment["assessment_dirty"]).then(load_comparator_choices, outputs=assessment["comparator"]).then(live_profile_from_ui, [assessment["frozen_state"], *assessment["assessment_components"]], assessment["live_chart"]).then(
+            dimension_notes_from_ui,
+            [token, project_id, assessment["dimension_note_states"][0]],
+            dimension_note_outputs[0],
+        ).then(
+            dimension_notes_from_ui,
+            [token, project_id, assessment["dimension_note_states"][1]],
+            dimension_note_outputs[1],
+        ).then(
+            dimension_notes_from_ui,
+            [token, project_id, assessment["dimension_note_states"][2]],
+            dimension_note_outputs[2],
+        ).then(
+            dimension_notes_from_ui,
+            [token, project_id, assessment["dimension_note_states"][3]],
+            dimension_note_outputs[3],
+        ).then(
+            dimension_notes_from_ui,
+            [token, project_id, assessment["dimension_note_states"][4]],
+            dimension_note_outputs[4],
+        ).then(
             load_backlog_from_ui,
             [token, project_id],
             [backlog["notes_display"], backlog["hypotheses_display"], backlog["hypothesis_note"], backlog["relation_source"], backlog["relation_target"], backlog["note_edit_selector"], backlog["hypothesis_edit_selector"]],
