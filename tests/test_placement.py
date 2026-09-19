@@ -4,7 +4,12 @@ from aipm_toolkit.auth import RevisionConflict, hash_password
 from aipm_toolkit.hypothesis_services import create_hypothesis, set_placement
 from aipm_toolkit.models import Course, Role, Team, User
 from aipm_toolkit.services import create_project
-from aipm_toolkit.ui.callbacks import ranked_backlog_from_ui
+from aipm_toolkit.ui.callbacks import (
+    load_estimates_from_ui,
+    load_placements_from_ui,
+    load_project_from_ui,
+    ranked_backlog_from_ui,
+)
 
 
 def user_project(db, alias="placement-team"):
@@ -47,3 +52,23 @@ def test_ranking_puts_high_risk_low_evidence_first(db):
     lines = ranking.splitlines()
     assert lines[1].startswith("1. [risk 10.0 | evidence 0.0] Urgent uncertain claim")
     assert lines[2].startswith("2. [risk 0.0 | evidence 10.0] Well-evidenced claim")
+
+
+def test_load_placements_and_estimates_unpack_proper_component_counts(db, monkeypatch):
+    _user, project = user_project(db)
+    from aipm_toolkit.ui import callbacks as cb_mod
+    monkeypatch.setattr(cb_mod, "SessionLocal", lambda: db)
+
+    # load_placements_from_ui must return exactly 62 flat items: 60 for 10 slots + ranking string + figure
+    placement_results = load_placements_from_ui("token", str(project.id))
+    assert len(placement_results) == 62
+    assert not isinstance(placement_results[0], list)
+
+    # load_estimates_from_ui must return exactly 31 flat items: 30 for 5 dimensions + list of revisions
+    estimates_results = load_estimates_from_ui("token", str(project.id))
+    assert len(estimates_results) == 31
+    assert not isinstance(estimates_results[0], list)
+
+    # load_project_from_ui must return exactly 10 fields
+    project_results = load_project_from_ui("token", str(project.id))
+    assert len(project_results) == 10

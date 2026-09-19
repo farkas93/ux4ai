@@ -1,4 +1,4 @@
-"""App shell: header bar with language and feedback, real tabs, cross-tab wiring."""
+"""App shell: header bar with product switcher, language, and real tabs."""
 
 import gradio as gr
 
@@ -8,6 +8,7 @@ from .callbacks import (
     auto_login,
     backlog_columns_from_ui,
     checklist_text,
+    create_project_from_ui,
     delete_product_from_ui,
     dimension_notes_from_ui,
     instructor_overview_from_ui,
@@ -17,6 +18,7 @@ from .callbacks import (
     load_estimates_from_ui,
     load_experiment_choices,
     load_placements_from_ui,
+    load_project_from_ui,
     login,
     preview_upload_from_ui,
     provision_team_from_ui,
@@ -50,7 +52,7 @@ BLOCKS_JS = """() => {
 }"""
 
 
-def _build_instructor_panel(token, status, project_dropdown):
+def _build_instructor_panel(token, status, product_dropdown):
     with gr.Column(visible=False) as instructor_panel:
         gr.Markdown("## Instructor area")
         refresh_overview_button = gr.Button("Refresh course overview")
@@ -76,7 +78,7 @@ def _build_instructor_panel(token, status, project_dropdown):
         delete_product_id = gr.Textbox(label="Product UUID to delete")
         confirm_delete = gr.Checkbox(label="I understand this permanently deletes the product", value=False)
         delete_product_button = gr.Button("Delete product", variant="stop")
-        delete_product_button.click(delete_product_from_ui, [token, delete_product_id, confirm_delete], [status, project_dropdown])
+        delete_product_button.click(delete_product_from_ui, [token, delete_product_id, confirm_delete], [status, product_dropdown])
     return instructor_panel
 
 
@@ -93,21 +95,30 @@ def build_app():
         with gr.Column(visible=False) as workspace_panel:
             workspace_text = gr.Markdown()
         with gr.Column(visible=False) as team_panel:
-            with gr.Row(elem_id="aipm-app-bar"):
-                language_selector = gr.Dropdown(label="Language / Sprache", choices=LANGUAGE_CHOICES, value="en", scale=0)
-                gr.Markdown("Project Setup", elem_id="aipm-section-header")
+            with gr.Row(elem_id="aipm-app-bar", variant="panel"):
+                with gr.Column(scale=4), gr.Row():
+                    product_dropdown = gr.Dropdown(label="Product", choices=[], interactive=True, scale=3)
+                    new_product_btn = gr.Button("+ New Product", scale=1, variant="secondary")
+                with gr.Column(scale=1, min_width=120):
+                    language_selector = gr.Dropdown(label="Language / Sprache", choices=LANGUAGE_CHOICES, value="en", scale=0)
+
+            with gr.Row(visible=False, variant="panel") as new_product_panel:
+                new_product_input = gr.Textbox(label="New product name", placeholder="e.g. HealthAI Assistant", scale=3)
+                create_product_btn = gr.Button("Create product", variant="primary", scale=1)
+                cancel_product_btn = gr.Button("Cancel", variant="secondary", scale=1)
+
             with gr.Tabs():
                 setup = tabs_setup.build_setup_tab(token, project_id, project_revision, status)
                 assessment = tabs_assessment.build_assessment_tab(token, project_id, status)
                 backlog = tabs_backlog.build_backlog_tab(token, project_id, status)
                 priority = tabs_priority.build_priority_tab(token, project_id, status)
-                summary = tabs_summary.build_summary_tab(token, project_id, status, setup["project_dropdown"])
-        instructor_panel = _build_instructor_panel(token, status, setup["project_dropdown"])
+                summary = tabs_summary.build_summary_tab(token, project_id, status, product_dropdown)
+        instructor_panel = _build_instructor_panel(token, status, product_dropdown)
         dimension_note_outputs = assessment["dimension_note_lists"]
 
         label_bindings = [
             (language_selector, "language", "Language / Sprache"),
-            (setup["project_dropdown"], "projects", "Your products"),
+            (product_dropdown, "projects", "Product"),
             (setup["product_name"], "product_name", "Product name"),
             (setup["product_type"], "product_type", "AI product type"),
             (setup["description"], "description", "Short description"),
@@ -134,15 +145,45 @@ def build_app():
 
         language_selector.change(update_ui_labels, language_selector, [component for component, _, _ in label_bindings])
 
-        project_dropdown = setup["project_dropdown"]
-        submit.click(login, [username, password], [status, token, login_panel, workspace_panel]).then(workspace, token, [workspace_text, login_panel, instructor_panel, team_panel, project_dropdown])
-        app.load(auto_login, outputs=[status, token, login_panel, workspace_panel]).then(workspace, token, [workspace_text, login_panel, instructor_panel, team_panel, project_dropdown])
+        # New product panel toggle
+        new_product_btn.click(lambda: gr.update(visible=True), outputs=new_product_panel)
+        cancel_product_btn.click(lambda: (gr.update(visible=False), ""), outputs=[new_product_panel, new_product_input])
+        create_product_btn.click(
+            create_project_from_ui,
+            [token, new_product_input],
+            [status, product_dropdown, new_product_input, new_product_panel],
+        )
 
-        project_dropdown.change(
+        submit.click(login, [username, password], [status, token, login_panel, workspace_panel]).then(workspace, token, [workspace_text, login_panel, instructor_panel, team_panel, product_dropdown])
+        app.load(auto_login, outputs=[status, token, login_panel, workspace_panel]).then(workspace, token, [workspace_text, login_panel, instructor_panel, team_panel, product_dropdown])
+
+        product_dropdown.change(
+            load_project_from_ui,
+            [token, product_dropdown],
+            [
+                setup["product_name"],
+                setup["description"],
+                setup["target_user"],
+                setup["job"],
+                setup["problem"],
+                setup["hypothesis"],
+                setup["product_type"],
+                setup["figma_url"],
+                project_id,
+                project_revision,
+            ],
+        ).then(lambda: False, outputs=setup["brief_dirty"]).then(
             load_estimates_from_ui,
             [token, project_id],
             assessment["assessment_components"] + [assessment["assessment_revisions"]],
-        ).then(lambda: False, outputs=assessment["assessment_dirty"]).then(load_comparator_choices, outputs=assessment["comparator"]).then(live_profile_from_ui, [assessment["frozen_state"], *assessment["assessment_components"]], assessment["live_chart"]).then(
+        ).then(lambda: False, outputs=assessment["assessment_dirty"]).then(
+            load_comparator_choices,
+            outputs=assessment["comparator"],
+        ).then(
+            live_profile_from_ui,
+            [assessment["frozen_state"], *assessment["assessment_components"]],
+            assessment["live_chart"],
+        ).then(
             dimension_notes_from_ui,
             [token, project_id, assessment["dimension_note_states"][0]],
             dimension_note_outputs[0],
@@ -165,14 +206,43 @@ def build_app():
         ).then(
             load_backlog_from_ui,
             [token, project_id],
-            [backlog["notes_display"], backlog["hypotheses_display"], backlog["hypothesis_note"], backlog["relation_source"], backlog["relation_target"], backlog["note_edit_selector"], backlog["hypothesis_edit_selector"]],
-        ).then(lambda choices: choices, backlog["relation_source"], priority["experiment_primary"]).then(load_experiment_choices, [token, project_id], priority["experiment_selector"]).then(checklist_text, [token, project_id], summary["checklist_display"]).then(
+            [
+                backlog["notes_display"],
+                backlog["hypotheses_display"],
+                backlog["hypothesis_note"],
+                backlog["relation_source"],
+                backlog["relation_target"],
+                backlog["note_edit_selector"],
+                backlog["hypothesis_edit_selector"],
+            ],
+        ).then(
+            lambda choices: choices,
+            backlog["relation_source"],
+            priority["experiment_primary"],
+        ).then(
+            load_experiment_choices,
+            [token, project_id],
+            priority["experiment_selector"],
+        ).then(
+            checklist_text,
+            [token, project_id],
+            summary["checklist_display"],
+        ).then(
             backlog_columns_from_ui,
             [token, project_id],
-            [backlog["assumption_selector"], backlog["question_selector"], backlog["assumptions_display"], backlog["questions_display"]],
+            [
+                backlog["assumption_selector"],
+                backlog["question_selector"],
+                backlog["assumptions_display"],
+                backlog["questions_display"],
+            ],
         ).then(
             load_placements_from_ui,
             [token, project_id],
             priority["placement_outputs"] + [priority["ranking_display"], priority["matrix_fig"]],
-        ).then(summary_preview_from_ui, [token, project_id], summary["summary_preview"])
+        ).then(
+            summary_preview_from_ui,
+            [token, project_id],
+            summary["summary_preview"],
+        )
     return app

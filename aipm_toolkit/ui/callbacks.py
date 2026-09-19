@@ -119,29 +119,35 @@ def workspace(token: str | None, request: gr.Request | None = None):
 
 def create_project_from_ui(token: str, product_name: str, request: gr.Request | None = None):
     token = _resolve_token(token, request)
+    if not product_name or not product_name.strip():
+        return "Please specify a product name.", gr.update(), "", gr.update(visible=True)
     with SessionLocal() as db:
         try:
             user = get_authenticated_user(db, token)
-            project = create_project(db, user, product_name)
+            project = create_project(db, user, product_name.strip())
             choices = [(item.product_name, str(item.id)) for item in list_projects(db, user)]
         except (AuthenticationError, ValueError) as exc:
-            return str(exc), gr.update(), gr.update(), gr.update()
-    return "Draft created. Your product setup is ready.", gr.update(choices=choices, value=str(project.id)), gr.update(value=project.product_name), gr.update(value=project.revision)
+            return str(exc), gr.update(), "", gr.update(visible=True)
+    return (
+        f"Product '{project.product_name}' created.",
+        gr.update(choices=choices, value=str(project.id)),
+        "",
+        gr.update(visible=False),
+    )
 
 
 def load_project_from_ui(token: str, project_id: str | None, request: gr.Request | None = None):
     token = _resolve_token(token, request)
     if not project_id:
-        return "", "", "", "", "", "", "", "", "", None, None
+        return "", "", "", "", "", "", None, "", None, None
     with SessionLocal() as db:
         try:
             user = get_authenticated_user(db, token)
             project = get_project(db, user, UUID(project_id))
             hypothesis = next(iter(project.hypotheses), None)
         except (AuthenticationError, ValueError, LookupError):
-            return "Unable to load that product.", "", "", "", "", "", "", "", "", None, None
+            return "", "", "", "", "", "", None, "", None, None
     return (
-        "Project Setup",
         project.product_name,
         project.short_description,
         project.target_user,
@@ -192,19 +198,19 @@ def load_estimates_from_ui(token: str, project_id: str | None, request: gr.Reque
     token = _resolve_token(token, request)
     blank = []
     if not project_id:
-        return [value for _ in DEFAULT_DIMENSIONS for value in ("unassessed", None, "", None, "", "")], []
+        return (*[value for _ in DEFAULT_DIMENSIONS for value in ("unassessed", None, "", None, "", "")], [])
     with SessionLocal() as db:
         try:
             user = get_authenticated_user(db, token)
             ensure_scale_definitions(db)
             estimates = get_project_estimates(db, user, UUID(project_id))
         except (AuthenticationError, ValueError):
-            return [value for _ in DEFAULT_DIMENSIONS for value in ("unassessed", None, "", None, "", "")], []
+            return (*[value for _ in DEFAULT_DIMENSIONS for value in ("unassessed", None, "", None, "", "")], [])
     revisions = []
     for estimate in estimates:
         blank.extend([estimate.status, estimate.score, estimate.rationale, estimate.basis, estimate.evidence, estimate.uncertainty])
         revisions.append(estimate.revision)
-    return blank, revisions
+    return (*blank, revisions)
 
 
 def save_estimates_from_ui(token: str, project_id: str | None, revisions: list[int] | None, *values, request: gr.Request | None = None):
@@ -744,7 +750,7 @@ def load_placements_from_ui(token: str | None, project_id: str | None, request: 
         else:
             outputs.extend([gr.update(visible=False, label=f"H{index + 1}", open=False), "", 0.0, 0.0, None, None])
     ranking, fig = ranked_backlog_from_ui(*[output for slot in [(hypotheses[index].id if index < len(hypotheses) else None, hypotheses[index].statement if index < len(hypotheses) else "", hypotheses[index].priority_risk if index < len(hypotheses) else 0.0, hypotheses[index].priority_evidence if index < len(hypotheses) else 0.0) for index in range(PLACEMENT_SLOTS)] for output in slot])
-    return outputs, ranking, fig
+    return (*outputs, ranking, fig)
 
 
 def export_project_from_ui(token: str | None, project_id: str | None, request: gr.Request | None = None):
