@@ -477,6 +477,20 @@ def save_experiment_details(token: str, project_id: str | None, experiment_id: s
     return "Experiment saved. Completion does not automatically support the hypothesis.", revision + 1
 
 
+def save_experiment_action(token: str | None, project_id: str | None, experiment_id: str | None, revision: int | None, procedure: str, participants: str, baseline: str, metric: str, success: str, guardrail: str, resources: str, owner: str, planned_date: str, status_value: str, results: str, evidence_links: str, limitations: str, conclusion: str, decision: str, request: gr.Request | None = None):
+    status, new_revision = save_experiment_details(token, project_id, experiment_id, revision, procedure, participants, baseline, metric, success, guardrail, resources, owner, planned_date, status_value, results, evidence_links, limitations, conclusion, decision, request=request)
+    return status, new_revision, not status.startswith("Experiment saved")
+
+
+def autosave_experiment_from_ui(token: str | None, project_id: str | None, experiment_id: str | None, revision: int | None, dirty: bool, procedure: str, participants: str, baseline: str, metric: str, success: str, guardrail: str, resources: str, owner: str, planned_date: str, status_value: str, results: str, evidence_links: str, limitations: str, conclusion: str, decision: str, request: gr.Request | None = None):
+    if not dirty:
+        return gr.update(), revision, dirty
+    status, new_revision = save_experiment_details(token, project_id, experiment_id, revision, procedure, participants, baseline, metric, success, guardrail, resources, owner, planned_date, status_value, results, evidence_links, limitations, conclusion, decision, request=request)
+    if status.startswith("Experiment saved"):
+        return "Experiment saved automatically.", new_revision, False
+    return f"Save failed: {status}", new_revision, True
+
+
 def checklist_text(token: str | None, project_id: str | None, request: gr.Request | None = None):
     token = _resolve_token(token, request)
     if not project_id:
@@ -756,6 +770,11 @@ def build_app():
             experiment_conclusion = gr.Textbox(label="Conclusion", lines=2)
             experiment_decision = gr.Dropdown(label="Resulting decision", choices=["continue", "revise", "retest", "stop", "undecided"], value="undecided")
             save_experiment_button = gr.Button("Save experiment")
+            experiment_dirty = gr.State(False)
+            experiment_timer = gr.Timer(2.0)
+            experiment_fields = [experiment_title, experiment_method, experiment_procedure, experiment_participants, experiment_baseline, experiment_metric, experiment_success, experiment_guardrail, experiment_resources, experiment_owner, experiment_date, experiment_status, experiment_results, experiment_links, experiment_limitations, experiment_conclusion, experiment_decision]
+            for experiment_field in experiment_fields:
+                experiment_field.input(lambda: True, outputs=experiment_dirty)
             checklist_display = gr.Textbox(label="Workshop checklist", interactive=False, lines=8)
             priority_display = gr.Textbox(label="Priority guidance", interactive=False, lines=8)
             gr.Markdown("## 6. Summary & Export")
@@ -795,9 +814,10 @@ def build_app():
         hypothesis_edit_selector.change(load_hypothesis_edit_from_ui, [token, hypothesis_edit_selector], [hypothesis_edit_statement, hypothesis_edit_value, hypothesis_edit_impact, hypothesis_edit_evidence, hypothesis_edit_rationale, hypothesis_edit_revision])
         update_hypothesis_button.click(save_hypothesis_edit_from_ui, [token, hypothesis_edit_selector, hypothesis_edit_revision, hypothesis_edit_statement, hypothesis_edit_value, hypothesis_edit_impact, hypothesis_edit_evidence, hypothesis_edit_rationale], [status, hypothesis_edit_revision, hypotheses_display]).then(load_backlog_from_ui, [token, project_id], [notes_display, hypotheses_display, hypothesis_note, relation_source, relation_target, note_edit_selector, hypothesis_edit_selector])
         save_relation_button.click(save_relation_from_ui, [token, project_id, relation_type, relation_source, relation_target], status)
-        create_experiment_button.click(save_experiment_plan, [token, project_id, experiment_primary, experiment_title, experiment_method], [status, experiment_id, experiment_revision]).then(load_experiment_choices, [token, project_id], experiment_selector).then(checklist_text, [token, project_id], checklist_display).then(priority_text, [token, project_id], priority_display)
-        save_experiment_button.click(save_experiment_details, [token, project_id, experiment_id, experiment_revision, experiment_procedure, experiment_participants, experiment_baseline, experiment_metric, experiment_success, experiment_guardrail, experiment_resources, experiment_owner, experiment_date, experiment_status, experiment_results, experiment_links, experiment_limitations, experiment_conclusion, experiment_decision], [status, experiment_revision]).then(checklist_text, [token, project_id], checklist_display).then(priority_text, [token, project_id], priority_display)
-        experiment_selector.change(load_experiment_edit_from_ui, [token, experiment_selector], [experiment_title, experiment_method, experiment_procedure, experiment_participants, experiment_baseline, experiment_metric, experiment_success, experiment_guardrail, experiment_resources, experiment_owner, experiment_date, experiment_status, experiment_results, experiment_links, experiment_limitations, experiment_conclusion, experiment_decision, experiment_revision]).then(lambda selected: selected, experiment_selector, experiment_id)
+        create_experiment_button.click(save_experiment_plan, [token, project_id, experiment_primary, experiment_title, experiment_method], [status, experiment_id, experiment_revision]).then(load_experiment_choices, [token, project_id], experiment_selector).then(lambda: False, outputs=experiment_dirty).then(checklist_text, [token, project_id], checklist_display).then(priority_text, [token, project_id], priority_display)
+        save_experiment_button.click(save_experiment_action, [token, project_id, experiment_id, experiment_revision, experiment_procedure, experiment_participants, experiment_baseline, experiment_metric, experiment_success, experiment_guardrail, experiment_resources, experiment_owner, experiment_date, experiment_status, experiment_results, experiment_links, experiment_limitations, experiment_conclusion, experiment_decision], [status, experiment_revision, experiment_dirty]).then(checklist_text, [token, project_id], checklist_display).then(priority_text, [token, project_id], priority_display)
+        experiment_timer.tick(autosave_experiment_from_ui, [token, project_id, experiment_id, experiment_revision, experiment_dirty, experiment_procedure, experiment_participants, experiment_baseline, experiment_metric, experiment_success, experiment_guardrail, experiment_resources, experiment_owner, experiment_date, experiment_status, experiment_results, experiment_links, experiment_limitations, experiment_conclusion, experiment_decision], [status, experiment_revision, experiment_dirty])
+        experiment_selector.change(load_experiment_edit_from_ui, [token, experiment_selector], [experiment_title, experiment_method, experiment_procedure, experiment_participants, experiment_baseline, experiment_metric, experiment_success, experiment_guardrail, experiment_resources, experiment_owner, experiment_date, experiment_status, experiment_results, experiment_links, experiment_limitations, experiment_conclusion, experiment_decision, experiment_revision]).then(lambda selected: selected, experiment_selector, experiment_id).then(lambda: False, outputs=experiment_dirty)
         export_button.click(export_project_from_ui, [token, project_id], [status, json_download, markdown_download])
         save_risk_button.click(save_risk_reflection_from_ui, [token, project_id, risk_score, risk_entry, risk_behavior, risk_affected, risk_consequence, risk_safeguard, risk_uncertainty], status)
         save_feedback_button.click(save_feedback_reflection_from_ui, [token, project_id, feedback_signal, feedback_meaning, feedback_change, feedback_human, feedback_evaluation], status)
