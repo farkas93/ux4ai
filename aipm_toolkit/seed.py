@@ -30,6 +30,22 @@ def seed_account(username: str, password: str, role: Role, course_name: str, tea
         db.add(User(username=username.lower(), password_hash=hash_password(password), role=role.value, team_id=team.id if team else None))
 
 
+def bootstrap_instructor(username: str, password: str, course_name: str) -> bool:
+    """Create the first instructor from deployment secrets without overwriting it."""
+    Base.metadata.create_all(engine)
+    with SessionLocal.begin() as db:
+        existing = db.scalar(select(User).where(User.username == username.lower()))
+        if existing is not None:
+            if existing.role != Role.INSTRUCTOR.value:
+                raise ValueError("Bootstrap username already belongs to a team account")
+            return False
+        course = db.scalar(select(Course).where(Course.name == course_name))
+        if course is None:
+            db.add(Course(name=course_name))
+        db.add(User(username=username.lower(), password_hash=hash_password(password), role=Role.INSTRUCTOR.value))
+    return True
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("username")

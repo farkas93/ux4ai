@@ -70,6 +70,7 @@ from ..services import (
     update_project,
     validate_figma_url,
 )
+from ..upload_services import preview_upload, publish_upload
 
 
 def login(username: str, password: str):
@@ -354,6 +355,30 @@ def save_comparator_from_ui(token: str, project_id: str | None, dataset_id: str 
         except (AuthenticationError, ValueError) as exc:
             return str(exc), None
     return "Comparator selection saved as a frozen snapshot. Previous snapshots remain unchanged.", str(snapshot.id)
+
+
+def preview_upload_from_ui(token: str | None, files, manifest_file, request: gr.Request | None = None):
+    token = _resolve_token(token, request)
+    with SessionLocal() as db:
+        try:
+            user = get_authenticated_user(db, token)
+            batch, report = preview_upload(db, user, files, manifest_file)
+        except (AuthenticationError, ValueError) as exc:
+            return str(exc), "", None
+    return f"Preview ready: {report['records']} records from {report['files']} files. Review before publishing.", json.dumps(report, ensure_ascii=False, indent=2), str(batch.id)
+
+
+def publish_upload_from_ui(token: str | None, batch_id: str | None, request: gr.Request | None = None):
+    token = _resolve_token(token, request)
+    if not batch_id:
+        return "Preview an upload before publishing.", ""
+    with SessionLocal() as db:
+        try:
+            user = get_authenticated_user(db, token)
+            report = publish_upload(db, user, UUID(batch_id))
+        except (AuthenticationError, AuthorizationError, ValueError) as exc:
+            return str(exc), ""
+    return f"Published {report['records']} records from {report['files']} files.", json.dumps(report, ensure_ascii=False, indent=2)
 
 
 def _hypotheses(db, project_id: str) -> list[Hypothesis]:

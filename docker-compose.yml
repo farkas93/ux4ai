@@ -21,6 +21,9 @@ services:
     environment:
       AIPM_DATABASE_URL: postgresql+psycopg://aipm:aipm-local-development-only@db:5432/aipm
       AIPM_COOKIE_SECURE: "false"
+      AIPM_INSTRUCTOR_USERNAME: ${AIPM_INSTRUCTOR_USERNAME:-instructor}
+      AIPM_INSTRUCTOR_PASSWORD: ${AIPM_INSTRUCTOR_PASSWORD:?Set AIPM_INSTRUCTOR_PASSWORD in .env}
+      AIPM_COURSE_NAME: ${AIPM_COURSE_NAME:-AIPM Workshop}
     ports:
       - "7860:7860"
     healthcheck:

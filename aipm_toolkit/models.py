@@ -85,6 +85,20 @@ class User(Base):
     team: Mapped[Team | None] = relationship(back_populates="users")
 
 
+class ImportBatch(Base):
+    __tablename__ = "import_batches"
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    created_by_user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id"), nullable=False)
+    source_directory: Mapped[str] = mapped_column(Text, nullable=False)
+    manifest_json: Mapped[str] = mapped_column(Text, nullable=False)
+    preview_report_json: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="preview")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+
+
 class Project(Base):
     __tablename__ = "projects"
 

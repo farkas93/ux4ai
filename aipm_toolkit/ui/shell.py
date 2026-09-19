@@ -10,7 +10,6 @@ from .callbacks import (
     checklist_text,
     delete_product_from_ui,
     dimension_notes_from_ui,
-    import_baselines_from_ui,
     instructor_overview_from_ui,
     live_profile_from_ui,
     load_backlog_from_ui,
@@ -19,7 +18,9 @@ from .callbacks import (
     load_experiment_choices,
     load_placements_from_ui,
     login,
+    preview_upload_from_ui,
     provision_team_from_ui,
+    publish_upload_from_ui,
     summary_preview_from_ui,
     workspace,
 )
@@ -56,12 +57,14 @@ def _build_instructor_panel(token, status, project_dropdown):
         overview_display = gr.Textbox(label="Course progress", interactive=False, lines=8)
         refresh_overview_button.click(instructor_overview_from_ui, token, overview_display)
         gr.Markdown("### Baseline import")
-        import_directory = gr.Textbox(label="JSON directory", value="solutions")
-        import_cohort = gr.Textbox(label="Cohort label", value="Legacy instructor reference")
-        publish_import = gr.Checkbox(label="Publish after import", value=False)
-        import_button = gr.Button("Import baseline JSON files")
-        import_report = gr.Textbox(label="Import report", interactive=False, lines=5)
-        import_button.click(import_baselines_from_ui, [token, import_directory, import_cohort, publish_import], [status, import_report])
+        import_files = gr.File(label="Legacy JSON files", file_count="multiple", file_types=[".json"], type="filepath")
+        import_manifest = gr.File(label="Import manifest JSON", file_count="single", file_types=[".json"], type="filepath")
+        preview_button = gr.Button("Preview import")
+        publish_button = gr.Button("Publish preview", variant="primary")
+        import_batch_id = gr.State(None)
+        import_report = gr.Textbox(label="Import report", interactive=False, lines=8)
+        preview_button.click(preview_upload_from_ui, [token, import_files, import_manifest], [status, import_report, import_batch_id])
+        publish_button.click(publish_upload_from_ui, [token, import_batch_id], [status, import_report])
         gr.Markdown("### Create team account")
         team_course = gr.Textbox(label="Course name", value="AIPM Workshop")
         team_alias = gr.Textbox(label="Team alias")

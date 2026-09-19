@@ -127,3 +127,33 @@ English and German resource catalogs are validated at startup. The workspace lan
 Project Setup text and selection changes are tracked as dirty input and flushed through a two-second autosave timer. Failed or conflicting saves keep the dirty state and report the failure; the explicit save action remains available.
 
 Dimension assessments also round-trip server revisions and use the same dirty-state timer, so repeated saves update the loaded assessment rather than being treated as accidental stale writes.
+
+
+## Docker Accounts and Baseline Uploads
+
+The container startup applies migrations and creates the initial instructor account from environment variables. Configure `.env` from `.env.example` before starting: the password is never printed or committed.
+
+```bash
+cp .env.example .env
+# edit .env
+docker compose up -d --build
+```
+
+Open `/` or `/auth/login`, then create team accounts in the instructor area. Team credentials are hashed immediately.
+
+Historical JSON files are uploaded through the instructor UI: upload the JSON files and manifest, click **Preview import**, review the report, then click **Publish preview**. The container does not need the host `solutions/` directory and old data is not baked into the image.
+
+
+## Docker accounts and UI baseline uploads
+
+Create `.env` from `.env.example` before starting the container. The initial instructor account is created from `AIPM_INSTRUCTOR_USERNAME`, `AIPM_INSTRUCTOR_PASSWORD`, and `AIPM_COURSE_NAME` during startup. The password is not printed or overwritten when the account already exists.
+
+```bash
+cp .env.example .env
+# edit .env and set AIPM_INSTRUCTOR_PASSWORD
+docker compose up -d --build
+```
+
+Open `http://127.0.0.1:7860/`. The root redirects to `/auth/login`. After signing in, create team accounts in the instructor area.
+
+Historical data is uploaded through the instructor UI: upload legacy JSON files and the manifest, choose **Preview import**, review the report, then choose **Publish preview**. The old `solutions/` directory is not baked into the application image and is not required by the running container.
