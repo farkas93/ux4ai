@@ -1,17 +1,16 @@
 {
   "language_name": "English",
   "sections": {
-    "Project Brief": "Context: define the product concept, target user, job, problem, prototype, and main value hypothesis.",
-    "Dimension Explorer": "Estimate: assess all five dimensions and record evidence or explicit unknowns.",
-    "Notes": "Reflect: capture observations, assumptions, questions, and design decisions.",
-    "Hypothesis Backlog": "Hypothesize and prioritize: connect supporting hypotheses to value and identify uncertainty.",
-    "Experiments": "Plan a test: define one next experiment without automatically declaring a hypothesis supported.",
-    "Summary & Export": "Review: inspect checklist progress and download the project record."
+    "Project Setup": "Context: define the product concept, target user, job, problem, prototype, and main value hypothesis.",
+    "Assessment": "Estimate: assess all five dimensions, record questions and assumptions, and compare against an optional historical product.",
+    "Backlog creator": "Hypothesize: derive supporting hypotheses from your questions and assumptions and connect them to value.",
+    "Prioritization": "Prioritize: rank hypotheses by risk and evidence and plan the next experiment.",
+    "Summary & Export": "Review: inspect checklist progress and download the product record."
   },
   "labels": {
     "language": "Language",
     "current_section": "Current section",
-    "projects": "Your projects",
+    "projects": "Your products",
     "new_product": "New product name",
     "product_name": "Product name",
     "product_type": "AI product type",

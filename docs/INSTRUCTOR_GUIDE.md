@@ -5,7 +5,7 @@
 1. Sign in with the instructor account.
 2. Create team aliases and initial passwords in the instructor area.
 3. Share each initial password through a separate secure channel.
-4. Set course retention days and deletion policy.
+4. Note that deletion is manual only: nothing is deleted automatically; see `docs/RETENTION.md`.
 
 ## Import historical baselines
 

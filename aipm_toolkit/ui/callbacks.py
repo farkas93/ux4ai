@@ -49,8 +49,8 @@ from ..instructor_services import (
     import_baselines_as_instructor,
     provision_team_account,
 )
+from ..lifecycle_services import delete_project
 from ..models import Experiment, Hypothesis, HypothesisDimension, Note, Role
-from ..retention_services import delete_project_as_instructor, update_course_retention
 from ..services import (
     create_project,
     get_project,
@@ -618,26 +618,16 @@ def provision_team_from_ui(token: str | None, course_name: str, alias: str, pass
     return f"Team account '{team.alias}' created. Share the password securely and do not store it in product content."
 
 
-def update_retention_from_ui(token: str | None, course_name: str, retention_days: int, policy: str, request: gr.Request | None = None):
+def delete_product_from_ui(token: str | None, project_id: str, confirm: bool, request: gr.Request | None = None):
     token = _resolve_token(token, request)
     with SessionLocal() as db:
         try:
             user = get_authenticated_user(db, token)
-            update_course_retention(db, user, course_name, retention_days, policy)
+            delete_project(db, user, UUID(project_id), confirm)
+            choices = [(item.product_name, str(item.id)) for item in list_projects(db, user)]
         except (AuthenticationError, ValueError) as exc:
-            return str(exc)
-    return "Retention settings saved."
-
-
-def delete_project_from_ui(token: str | None, project_id: str, confirm: bool, request: gr.Request | None = None):
-    token = _resolve_token(token, request)
-    with SessionLocal() as db:
-        try:
-            user = get_authenticated_user(db, token)
-            delete_project_as_instructor(db, user, UUID(project_id), confirm)
-        except (AuthenticationError, ValueError) as exc:
-            return str(exc)
-    return "Product and its editable content were deleted."
+            return str(exc), gr.update()
+    return "Product and its editable content were deleted.", gr.update(choices=choices, value=None)
 
 
 def section_context(section: str, language: str = "en") -> str:

@@ -7,7 +7,7 @@ from . import tabs_assessment, tabs_backlog, tabs_priority, tabs_setup, tabs_sum
 from .callbacks import (
     auto_login,
     checklist_text,
-    delete_project_from_ui,
+    delete_product_from_ui,
     import_baselines_from_ui,
     instructor_overview_from_ui,
     load_backlog_from_ui,
@@ -17,7 +17,6 @@ from .callbacks import (
     login,
     priority_text,
     provision_team_from_ui,
-    update_retention_from_ui,
     workspace,
 )
 
@@ -46,7 +45,7 @@ BLOCKS_JS = """() => {
 }"""
 
 
-def _build_instructor_panel(token, status):
+def _build_instructor_panel(token, status, project_dropdown):
     with gr.Column(visible=False) as instructor_panel:
         gr.Markdown("## Instructor area")
         refresh_overview_button = gr.Button("Refresh course overview")
@@ -65,16 +64,12 @@ def _build_instructor_panel(token, status):
         team_password = gr.Textbox(label="Initial team password", type="password")
         create_team_button = gr.Button("Create team account")
         create_team_button.click(provision_team_from_ui, [token, team_course, team_alias, team_password], status)
-        gr.Markdown("### Retention and deletion")
-        retention_course = gr.Textbox(label="Course name", value="AIPM Workshop")
-        retention_days = gr.Number(label="Retention days", value=180, precision=0)
-        retention_policy = gr.Textbox(label="Deletion policy", value="Delete course data after the configured retention period.", lines=2)
-        save_retention_button = gr.Button("Save retention settings")
-        save_retention_button.click(update_retention_from_ui, [token, retention_course, retention_days, retention_policy], status)
+        gr.Markdown("### Delete product")
+        gr.Markdown("Deletion is manual and permanent. There is no automatic retention or deletion in this application.")
         delete_product_id = gr.Textbox(label="Product UUID to delete")
         confirm_delete = gr.Checkbox(label="I understand this permanently deletes the product", value=False)
         delete_product_button = gr.Button("Delete product", variant="stop")
-        delete_product_button.click(delete_project_from_ui, [token, delete_product_id, confirm_delete], status)
+        delete_product_button.click(delete_product_from_ui, [token, delete_product_id, confirm_delete], [status, project_dropdown])
     return instructor_panel
 
 
@@ -90,7 +85,6 @@ def build_app():
             submit = gr.Button("Sign in", variant="primary")
         with gr.Column(visible=False) as workspace_panel:
             workspace_text = gr.Markdown()
-        instructor_panel = _build_instructor_panel(token, status)
         with gr.Column(visible=False) as team_panel:
             with gr.Row(elem_id="aipm-app-bar"):
                 language_selector = gr.Dropdown(label="Language / Sprache", choices=LANGUAGE_CHOICES, value="en", scale=0)
@@ -100,7 +94,8 @@ def build_app():
                 assessment = tabs_assessment.build_assessment_tab(token, project_id, status)
                 backlog = tabs_backlog.build_backlog_tab(token, project_id, status)
                 priority = tabs_priority.build_priority_tab(token, project_id, status)
-                summary = tabs_summary.build_summary_tab(token, project_id, status)
+                summary = tabs_summary.build_summary_tab(token, project_id, status, setup["project_dropdown"])
+            instructor_panel = _build_instructor_panel(token, status, setup["project_dropdown"])
 
         label_bindings = [
             (language_selector, "language", "Language / Sprache"),

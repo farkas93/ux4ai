@@ -52,8 +52,6 @@ class Course(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
-    retention_days: Mapped[int] = mapped_column(Integer, nullable=False, default=180)
-    deletion_policy: Mapped[str] = mapped_column(Text, default="Delete course data after the configured retention period.", nullable=False)
     teams: Mapped[list["Team"]] = relationship(back_populates="course")
 
 
