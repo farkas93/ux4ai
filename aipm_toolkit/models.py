@@ -167,12 +167,14 @@ class BaselineDataset(Base):
     cohort_label: Mapped[str] = mapped_column(String(200), nullable=False)
     scale_version: Mapped[int] = mapped_column(Integer, nullable=False)
     scale_versions: Mapped[str] = mapped_column(Text, default="{}", nullable=False)
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    replacement_reason: Mapped[str] = mapped_column(Text, default="", nullable=False)
     provenance_notes: Mapped[str] = mapped_column(Text, default="", nullable=False)
     published: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
-    __table_args__ = (UniqueConstraint("product_id", "source_type", "cohort_label", name="uq_baseline_dataset_identity"),)
+    __table_args__ = (UniqueConstraint("product_id", "source_type", "cohort_label", "version", name="uq_baseline_dataset_identity"),)
 
 
 class BaselineAssessment(Base):

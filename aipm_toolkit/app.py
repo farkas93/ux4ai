@@ -44,7 +44,7 @@ from .instructor_services import (
     import_baselines_as_instructor,
     provision_team_account,
 )
-from .models import Experiment, Hypothesis, Note, Role
+from .models import Experiment, Hypothesis, HypothesisDimension, Note, Role
 from .retention_services import delete_project_as_instructor, update_course_retention
 from .services import (
     create_project,
@@ -409,6 +409,29 @@ def save_hypothesis_from_ui(token: str, project_id: str | None, statement: str, 
     return "Supporting hypothesis saved.", _hypothesis_text(hypotheses), gr.update(choices=choices)
 
 
+def filter_hypotheses_from_ui(token: str | None, project_id: str | None, dimension: str, status: str, impact: str, evidence: str, request: gr.Request | None = None):
+    token = _resolve_token(token, request)
+    if not project_id:
+        return "No hypotheses yet.", gr.update(choices=[]), gr.update(choices=[])
+    with SessionLocal() as db:
+        try:
+            _user = get_authenticated_user(db, token)
+            hypotheses = _hypotheses(db, project_id)
+            if dimension != "all":
+                ids = {item.hypothesis_id for item in db.query(HypothesisDimension).filter_by(dimension_key=dimension).all()}
+                hypotheses = [item for item in hypotheses if item.id in ids]
+            if status != "all":
+                hypotheses = [item for item in hypotheses if item.workflow_status == status]
+            if impact != "all":
+                hypotheses = [item for item in hypotheses if item.impact_if_wrong == impact]
+            if evidence != "all":
+                hypotheses = [item for item in hypotheses if item.evidence_strength == evidence]
+        except AuthenticationError:
+            return "Session expired.", gr.update(choices=[]), gr.update(choices=[])
+    choices = [(item.statement[:80], str(item.id)) for item in hypotheses]
+    return _hypothesis_text(hypotheses), gr.update(choices=choices), gr.update(choices=choices)
+
+
 def save_relation_from_ui(token: str, project_id: str | None, relation_type: str, source_id: str | None, target_id: str | None, request: gr.Request | None = None):
     token = _resolve_token(token, request)
     if not project_id or not source_id or not target_id:
@@ -659,9 +682,9 @@ def build_app():
             language_selector = gr.Dropdown(label="Language / Sprache", choices=[("English", "en"), ("Deutsch", "de")], value="en")
             section_selector = gr.Radio(label="Current section", choices=["Project Brief", "Dimension Explorer", "Notes", "Hypothesis Backlog", "Experiments", "Summary & Export"], value="Project Brief")
             section_context_display = gr.Markdown(section_context("Project Brief", "en"))
-            section_selector.change(section_context, [section_selector, language_selector], section_context_display)
+            section_selector.change(section_context, [section_selector, language_selector], section_context_display, js="""(section) => { const ids = {'Project Brief': 'section-project-brief', 'Dimension Explorer': 'section-dimension-explorer', 'Notes': 'section-notes', 'Hypothesis Backlog': 'section-hypothesis-backlog', 'Experiments': 'section-experiments', 'Summary & Export': 'section-summary-export'}; document.getElementById(ids[section])?.scrollIntoView({behavior: 'smooth', block: 'start'}); }""")
             language_selector.change(section_context, [section_selector, language_selector], section_context_display)
-            gr.Markdown("## 1. Project Brief")
+            gr.Markdown("## 1. Project Brief", elem_id="section-project-brief")
             with gr.Row():
                 project_dropdown = gr.Dropdown(label="Your projects", choices=[], interactive=True)
                 new_project_name = gr.Textbox(label="New product name", placeholder="Only the product name is required")
@@ -684,7 +707,7 @@ def build_app():
             brief_fields = [product_name, product_type, description, target_user, job, problem, hypothesis, figma_url]
             for brief_field in brief_fields:
                 brief_field.input(lambda: True, outputs=brief_dirty)
-            gr.Markdown("## 2. Dimension Explorer")
+            gr.Markdown("## 2. Dimension Explorer", elem_id="section-dimension-explorer")
             gr.Markdown("Higher scores are not inherently better. Mark a dimension Unknown when the team cannot make a reasoned estimate yet.")
             assessment_components = []
             for definition in DEFAULT_DIMENSIONS:
@@ -713,7 +736,7 @@ def build_app():
             comparator_snapshot_id = gr.State(None)
             comparison_chart = gr.Plot(label="Comparison radar")
             comparison_table = gr.Textbox(label="Comparison table", interactive=False, lines=8)
-            gr.Markdown("## 3. Notes")
+            gr.Markdown("## 3. Notes", elem_id="section-notes")
             note_type = gr.Dropdown(label="Note type", choices=[("Observation", "observation"), ("Assumption", "assumption"), ("Question", "question"), ("Design decision", "design_decision")], value="observation")
             note_text = gr.Textbox(label="Note", lines=3)
             note_dimensions = gr.CheckboxGroup(label="Linked dimensions", choices=[definition["title"] for definition in DEFAULT_DIMENSIONS])
@@ -724,7 +747,7 @@ def build_app():
             note_edit_text = gr.Textbox(label="Edited note", lines=3)
             note_edit_revision = gr.State(None)
             update_note_button = gr.Button("Update note")
-            gr.Markdown("## 4. Hypothesis Backlog")
+            gr.Markdown("## 4. Hypothesis Backlog", elem_id="section-hypothesis-backlog")
             hypothesis_statement = gr.Textbox(label="Supporting hypothesis statement", lines=3)
             hypothesis_value_link = gr.Textbox(label="Why it matters / value link", lines=2)
             hypothesis_impact = gr.Dropdown(label="Impact if wrong", choices=["unknown", "low", "medium", "high"], value="unknown")
@@ -733,6 +756,10 @@ def build_app():
             hypothesis_note = gr.Dropdown(label="Originating note (optional)", choices=[])
             save_hypothesis_button = gr.Button("Create supporting hypothesis")
             hypotheses_display = gr.Textbox(label="Hypothesis backlog", interactive=False, lines=7)
+            hypothesis_filter_dimension = gr.Dropdown(label="Filter dimension", choices=[("All dimensions", "all")] + [(definition["title"], definition["key"]) for definition in DEFAULT_DIMENSIONS], value="all")
+            hypothesis_filter_status = gr.Dropdown(label="Filter workflow status", choices=[("All statuses", "all"), "draft", "ready_to_test", "testing", "reviewed", "archived"], value="all")
+            hypothesis_filter_impact = gr.Dropdown(label="Filter impact", choices=[("All impact", "all"), "unknown", "low", "medium", "high"], value="all")
+            hypothesis_filter_evidence = gr.Dropdown(label="Filter evidence", choices=[("All evidence", "all"), "unknown", "none", "limited", "moderate", "strong"], value="all")
             hypothesis_edit_selector = gr.Dropdown(label="Reopen hypothesis", choices=[])
             hypothesis_edit_statement = gr.Textbox(label="Edited hypothesis statement", lines=3)
             hypothesis_edit_value = gr.Textbox(label="Edited value link", lines=2)
@@ -746,7 +773,7 @@ def build_app():
             relation_source = gr.Dropdown(label="From hypothesis", choices=[])
             relation_target = gr.Dropdown(label="To hypothesis", choices=[])
             save_relation_button = gr.Button("Save relationship")
-            gr.Markdown("## 5. Experiments")
+            gr.Markdown("## 5. Experiments", elem_id="section-experiments")
             experiment_selector = gr.Dropdown(label="Reopen experiment", choices=[])
             experiment_primary = gr.Dropdown(label="Primary hypothesis", choices=[])
             experiment_title = gr.Textbox(label="Experiment title")
@@ -777,7 +804,7 @@ def build_app():
                 experiment_field.input(lambda: True, outputs=experiment_dirty)
             checklist_display = gr.Textbox(label="Workshop checklist", interactive=False, lines=8)
             priority_display = gr.Textbox(label="Priority guidance", interactive=False, lines=8)
-            gr.Markdown("## 6. Summary & Export")
+            gr.Markdown("## 6. Summary & Export", elem_id="section-summary-export")
             export_button = gr.Button("Generate JSON and Markdown exports")
             json_download = gr.File(label="JSON export")
             markdown_download = gr.File(label="Markdown export")
@@ -809,6 +836,8 @@ def build_app():
         save_comparator_button.click(save_comparator_from_ui, [token, project_id, comparator, comparator_purpose, comparator_scope], [status, comparator_snapshot_id]).then(load_comparison_from_ui, [token, project_id, comparator_snapshot_id], [comparison_chart, comparison_table])
         save_note_button.click(save_note_from_ui, [token, project_id, note_type, note_text, note_dimensions], [status, notes_display])
         save_hypothesis_button.click(save_hypothesis_from_ui, [token, project_id, hypothesis_statement, hypothesis_value_link, hypothesis_impact, hypothesis_evidence, hypothesis_evidence_rationale, hypothesis_note], [status, hypotheses_display, relation_source]).then(load_backlog_from_ui, [token, project_id], [notes_display, hypotheses_display, hypothesis_note, relation_source, relation_target, note_edit_selector, hypothesis_edit_selector])
+        for hypothesis_filter in [hypothesis_filter_dimension, hypothesis_filter_status, hypothesis_filter_impact, hypothesis_filter_evidence]:
+            hypothesis_filter.change(filter_hypotheses_from_ui, [token, project_id, hypothesis_filter_dimension, hypothesis_filter_status, hypothesis_filter_impact, hypothesis_filter_evidence], [hypotheses_display, relation_source, relation_target])
         note_edit_selector.change(load_note_edit_from_ui, [token, note_edit_selector], [note_edit_type, note_edit_text, note_edit_revision])
         update_note_button.click(save_note_edit_from_ui, [token, note_edit_selector, note_edit_revision, note_edit_type, note_edit_text, note_dimensions], [status, note_edit_revision, notes_display]).then(load_backlog_from_ui, [token, project_id], [notes_display, hypotheses_display, hypothesis_note, relation_source, relation_target, note_edit_selector, hypothesis_edit_selector])
         hypothesis_edit_selector.change(load_hypothesis_edit_from_ui, [token, hypothesis_edit_selector], [hypothesis_edit_statement, hypothesis_edit_value, hypothesis_edit_impact, hypothesis_edit_evidence, hypothesis_edit_rationale, hypothesis_edit_revision])

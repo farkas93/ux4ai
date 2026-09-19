@@ -86,11 +86,19 @@ The current implementation includes the Dimension Explorer and a historical base
 uv run python -m aipm_toolkit.import_baselines solutions --publish
 ```
 
+Preview an import without creating or publishing catalog records:
+
+```bash
+uv run python -m aipm_toolkit.import_baselines solutions --manifest examples/import_manifest.json --preview
+```
+
+Manifests define source type, cohort label, aliases, and per-dimension scale versions.
+
 The importer preserves source records for instructor-only access, keeps valid zero scores, reports invalid values, and publishes only aggregate-ready reference data to teams. Teams can select one published comparator and save a purpose/scope snapshot from the Project Brief workspace. Historical comparators are classroom assessments, not rankings or current product ratings.
 
 Legacy reference imports preserve per-dimension scale metadata. The historical autonomy scale is marked incompatible with the current autonomy definition, so its numeric difference is suppressed and its baseline radar point is shown as a gap.
 
-Published baseline datasets are immutable. Re-importing a source file after publication skips it and reports that a replacement dataset version is required.
+Published baseline datasets are immutable. Re-importing a source file after publication skips it and reports that a replacement dataset version is required. Instructors can create an unpublished replacement version with an explicit reason, review it, and publish it separately.
 
 The workspace also includes structured Notes and a Hypothesis Backlog. Notes can be linked to dimensions and used as provenance when creating supporting hypotheses. Hypothesis relationships are project-scoped; self-links and dependency cycles are rejected.
 

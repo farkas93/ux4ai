@@ -1,0 +1,14 @@
+{
+  "source_type": "instructor_reference",
+  "cohort_label": "Legacy instructor reference",
+  "aliases": {
+    "Google Web Search": "Google Search"
+  },
+  "scale_versions": {
+    "conversational": 1,
+    "specialization": 1,
+    "autonomy": 0,
+    "accessibility": 1,
+    "explainability": 1
+  }
+}

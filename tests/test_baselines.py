@@ -6,9 +6,12 @@ from sqlalchemy import select
 from aipm_toolkit.auth import AuthorizationError, hash_password
 from aipm_toolkit.baseline_services import (
     aggregate_dataset,
+    create_replacement_dataset,
     import_legacy_reference_json,
+    preview_legacy_reference_json,
     publish_all_reference_datasets,
     select_comparator,
+    validate_manifest,
 )
 from aipm_toolkit.models import BaselineDataset, Course, Role, Team, User
 from aipm_toolkit.services import create_project
@@ -65,3 +68,30 @@ def test_published_dataset_is_not_overwritten_on_reimport(db, tmp_path):
     second = import_legacy_reference_json(db, tmp_path)
     assert second["records"] == 0
     assert second["skipped_published"]
+
+
+def test_manifest_normalizes_aliases_and_scale_versions(db, tmp_path):
+    source = tmp_path / "alias.json"
+    source.write_text(json.dumps({"product_name": "Google Web Search", "scores": {key: 1 for key in ("conversational", "specialization", "autonomy", "accessibility", "explainability")}}), encoding="utf-8")
+    manifest = {"source_type": "student_aggregate", "cohort_label": "Cohort A", "aliases": {"Google Web Search": "Google Search"}, "scale_versions": {key: 1 for key in ("conversational", "specialization", "autonomy", "accessibility", "explainability")}}
+    report = import_legacy_reference_json(db, tmp_path, manifest=manifest)
+    assert report["products"] == ["Google Search"]
+    assert validate_manifest(manifest)["source_type"] == "student_aggregate"
+    preview = preview_legacy_reference_json(tmp_path, manifest)
+    assert preview["records"] == 1
+    assert db.query(BaselineDataset).count() == 1
+
+
+def test_instructor_can_create_unpublished_replacement_version(db, tmp_path):
+    source = tmp_path / "replace.json"
+    source.write_text(json.dumps({"product_name": "Replaceable", "scores": {key: 1 for key in ("conversational", "specialization", "autonomy", "accessibility", "explainability")}}), encoding="utf-8")
+    import_legacy_reference_json(db, tmp_path)
+    publish_all_reference_datasets(db)
+    dataset = db.scalar(select(BaselineDataset))
+    instructor = User(username="baseline-instructor", password_hash=hash_password("P" * 16), role=Role.INSTRUCTOR.value)
+    db.add(instructor)
+    db.commit()
+    replacement = create_replacement_dataset(db, instructor, dataset.id, "Corrected cohort metadata")
+    assert replacement.version == 2
+    assert replacement.published is False
+    assert replacement.replacement_reason == "Corrected cohort metadata"
