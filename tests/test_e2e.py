@@ -18,5 +18,15 @@ def test_authenticated_workspace_smoke(page):
     page.get_by_label("Password").fill(password)
     page.get_by_role("button", name="Sign in").click()
     page.wait_for_url("**/app**")
-    assert page.get_by_text("Project Brief", exact=False).count() > 0
-    assert page.get_by_text("Dimension Explorer", exact=False).count() > 0
+    for tab in ("Project Setup", "Assessment", "Backlog creator", "Prioritization", "Summary & Export"):
+        assert page.get_by_role("tab", name=tab).count() == 1
+    page.get_by_role("tab", name="Assessment").click()
+    assert page.get_by_text("Live dimension profile", exact=False).count() > 0
+    assert page.get_by_text("Comparator (optional)", exact=False).count() > 0
+    page.get_by_role("tab", name="Backlog creator").click()
+    assert page.get_by_text("Assumptions", exact=True).count() > 0
+    assert page.get_by_text("Questions", exact=True).count() > 0
+    page.get_by_role("tab", name="Prioritization").click()
+    assert page.get_by_text("Backlog ranking", exact=True).count() > 0
+    page.get_by_role("tab", name="Summary & Export").click()
+    assert page.get_by_text("PDF export", exact=False).count() > 0

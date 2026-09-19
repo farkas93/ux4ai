@@ -5,7 +5,7 @@
 - [x] Unit and service tests pass
 - [x] Revision conflicts are covered
 - [x] Team authorization is covered
-- [x] JSON and Markdown export privacy is covered
+- [x] PDF, JSON, and Markdown export privacy is covered
 - [x] Migration chain applies through the current head
 - [x] Ruff checks pass
 - [x] Authenticated route smoke tests pass
@@ -31,4 +31,4 @@
 - [ ] Confirm tablet and keyboard navigation
 - [ ] Confirm German labels and help text for all visible controls
 - [ ] Confirm export downloads and privacy contents
-- [ ] Confirm support procedure and retention policy with the instructor
+- [ ] Confirm support procedure and manual-deletion policy with the instructor

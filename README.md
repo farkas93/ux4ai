@@ -74,13 +74,13 @@ export CONFIRM_RESTORE=YES
 ops/restore_postgres.sh /secure/backup/location/aipm-20260101-120000.dump
 ```
 
-The restore script is intentionally destructive and requires `CONFIRM_RESTORE=YES`. Production operations should encrypt backups at rest, restrict access to instructors/operators, retain multiple dated copies, and perform a restore drill before the workshop deployment. Course retention and deletion policy should be configured by the deployment owner; no personal names are required in team content.
+The restore script is intentionally destructive and requires `CONFIRM_RESTORE=YES`. Production operations should encrypt backups at rest, restrict access to instructors/operators, retain multiple dated copies, and perform a restore drill before the workshop deployment. There is no automatic retention or deletion policy; no personal names are required in team content.
 
 Instructors can delete any product with explicit confirmation in the instructor area, and team members can delete their own products in the Summary & Export tab. There is no automatic deletion or retention policy; data is only removed manually.
 
 Set `AIPM_DATABASE_URL` for PostgreSQL. The default SQLite URL is intended only for a quick local smoke test; integration and production use PostgreSQL.
 
-The current implementation includes the Dimension Explorer and a historical baseline catalog. Import the legacy instructor references with:
+The current implementation includes the Assessment tab and a historical baseline catalog. Import the legacy instructor references with:
 
 ```bash
 uv run python -m aipm_toolkit.import_baselines solutions --publish
@@ -94,7 +94,7 @@ uv run python -m aipm_toolkit.import_baselines solutions --manifest examples/imp
 
 Manifests define source type, cohort label, aliases, and per-dimension scale versions.
 
-The importer preserves source records for instructor-only access, keeps valid zero scores, reports invalid values, and publishes only aggregate-ready reference data to teams. Teams can select one published comparator and save a purpose/scope snapshot from the Project Brief workspace. Historical comparators are classroom assessments, not rankings or current product ratings.
+The importer preserves source records for instructor-only access, keeps valid zero scores, reports invalid values, and publishes only aggregate-ready reference data to teams. Teams can select one published comparator and save a purpose/scope snapshot from the Assessment tab. Historical comparators are classroom assessments, not rankings or current product ratings.
 
 Legacy reference imports preserve per-dimension scale metadata. The historical autonomy scale is marked incompatible with the current autonomy definition, so its numeric difference is suppressed and its baseline radar point is shown as a gap.
 
@@ -124,6 +124,6 @@ The team workspace now exposes the six workshop sections through an explicit sec
 
 English and German resource catalogs are validated at startup. The workspace language selector changes section context text while preserving stable internal keys and stored project content; remaining field labels will be migrated to the same catalog in the next localization pass.
 
-Project Brief text and selection changes are tracked as dirty input and flushed through a two-second autosave timer. Failed or conflicting saves keep the dirty state and report the failure; the explicit Save brief action remains available.
+Project Setup text and selection changes are tracked as dirty input and flushed through a two-second autosave timer. Failed or conflicting saves keep the dirty state and report the failure; the explicit save action remains available.
 
 Dimension assessments also round-trip server revisions and use the same dirty-state timer, so repeated saves update the loaded assessment rather than being treated as accidental stale writes.
