@@ -29,6 +29,7 @@
     "experiment_status": "Status",
     "checklist": "Workshop checklist",
     "priority": "Priority matrix",
+    "pdf_export": "PDF export",
     "json_export": "JSON export",
     "markdown_export": "Markdown export",
     "risk_score": "Optional subjective risk estimate",
@@ -36,6 +37,6 @@
     "save": "Save",
     "create": "Create",
     "update": "Update",
-    "generate_exports": "Generate JSON and Markdown exports"
+    "generate_exports": "Generate PDF, JSON, and Markdown exports"
   }
 }

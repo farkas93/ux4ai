@@ -2,6 +2,8 @@
 
 Project exports are JSON documents with `schema_version: "1.0"`.
 
+The Summary & Export tab also generates a PDF report. The PDF includes the product setup, dimension radar (including a compatible comparator overlay), risk/evidence matrix, ranked backlog, questions, assumptions, and experiment plans.
+
 Top-level fields:
 
 - `schema_version`

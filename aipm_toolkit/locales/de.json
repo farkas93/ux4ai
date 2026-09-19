@@ -29,6 +29,7 @@
     "experiment_status": "Status",
     "checklist": "Workshop-Checkliste",
     "priority": "Priorisierungsmatrix",
+    "pdf_export": "PDF-Export",
     "json_export": "JSON-Export",
     "markdown_export": "Markdown-Export",
     "risk_score": "Optionale subjektive Risikoschätzung",
@@ -36,6 +37,6 @@
     "save": "Speichern",
     "create": "Erstellen",
     "update": "Aktualisieren",
-    "generate_exports": "JSON- und Markdown-Exporte erstellen"
+    "generate_exports": "PDF-, JSON- und Markdown-Exporte erstellen"
   }
 }

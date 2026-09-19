@@ -20,6 +20,7 @@ from .callbacks import (
     load_placements_from_ui,
     login,
     provision_team_from_ui,
+    summary_preview_from_ui,
     workspace,
 )
 
@@ -117,6 +118,7 @@ def build_app():
             (backlog["hypotheses_display"], "hypotheses", "Hypothesis backlog"),
             (priority["experiment_selector"], "experiments", "Reopen experiment"),
             (summary["checklist_display"], "checklist", "Workshop checklist"),
+            (summary["pdf_download"], "pdf_export", "PDF export"),
             (summary["json_download"], "json_export", "JSON export"),
             (summary["markdown_download"], "markdown_export", "Markdown export"),
             (assessment["risk_score"], "risk_score", "Optional subjective risk estimate"),
@@ -169,5 +171,5 @@ def build_app():
             load_placements_from_ui,
             [token, project_id],
             priority["placement_outputs"] + [priority["ranking_display"], priority["matrix_fig"]],
-        )
+        ).then(summary_preview_from_ui, [token, project_id], summary["summary_preview"])
     return app

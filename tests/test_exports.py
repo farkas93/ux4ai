@@ -3,7 +3,11 @@ import json
 import pytest
 
 from aipm_toolkit.auth import AuthorizationError, hash_password
-from aipm_toolkit.export_services import export_project_json, export_project_markdown
+from aipm_toolkit.export_services import (
+    export_project_json,
+    export_project_markdown,
+    export_project_pdf,
+)
 from aipm_toolkit.hypothesis_services import create_note
 from aipm_toolkit.models import Course, Role, Team, User
 from aipm_toolkit.services import create_project, update_project
@@ -35,6 +39,9 @@ def test_exports_are_versioned_complete_and_unicode_safe(db):
     report = export_project_markdown(db, user, project.id)
     assert "Prototype profiles represent intended" in report
     assert "Open Questions" in report
+    pdf = export_project_pdf(db, user, project.id)
+    assert pdf.startswith(b"%PDF")
+    assert len(pdf) > 1000
 
 
 def test_exports_enforce_project_authorization(db):

@@ -36,7 +36,7 @@ from ..experiment_services import (
     save_reflection,
     update_experiment,
 )
-from ..export_services import write_export_files
+from ..export_services import export_project_markdown, write_export_files
 from ..hypothesis_services import (
     add_relation,
     create_hypothesis,
@@ -725,14 +725,26 @@ def load_placements_from_ui(token: str | None, project_id: str | None, request: 
 def export_project_from_ui(token: str | None, project_id: str | None, request: gr.Request | None = None):
     token = _resolve_token(token, request)
     if not project_id:
-        return "Select a product before exporting.", None, None
+        return "Select a product before exporting.", None, None, None
     with SessionLocal() as db:
         try:
             user = get_authenticated_user(db, token)
-            json_path, markdown_path = write_export_files(db, user, UUID(project_id))
+            json_path, markdown_path, pdf_path = write_export_files(db, user, UUID(project_id))
         except (AuthenticationError, ValueError) as exc:
-            return str(exc), None, None
-    return "Exports generated.", json_path, markdown_path
+            return str(exc), None, None, None
+    return "Exports generated.", json_path, markdown_path, pdf_path
+
+
+def summary_preview_from_ui(token: str | None, project_id: str | None, request: gr.Request | None = None):
+    token = _resolve_token(token, request)
+    if not project_id:
+        return "Select a product to view its summary."
+    with SessionLocal() as db:
+        try:
+            user = get_authenticated_user(db, token)
+            return export_project_markdown(db, user, UUID(project_id))
+        except (AuthenticationError, ValueError) as exc:
+            return str(exc)
 
 
 def save_risk_reflection_from_ui(token: str | None, project_id: str | None, score, entry: str, behavior: str, affected: str, consequence: str, safeguard: str, uncertainty: str, request: gr.Request | None = None):

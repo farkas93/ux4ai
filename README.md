@@ -112,7 +112,7 @@ Saved experiments can be reopened from the experiment selector, edited, and save
 
 Experiment planning and results now use dirty-state tracking and the two-second autosave timer. Failed or conflicting experiment saves remain dirty and report the failure for recovery.
 
-Summary & Export provides authorized, versioned JSON and Markdown downloads. Exports include comparator provenance, notes, hypotheses, relationships, experiments, reflections, and the required prototype-profile warning; credentials, passwords, and historical identities are excluded.
+Summary & Export provides authorized PDF, JSON, and Markdown downloads. The PDF includes the dimension radar and risk/evidence matrix. Exports include comparator provenance, notes, hypotheses, relationships, experiments, reflections, and the required prototype-profile warning; credentials, passwords, and historical identities are excluded.
 
 Instructor accounts now have a course overview with per-project checklist progress and an instructor-only baseline import/publish panel. Team accounts cannot access either operation.
 

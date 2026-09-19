@@ -6,7 +6,10 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-RUN pip install --no-cache-dir uv==0.12.7
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends fonts-dejavu-core \
+    && rm -rf /var/lib/apt/lists/* \
+    && pip install --no-cache-dir uv==0.12.7
 
 COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev
