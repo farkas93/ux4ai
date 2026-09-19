@@ -1,0 +1,645 @@
+"""Callback functions for the AIPM Toolkit workspace.
+
+These functions are intentionally free of Gradio layout code; they resolve the
+authenticated actor from the request cookie and delegate to application
+services.
+"""
+
+from uuid import UUID
+
+import gradio as gr
+import plotly.graph_objects as go
+
+from ..assessment_services import (
+    ensure_scale_definitions,
+    get_project_estimates,
+    save_project_estimates,
+)
+from ..auth import (
+    AuthenticationError,
+    AuthorizationError,
+    RevisionConflict,
+    authenticate,
+    get_authenticated_user,
+)
+from ..baseline_services import published_datasets, select_comparator
+from ..comparison_services import comparator_name, comparison_rows
+from ..db import SessionLocal
+from ..dimensions import DEFAULT_DIMENSIONS
+from ..experiment_services import (
+    completion_checklist,
+    create_experiment,
+    list_experiments,
+    priority_guidance,
+    save_reflection,
+    update_experiment,
+)
+from ..export_services import write_export_files
+from ..hypothesis_services import (
+    add_relation,
+    create_hypothesis,
+    create_note,
+    list_notes,
+    update_hypothesis,
+    update_note,
+)
+from ..i18n import load_catalog
+from ..instructor_services import (
+    course_overview,
+    import_baselines_as_instructor,
+    provision_team_account,
+)
+from ..models import Experiment, Hypothesis, HypothesisDimension, Note, Role
+from ..retention_services import delete_project_as_instructor, update_course_retention
+from ..services import (
+    create_project,
+    get_project,
+    list_projects,
+    update_main_hypothesis,
+    update_project,
+    validate_figma_url,
+)
+
+
+def login(username: str, password: str):
+    with SessionLocal() as db:
+        try:
+            token, user = authenticate(db, username, password)
+        except AuthenticationError as exc:
+            return gr.update(value=str(exc)), None, gr.update(visible=True), gr.update(visible=False)
+    return gr.update(value=f"Signed in as {user.username}"), token, gr.update(visible=False), gr.update(visible=True)
+
+
+def _resolve_token(token: str | None, request: gr.Request | None) -> str | None:
+    if request:
+        cookies = getattr(getattr(request, "request", None), "cookies", {})
+        return cookies.get("aipm_session") or token
+    return token
+
+
+def auto_login(request: gr.Request):
+    cookies = getattr(getattr(request, "request", None), "cookies", {}) if request else {}
+    raw_token = cookies.get("aipm_session")
+    if not raw_token:
+        return "Please sign in.", None, gr.update(visible=True), gr.update(visible=False)
+    with SessionLocal() as db:
+        try:
+            user = get_authenticated_user(db, raw_token)
+        except AuthenticationError:
+            return "Session expired. Please sign in again.", None, gr.update(visible=True), gr.update(visible=False)
+    return f"Signed in as {user.username}", None, gr.update(visible=False), gr.update(visible=True)
+
+
+def workspace(token: str | None, request: gr.Request | None = None):
+    token = _resolve_token(token, request)
+    with SessionLocal() as db:
+        try:
+            user = get_authenticated_user(db, token)
+        except AuthenticationError:
+            return "Session expired. Please sign in again.", gr.update(visible=True), gr.update(visible=False)
+    if user.role == Role.INSTRUCTOR.value:
+        return "Instructor area: course progress, teams, and baselines.", gr.update(visible=False), gr.update(visible=True), gr.update(visible=False), gr.update()
+    with SessionLocal() as db:
+        projects = list_projects(db, user)
+    choices = [(project.product_name, str(project.id)) for project in projects]
+    return "Select an existing product or create a new draft.", gr.update(visible=False), gr.update(visible=False), gr.update(visible=True), gr.update(choices=choices, value=choices[0][1] if choices else None)
+
+
+def create_project_from_ui(token: str, product_name: str, request: gr.Request | None = None):
+    token = _resolve_token(token, request)
+    with SessionLocal() as db:
+        try:
+            user = get_authenticated_user(db, token)
+            project = create_project(db, user, product_name)
+            choices = [(item.product_name, str(item.id)) for item in list_projects(db, user)]
+        except (AuthenticationError, ValueError) as exc:
+            return str(exc), gr.update(), gr.update(), gr.update()
+    return "Draft created. Your product setup is ready.", gr.update(choices=choices, value=str(project.id)), gr.update(value=project.product_name), gr.update(value=project.revision)
+
+
+def load_project_from_ui(token: str, project_id: str | None, request: gr.Request | None = None):
+    token = _resolve_token(token, request)
+    if not project_id:
+        return "", "", "", "", "", "", "", "", "", None, None
+    with SessionLocal() as db:
+        try:
+            user = get_authenticated_user(db, token)
+            project = get_project(db, user, UUID(project_id))
+            hypothesis = next(iter(project.hypotheses), None)
+        except (AuthenticationError, ValueError, LookupError):
+            return "Unable to load that product.", "", "", "", "", "", "", "", "", None, None
+    return (
+        "Project Setup",
+        project.product_name,
+        project.short_description,
+        project.target_user,
+        project.job_to_be_done,
+        project.current_problem,
+        hypothesis.statement if hypothesis else "",
+        project.product_type,
+        project.figma_url,
+        str(project.id),
+        project.revision,
+    )
+
+
+def save_project_from_ui(token: str, project_id: str | None, revision: int | None, product_name: str, product_type: str | None, description: str, target_user: str, job: str, problem: str, hypothesis: str, figma_url: str, request: gr.Request | None = None):
+    token = _resolve_token(token, request)
+    if not project_id or revision is None:
+        return "Select a product first.", revision
+    with SessionLocal() as db:
+        try:
+            user = get_authenticated_user(db, token)
+            updated_url = validate_figma_url(figma_url)
+            project = update_project(db, user, UUID(project_id), revision, product_name=product_name.strip(), product_type=product_type, short_description=description, target_user=target_user, job_to_be_done=job, current_problem=problem, figma_url=updated_url)
+            main = next(iter(project.hypotheses), None)
+            if main:
+                update_main_hypothesis(db, user, project.id, main.revision, hypothesis)
+        except (AuthenticationError, RevisionConflict, ValueError) as exc:
+            return str(exc), revision
+    return "Saved.", project.revision
+
+
+def save_project_action(token: str, project_id: str | None, revision: int | None, product_name: str, product_type: str | None, description: str, target_user: str, job: str, problem: str, hypothesis: str, figma_url: str, request: gr.Request | None = None):
+    token = _resolve_token(token, request)
+    status, new_revision = save_project_from_ui(token, project_id, revision, product_name, product_type, description, target_user, job, problem, hypothesis, figma_url)
+    return status, new_revision, not status.startswith("Saved")
+
+
+def autosave_project_from_ui(token: str, project_id: str | None, revision: int | None, dirty: bool, product_name: str, product_type: str | None, description: str, target_user: str, job: str, problem: str, hypothesis: str, figma_url: str, request: gr.Request | None = None):
+    token = _resolve_token(token, request)
+    if not dirty:
+        return gr.update(), revision, dirty
+    status, new_revision = save_project_from_ui(token, project_id, revision, product_name, product_type, description, target_user, job, problem, hypothesis, figma_url)
+    if status.startswith("Saved"):
+        return "Saved automatically.", new_revision, False
+    return f"Save failed: {status}", new_revision, True
+
+
+def load_estimates_from_ui(token: str, project_id: str | None, request: gr.Request | None = None):
+    token = _resolve_token(token, request)
+    blank = []
+    if not project_id:
+        return [value for _ in DEFAULT_DIMENSIONS for value in ("unassessed", None, "", None, "", "")], []
+    with SessionLocal() as db:
+        try:
+            user = get_authenticated_user(db, token)
+            ensure_scale_definitions(db)
+            estimates = get_project_estimates(db, user, UUID(project_id))
+        except (AuthenticationError, ValueError):
+            return [value for _ in DEFAULT_DIMENSIONS for value in ("unassessed", None, "", None, "", "")], []
+    revisions = []
+    for estimate in estimates:
+        blank.extend([estimate.status, estimate.score, estimate.rationale, estimate.basis, estimate.evidence, estimate.uncertainty])
+        revisions.append(estimate.revision)
+    return blank, revisions
+
+
+def save_estimates_from_ui(token: str, project_id: str | None, revisions: list[int] | None, *values, request: gr.Request | None = None):
+    token = _resolve_token(token, request)
+    if not project_id:
+        return "Select a product before saving dimension assessments.", revisions or []
+    revisions = revisions or [None] * len(DEFAULT_DIMENSIONS)
+    records = []
+    for index, definition in enumerate(DEFAULT_DIMENSIONS):
+        offset = index * 6
+        records.append(
+            {
+                "dimension_key": definition["key"],
+                "status": values[offset],
+                "score": values[offset + 1],
+                "rationale": values[offset + 2],
+                "basis": values[offset + 3],
+                "evidence": values[offset + 4],
+                "uncertainty": values[offset + 5],
+                "revision": revisions[index],
+            }
+        )
+    with SessionLocal() as db:
+        try:
+            user = get_authenticated_user(db, token)
+            ensure_scale_definitions(db)
+            save_project_estimates(db, user, UUID(project_id), records)
+            saved = get_project_estimates(db, user, UUID(project_id))
+        except (AuthenticationError, RevisionConflict, ValueError) as exc:
+            return str(exc), revisions
+    return "Dimension assessments saved.", [estimate.revision for estimate in saved]
+
+
+def save_assessments_action(token: str, project_id: str | None, revisions: list[int] | None, *values, request: gr.Request | None = None):
+    token = _resolve_token(token, request)
+    status, new_revisions = save_estimates_from_ui(token, project_id, revisions, *values)
+    return status, new_revisions, not status.endswith("saved.")
+
+
+def autosave_assessments_from_ui(token: str, project_id: str | None, revisions: list[int] | None, dirty: bool, *values, request: gr.Request | None = None):
+    token = _resolve_token(token, request)
+    if not dirty:
+        return gr.update(), revisions or [], dirty
+    status, new_revisions = save_estimates_from_ui(token, project_id, revisions, *values)
+    if status.endswith("saved."):
+        return "Dimension assessments saved automatically.", new_revisions, False
+    return f"Save failed: {status}", new_revisions, True
+
+
+def load_comparator_choices():
+    with SessionLocal() as db:
+        return gr.update(choices=[(name, str(dataset_id)) for name, dataset_id in published_datasets(db)])
+
+
+def save_comparator_from_ui(token: str, project_id: str | None, dataset_id: str | None, purpose: str, scope: str, request: gr.Request | None = None):
+    token = _resolve_token(token, request)
+    if not project_id or not dataset_id:
+        return "Select a product and comparator first.", None
+    with SessionLocal() as db:
+        try:
+            user = get_authenticated_user(db, token)
+            snapshot = select_comparator(db, user, UUID(project_id), UUID(dataset_id), purpose, scope)
+        except (AuthenticationError, ValueError) as exc:
+            return str(exc), None
+    return "Comparator selection saved as a frozen snapshot. Previous snapshots remain unchanged.", str(snapshot.id)
+
+
+def load_comparison_from_ui(token: str, project_id: str | None, snapshot_id: str | None, request: gr.Request | None = None):
+    token = _resolve_token(token, request)
+    if not project_id or not snapshot_id:
+        return go.Figure(), "Save a comparator selection to view the comparison."
+    with SessionLocal() as db:
+        try:
+            user = get_authenticated_user(db, token)
+            rows = comparison_rows(db, user, UUID(project_id), UUID(snapshot_id))
+            name = comparator_name(db, UUID(snapshot_id))
+        except (AuthenticationError, ValueError) as exc:
+            return go.Figure(), str(exc)
+    labels = [row["dimension"] for row in rows]
+    ours = [row["our_score"] for row in rows]
+    baseline = [row["baseline_median"] if row["compatible"] else None for row in rows]
+    theta = labels + [labels[0]]
+    ours_closed = ours + [ours[0]]
+    baseline_closed = baseline + [baseline[0]]
+    fig = go.Figure()
+    fig.add_trace(go.Scatterpolar(r=ours_closed, theta=theta, name="Our estimate", line={"color": "#1f77b4"}, fill="none"))
+    fig.add_trace(go.Scatterpolar(r=baseline_closed, theta=theta, name=f"Historical median: {name}", line={"color": "#d62728", "dash": "dash"}, fill="none"))
+    fig.update_layout(polar={"radialaxis": {"visible": True, "range": [0, 5]}}, showlegend=True, title="Prototype and historical comparison")
+    lines = ["Dimension | Our score | Baseline median | Baseline spread | Difference | Compatibility", "---|---:|---:|---|---:|---"]
+    for row in rows:
+        ours_value = "unknown" if row["our_score"] is None else f"{row['our_score']:.1f}"
+        median_value = "unknown" if row["baseline_median"] is None else f"{row['baseline_median']:.1f}"
+        spread = "unknown" if row["baseline_p25"] is None else f"{row['baseline_p25']:.1f}-{row['baseline_p75']:.1f} (n={row['count']})"
+        difference = "not calculated" if row["difference"] is None else f"{row['difference']:+.1f}"
+        lines.append(f"{row['dimension']} | {ours_value} | {median_value} | {spread} | {difference} | {'Compatible' if row['compatible'] else 'Incompatible'}")
+    return fig, "\n".join(lines)
+
+
+def _hypotheses(db, project_id: str) -> list[Hypothesis]:
+    return list(db.query(Hypothesis).filter(Hypothesis.project_id == UUID(project_id)).order_by(Hypothesis.kind, Hypothesis.created_at))
+
+
+def _hypothesis_text(items: list[Hypothesis]) -> str:
+    return "\n".join(f"[{item.kind}] {item.statement} | impact: {item.impact_if_wrong} | evidence: {item.evidence_strength} | status: {item.workflow_status}" for item in items) or "No hypotheses yet."
+
+
+def _notes_text(items) -> str:
+    return "\n".join(f"[{item.note_type}] {item.text}" for item in items) or "No notes yet."
+
+
+def load_backlog_from_ui(token: str, project_id: str | None, request: gr.Request | None = None):
+    token = _resolve_token(token, request)
+    if not project_id:
+        return "No notes yet.", "No hypotheses yet.", gr.update(choices=[]), gr.update(choices=[]), gr.update(choices=[]), gr.update(choices=[]), gr.update(choices=[])
+    with SessionLocal() as db:
+        try:
+            user = get_authenticated_user(db, token)
+            notes = list_notes(db, user, UUID(project_id))
+            hypotheses = _hypotheses(db, project_id)
+        except AuthenticationError:
+            return "Session expired.", "Session expired.", gr.update(choices=[]), gr.update(choices=[]), gr.update(choices=[]), gr.update(choices=[]), gr.update(choices=[])
+    choices = [(item.statement[:80], str(item.id)) for item in hypotheses]
+    note_choices = [(item.text[:80], str(item.id)) for item in notes]
+    return _notes_text(notes), _hypothesis_text(hypotheses), gr.update(choices=note_choices), gr.update(choices=choices), gr.update(choices=choices), gr.update(choices=note_choices), gr.update(choices=choices)
+
+
+def save_note_from_ui(token: str, project_id: str | None, note_type: str, text: str, dimensions: list[str], request: gr.Request | None = None):
+    token = _resolve_token(token, request)
+    if not project_id:
+        return "Select a product first.", "No notes yet."
+    dimension_keys = [definition["key"] for definition in DEFAULT_DIMENSIONS if definition["title"] in (dimensions or [])]
+    with SessionLocal() as db:
+        try:
+            user = get_authenticated_user(db, token)
+            create_note(db, user, UUID(project_id), note_type, text, dimension_keys)
+            notes = list_notes(db, user, UUID(project_id))
+        except (AuthenticationError, ValueError) as exc:
+            return str(exc), ""
+    return "Note saved.", _notes_text(notes)
+
+
+def load_note_edit_from_ui(token: str, note_id: str | None, request: gr.Request | None = None):
+    token = _resolve_token(token, request)
+    if not note_id:
+        return "observation", "", None
+    with SessionLocal() as db:
+        try:
+            user = get_authenticated_user(db, token)
+            note = db.get(Note, UUID(note_id))
+            if note is None:
+                raise ValueError("Note not found")
+            get_project(db, user, note.project_id)
+        except (AuthenticationError, ValueError, AuthorizationError) as exc:
+            return str(exc), "", None
+    return note.note_type, note.text, note.revision
+
+
+def save_note_edit_from_ui(token: str, note_id: str | None, revision: int | None, note_type: str, text: str, dimensions: list[str], request: gr.Request | None = None):
+    token = _resolve_token(token, request)
+    if not note_id or revision is None:
+        return "Select a saved note first.", None, ""
+    dimension_keys = [definition["key"] for definition in DEFAULT_DIMENSIONS if definition["title"] in (dimensions or [])]
+    with SessionLocal() as db:
+        try:
+            user = get_authenticated_user(db, token)
+            note = update_note(db, user, UUID(note_id), revision, note_type, text, dimension_keys)
+            notes = list_notes(db, user, note.project_id)
+        except (AuthenticationError, AuthorizationError, RevisionConflict, ValueError) as exc:
+            return str(exc), revision, ""
+    return "Note updated.", note.revision, _notes_text(notes)
+
+
+def load_hypothesis_edit_from_ui(token: str, hypothesis_id: str | None, request: gr.Request | None = None):
+    token = _resolve_token(token, request)
+    if not hypothesis_id:
+        return "", "", "unknown", "unknown", "", None
+    with SessionLocal() as db:
+        try:
+            user = get_authenticated_user(db, token)
+            hypothesis = db.get(Hypothesis, UUID(hypothesis_id))
+            if hypothesis is None:
+                raise ValueError("Hypothesis not found")
+            get_project(db, user, hypothesis.project_id)
+        except (AuthenticationError, AuthorizationError, ValueError) as exc:
+            return str(exc), "", "unknown", "unknown", "", None
+    return hypothesis.statement, hypothesis.value_link, hypothesis.impact_if_wrong, hypothesis.evidence_strength, hypothesis.evidence_rationale, hypothesis.revision
+
+
+def save_hypothesis_edit_from_ui(token: str, hypothesis_id: str | None, revision: int | None, statement: str, value_link: str, impact: str, evidence: str, evidence_rationale: str, request: gr.Request | None = None):
+    token = _resolve_token(token, request)
+    if not hypothesis_id or revision is None:
+        return "Select a saved hypothesis first.", None, ""
+    with SessionLocal() as db:
+        try:
+            user = get_authenticated_user(db, token)
+            hypothesis = update_hypothesis(db, user, UUID(hypothesis_id), revision, statement=statement, value_link=value_link, impact_if_wrong=impact, evidence_strength=evidence, evidence_rationale=evidence_rationale)
+            hypotheses = _hypotheses(db, str(hypothesis.project_id))
+        except (AuthenticationError, AuthorizationError, RevisionConflict, ValueError) as exc:
+            return str(exc), revision, ""
+    return "Hypothesis updated.", hypothesis.revision, _hypothesis_text(hypotheses)
+
+
+def save_hypothesis_from_ui(token: str, project_id: str | None, statement: str, value_link: str, impact: str, evidence: str, evidence_rationale: str, note_id: str | None, request: gr.Request | None = None):
+    token = _resolve_token(token, request)
+    if not project_id:
+        return "Select a product first.", "", gr.update(choices=[])
+    with SessionLocal() as db:
+        try:
+            user = get_authenticated_user(db, token)
+            hypothesis = create_hypothesis(db, user, UUID(project_id), statement, value_link=value_link, note_id=UUID(note_id) if note_id else None)
+            hypothesis.impact_if_wrong = impact
+            hypothesis.evidence_strength = evidence
+            hypothesis.evidence_rationale = evidence_rationale
+            db.commit()
+            hypotheses = _hypotheses(db, project_id)
+        except (AuthenticationError, ValueError) as exc:
+            return str(exc), "", gr.update(choices=[])
+    choices = [(item.statement[:80], str(item.id)) for item in hypotheses]
+    return "Supporting hypothesis saved.", _hypothesis_text(hypotheses), gr.update(choices=choices)
+
+
+def filter_hypotheses_from_ui(token: str | None, project_id: str | None, dimension: str, status: str, impact: str, evidence: str, request: gr.Request | None = None):
+    token = _resolve_token(token, request)
+    if not project_id:
+        return "No hypotheses yet.", gr.update(choices=[]), gr.update(choices=[])
+    with SessionLocal() as db:
+        try:
+            _user = get_authenticated_user(db, token)
+            hypotheses = _hypotheses(db, project_id)
+            if dimension != "all":
+                ids = {item.hypothesis_id for item in db.query(HypothesisDimension).filter_by(dimension_key=dimension).all()}
+                hypotheses = [item for item in hypotheses if item.id in ids]
+            if status != "all":
+                hypotheses = [item for item in hypotheses if item.workflow_status == status]
+            if impact != "all":
+                hypotheses = [item for item in hypotheses if item.impact_if_wrong == impact]
+            if evidence != "all":
+                hypotheses = [item for item in hypotheses if item.evidence_strength == evidence]
+        except AuthenticationError:
+            return "Session expired.", gr.update(choices=[]), gr.update(choices=[])
+    choices = [(item.statement[:80], str(item.id)) for item in hypotheses]
+    return _hypothesis_text(hypotheses), gr.update(choices=choices), gr.update(choices=choices)
+
+
+def save_relation_from_ui(token: str, project_id: str | None, relation_type: str, source_id: str | None, target_id: str | None, request: gr.Request | None = None):
+    token = _resolve_token(token, request)
+    if not project_id or not source_id or not target_id:
+        return "Select a product and two hypotheses."
+    with SessionLocal() as db:
+        try:
+            user = get_authenticated_user(db, token)
+            add_relation(db, user, UUID(project_id), relation_type, UUID(source_id), UUID(target_id))
+        except (AuthenticationError, ValueError) as exc:
+            return str(exc)
+    return "Hypothesis relationship saved."
+
+
+def save_experiment_plan(token: str, project_id: str | None, primary_id: str | None, title: str, method: str, request: gr.Request | None = None):
+    token = _resolve_token(token, request)
+    if not project_id or not primary_id:
+        return "Select a product and primary hypothesis first.", None, None
+    with SessionLocal() as db:
+        try:
+            user = get_authenticated_user(db, token)
+            experiment = create_experiment(db, user, UUID(project_id), UUID(primary_id), title, method)
+        except (AuthenticationError, ValueError) as exc:
+            return str(exc), None, None
+    return "Experiment plan created. Add the procedure and success criteria below.", str(experiment.id), experiment.revision
+
+
+def load_experiment_choices(token: str, project_id: str | None, request: gr.Request | None = None):
+    token = _resolve_token(token, request)
+    if not project_id:
+        return gr.update(choices=[])
+    with SessionLocal() as db:
+        try:
+            user = get_authenticated_user(db, token)
+            experiments = list_experiments(db, user, UUID(project_id))
+        except AuthenticationError:
+            return gr.update(choices=[])
+    return gr.update(choices=[(item.title[:80], str(item.id)) for item in experiments])
+
+
+def load_experiment_edit_from_ui(token: str, experiment_id: str | None, request: gr.Request | None = None):
+    token = _resolve_token(token, request)
+    if not experiment_id:
+        return "", "prototype_walkthrough", "", "", "", "", "", "", "", "", "planned", "", "", "", "", "undecided", None
+    with SessionLocal() as db:
+        try:
+            user = get_authenticated_user(db, token)
+            experiment = db.get(Experiment, UUID(experiment_id))
+            if experiment is None:
+                raise ValueError("Experiment not found")
+            get_project(db, user, experiment.project_id)
+        except (AuthenticationError, AuthorizationError, ValueError) as exc:
+            return str(exc), "prototype_walkthrough", "", "", "", "", "", "", "", "", "planned", "", "", "", "", "undecided", None
+    return (experiment.title, experiment.method, experiment.procedure, experiment.participants, experiment.comparison_baseline, experiment.metric, experiment.success_criterion, experiment.guardrail, experiment.resources, experiment.owner, experiment.planned_date, experiment.status, experiment.results, experiment.evidence_links, experiment.limitations, experiment.conclusion, experiment.resulting_decision, experiment.revision)
+
+
+def save_experiment_details(token: str, project_id: str | None, experiment_id: str | None, revision: int | None, procedure: str, participants: str, baseline: str, metric: str, success: str, guardrail: str, resources: str, owner: str, planned_date: str, status_value: str, results: str, evidence_links: str, limitations: str, conclusion: str, decision: str, request: gr.Request | None = None):
+    token = _resolve_token(token, request)
+    if not project_id or not experiment_id or revision is None:
+        return "Create an experiment plan first.", revision
+    with SessionLocal() as db:
+        try:
+            user = get_authenticated_user(db, token)
+            update_experiment(db, user, UUID(experiment_id), revision, procedure=procedure, participants=participants, comparison_baseline=baseline, metric=metric, success_criterion=success, guardrail=guardrail, resources=resources, owner=owner, planned_date=planned_date, status=status_value, results=results, evidence_links=evidence_links, limitations=limitations, conclusion=conclusion, resulting_decision=decision)
+        except (AuthenticationError, RevisionConflict, ValueError) as exc:
+            return str(exc), revision
+    return "Experiment saved. Completion does not automatically support the hypothesis.", revision + 1
+
+
+def save_experiment_action(token: str | None, project_id: str | None, experiment_id: str | None, revision: int | None, procedure: str, participants: str, baseline: str, metric: str, success: str, guardrail: str, resources: str, owner: str, planned_date: str, status_value: str, results: str, evidence_links: str, limitations: str, conclusion: str, decision: str, request: gr.Request | None = None):
+    status, new_revision = save_experiment_details(token, project_id, experiment_id, revision, procedure, participants, baseline, metric, success, guardrail, resources, owner, planned_date, status_value, results, evidence_links, limitations, conclusion, decision, request=request)
+    return status, new_revision, not status.startswith("Experiment saved")
+
+
+def autosave_experiment_from_ui(token: str | None, project_id: str | None, experiment_id: str | None, revision: int | None, dirty: bool, procedure: str, participants: str, baseline: str, metric: str, success: str, guardrail: str, resources: str, owner: str, planned_date: str, status_value: str, results: str, evidence_links: str, limitations: str, conclusion: str, decision: str, request: gr.Request | None = None):
+    if not dirty:
+        return gr.update(), revision, dirty
+    status, new_revision = save_experiment_details(token, project_id, experiment_id, revision, procedure, participants, baseline, metric, success, guardrail, resources, owner, planned_date, status_value, results, evidence_links, limitations, conclusion, decision, request=request)
+    if status.startswith("Experiment saved"):
+        return "Experiment saved automatically.", new_revision, False
+    return f"Save failed: {status}", new_revision, True
+
+
+def checklist_text(token: str | None, project_id: str | None, request: gr.Request | None = None):
+    token = _resolve_token(token, request)
+    if not project_id:
+        return "Select a product to see the workshop checklist."
+    with SessionLocal() as db:
+        try:
+            user = get_authenticated_user(db, token)
+            checklist = completion_checklist(db, user, UUID(project_id))
+        except AuthenticationError:
+            return "Session expired."
+    return "\n".join(f"{'[x]' if complete else '[ ]'} {label}" for label, complete in checklist.items())
+
+
+def priority_text(token: str | None, project_id: str | None, request: gr.Request | None = None):
+    token = _resolve_token(token, request)
+    if not project_id:
+        return "Select a product to see priority guidance."
+    with SessionLocal() as db:
+        try:
+            user = get_authenticated_user(db, token)
+            return priority_guidance(db, user, UUID(project_id))
+        except AuthenticationError:
+            return "Session expired."
+
+
+def export_project_from_ui(token: str | None, project_id: str | None, request: gr.Request | None = None):
+    token = _resolve_token(token, request)
+    if not project_id:
+        return "Select a product before exporting.", None, None
+    with SessionLocal() as db:
+        try:
+            user = get_authenticated_user(db, token)
+            json_path, markdown_path = write_export_files(db, user, UUID(project_id))
+        except (AuthenticationError, ValueError) as exc:
+            return str(exc), None, None
+    return "Exports generated.", json_path, markdown_path
+
+
+def save_risk_reflection_from_ui(token: str | None, project_id: str | None, score, entry: str, behavior: str, affected: str, consequence: str, safeguard: str, uncertainty: str, request: gr.Request | None = None):
+    token = _resolve_token(token, request)
+    if not project_id:
+        return "Select a product first."
+    with SessionLocal() as db:
+        try:
+            user = get_authenticated_user(db, token)
+            save_reflection(db, user, UUID(project_id), "adversarial_risk", uncertainty, subjective_score=score, attack_entry_point=entry, unwanted_behavior=behavior, affected_data_action=affected, consequence=consequence, proposed_safeguard=safeguard)
+        except (AuthenticationError, ValueError) as exc:
+            return str(exc)
+    return "Adversarial-risk reflection saved. The score is a subjective discussion input, not a calibrated security assessment."
+
+
+def save_feedback_reflection_from_ui(token: str | None, project_id: str | None, signal: str, meaning: str, change: str, human: str, evaluation: str, request: gr.Request | None = None):
+    token = _resolve_token(token, request)
+    if not project_id:
+        return "Select a product first."
+    with SessionLocal() as db:
+        try:
+            user = get_authenticated_user(db, token)
+            save_reflection(db, user, UUID(project_id), "feedback_loop", "", signal_to_collect=signal, signal_meaning=meaning, possible_product_change=change, human_interpretation_needed=human, evaluation_after_change=evaluation)
+        except (AuthenticationError, ValueError) as exc:
+            return str(exc)
+    return "Feedback-loop reflection saved."
+
+
+def instructor_overview_from_ui(token: str | None, request: gr.Request | None = None):
+    token = _resolve_token(token, request)
+    with SessionLocal() as db:
+        try:
+            user = get_authenticated_user(db, token)
+            rows = course_overview(db, user)
+        except (AuthenticationError, ValueError) as exc:
+            return str(exc)
+    if not rows:
+        return "No products yet."
+    return "\n".join(f"{row['team_alias']} | {row['product_name']} | checklist {row['completed_items']}/{row['total_items']} | id {row['project_id']}" for row in rows)
+
+
+def import_baselines_from_ui(token: str | None, directory: str, cohort: str, publish: bool, request: gr.Request | None = None):
+    token = _resolve_token(token, request)
+    with SessionLocal() as db:
+        try:
+            user = get_authenticated_user(db, token)
+            report = import_baselines_as_instructor(db, user, directory, cohort, publish)
+        except (AuthenticationError, ValueError) as exc:
+            return str(exc), ""
+    return f"Imported {report['records']} records from {report['files']} files.", str(report)
+
+
+def provision_team_from_ui(token: str | None, course_name: str, alias: str, password: str, request: gr.Request | None = None):
+    token = _resolve_token(token, request)
+    with SessionLocal() as db:
+        try:
+            user = get_authenticated_user(db, token)
+            team = provision_team_account(db, user, course_name, alias, password)
+        except (AuthenticationError, ValueError) as exc:
+            return str(exc)
+    return f"Team account '{team.alias}' created. Share the password securely and do not store it in product content."
+
+
+def update_retention_from_ui(token: str | None, course_name: str, retention_days: int, policy: str, request: gr.Request | None = None):
+    token = _resolve_token(token, request)
+    with SessionLocal() as db:
+        try:
+            user = get_authenticated_user(db, token)
+            update_course_retention(db, user, course_name, retention_days, policy)
+        except (AuthenticationError, ValueError) as exc:
+            return str(exc)
+    return "Retention settings saved."
+
+
+def delete_project_from_ui(token: str | None, project_id: str, confirm: bool, request: gr.Request | None = None):
+    token = _resolve_token(token, request)
+    with SessionLocal() as db:
+        try:
+            user = get_authenticated_user(db, token)
+            delete_project_as_instructor(db, user, UUID(project_id), confirm)
+        except (AuthenticationError, ValueError) as exc:
+            return str(exc)
+    return "Product and its editable content were deleted."
+
+
+def section_context(section: str, language: str = "en") -> str:
+    descriptions = load_catalog(language)["sections"]
+    return descriptions.get(section, descriptions["Project Setup"])

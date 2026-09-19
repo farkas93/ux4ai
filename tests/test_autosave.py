@@ -1,4 +1,4 @@
-from aipm_toolkit import app as app_module
+from aipm_toolkit.ui import callbacks as app_module
 
 
 def test_autosave_keeps_dirty_state_after_conflict(monkeypatch):
