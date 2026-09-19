@@ -58,6 +58,24 @@ uv run --extra e2e pytest -m e2e
 
 The ordinary test suite skips this test unless those environment variables are present.
 
+## Backup and restore
+
+Back up PostgreSQL with an external, protected destination. Do not commit backup files to the repository:
+
+```bash
+export AIPM_DATABASE_URL='postgresql+psycopg://user:password@host:5432/aipm'
+ops/backup_postgres.sh /secure/backup/location/aipm-$(date +%Y%m%d-%H%M%S).dump
+```
+
+Restore only into a verified target database after confirming the backup and communicating the expected data loss window:
+
+```bash
+export CONFIRM_RESTORE=YES
+ops/restore_postgres.sh /secure/backup/location/aipm-20260101-120000.dump
+```
+
+The restore script is intentionally destructive and requires `CONFIRM_RESTORE=YES`. Production operations should encrypt backups at rest, restrict access to instructors/operators, retain multiple dated copies, and perform a restore drill before the workshop deployment. Course retention and deletion policy should be configured by the deployment owner; no personal names are required in team content.
+
 Set `AIPM_DATABASE_URL` for PostgreSQL. The default SQLite URL is intended only for a quick local smoke test; integration and production use PostgreSQL.
 
 The current implementation includes the Dimension Explorer and a historical baseline catalog. Import the legacy instructor references with:
