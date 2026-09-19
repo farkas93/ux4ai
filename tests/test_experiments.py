@@ -86,3 +86,18 @@ def test_checklist_derives_comparator_links_and_priority(db):
     assert checklist["Comparator selected"] is True
     assert checklist["Hypotheses connected to value"] is True
     assert checklist["Priority hypothesis selected"] is True
+
+
+def test_priority_guidance_keeps_unknowns_outside_matrix(db):
+    from aipm_toolkit.experiment_services import priority_guidance
+    user, project = user_project(db, "priority")
+    create_hypothesis(db, user, project.id, "Unknown claim")
+    known = create_hypothesis(db, user, project.id, "Known high-impact claim")
+    known.impact_if_wrong = "high"
+    known.evidence_strength = "limited"
+    db.commit()
+    guidance = priority_guidance(db, user, project.id)
+    assert "Evidence-versus-impact priority matrix" in guidance
+    assert "Known high-impact claim" in guidance
+    assert "Needs assessment (not placed on the matrix)" in guidance
+    assert "Unknown claim" in guidance

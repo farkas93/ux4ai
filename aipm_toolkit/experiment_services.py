@@ -120,10 +120,16 @@ def priority_guidance(db: Session, actor: User, project_id: UUID) -> str:
     hypotheses = list(db.scalars(select(Hypothesis).where(Hypothesis.project_id == project_id, Hypothesis.kind == "supporting").order_by(Hypothesis.impact_if_wrong, Hypothesis.evidence_strength)))
     if not hypotheses:
         return "No supporting hypotheses yet. Unknown impact or evidence stays outside the scored priority matrix."
-    lines = ["Unknown impact or evidence: Needs assessment"]
-    for item in hypotheses:
-        if item.impact_if_wrong == "unknown" or item.evidence_strength == "unknown":
-            lines.append(f"- Needs assessment: {item.statement}")
-        else:
+    scored = [item for item in hypotheses if item.impact_if_wrong != "unknown" and item.evidence_strength != "unknown"]
+    needs_assessment = [item for item in hypotheses if item not in scored]
+    lines = ["Evidence-versus-impact priority matrix", "Higher impact and lower evidence indicate uncertainty worth investigating."]
+    if scored:
+        lines.append("Scored hypotheses:")
+        for item in scored:
             lines.append(f"- Impact {item.impact_if_wrong} / Evidence {item.evidence_strength}: {item.statement}")
+    else:
+        lines.append("Scored hypotheses: none")
+    lines.append("Needs assessment (not placed on the matrix):")
+    for item in needs_assessment:
+        lines.append(f"- {item.statement} [impact={item.impact_if_wrong}, evidence={item.evidence_strength}]")
     return "\n".join(lines)

@@ -74,6 +74,8 @@ The workspace also includes structured Notes and a Hypothesis Backlog. Notes can
 
 Saved notes and hypotheses can be reopened from the workspace, edited, and saved with revision checks. Stale edits are rejected instead of silently overwriting newer content.
 
+The Hypothesis Backlog priority guidance now separates scored evidence-versus-impact entries from a `Needs assessment` list. Unknown values are never assigned arbitrary matrix coordinates.
+
 Experiments can be planned against one primary hypothesis, updated with procedures, metrics, success criteria, guardrails, results, limitations, and decisions. Completing an experiment never automatically marks its hypothesis as supported. The workshop checklist requires a planned next experiment but remains guidance rather than a product-readiness score.
 
 Saved experiments can be reopened from the experiment selector, edited, and saved again with their revision check intact.
