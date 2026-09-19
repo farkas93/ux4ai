@@ -45,6 +45,7 @@ from .instructor_services import (
     provision_team_account,
 )
 from .models import Experiment, Hypothesis, Note, Role
+from .retention_services import delete_project_as_instructor, update_course_retention
 from .services import (
     create_project,
     get_project,
@@ -575,6 +576,28 @@ def provision_team_from_ui(token: str | None, course_name: str, alias: str, pass
     return f"Team account '{team.alias}' created. Share the password securely and do not store it in project content."
 
 
+def update_retention_from_ui(token: str | None, course_name: str, retention_days: int, policy: str, request: gr.Request | None = None):
+    token = _resolve_token(token, request)
+    with SessionLocal() as db:
+        try:
+            user = get_authenticated_user(db, token)
+            update_course_retention(db, user, course_name, retention_days, policy)
+        except (AuthenticationError, ValueError) as exc:
+            return str(exc)
+    return "Retention settings saved."
+
+
+def delete_project_from_ui(token: str | None, project_id: str, confirm: bool, request: gr.Request | None = None):
+    token = _resolve_token(token, request)
+    with SessionLocal() as db:
+        try:
+            user = get_authenticated_user(db, token)
+            delete_project_as_instructor(db, user, UUID(project_id), confirm)
+        except (AuthenticationError, ValueError) as exc:
+            return str(exc)
+    return "Project and its editable content were deleted."
+
+
 def section_context(section: str, language: str = "en") -> str:
     descriptions = load_catalog(language)["sections"]
     return descriptions.get(section, descriptions["Project Brief"])
@@ -608,6 +631,16 @@ def build_app():
             team_password = gr.Textbox(label="Initial team password", type="password")
             create_team_button = gr.Button("Create team account")
             create_team_button.click(provision_team_from_ui, [token, team_course, team_alias, team_password], status)
+            gr.Markdown("### Retention and deletion")
+            retention_course = gr.Textbox(label="Course name", value="AIPM Workshop")
+            retention_days = gr.Number(label="Retention days", value=180, precision=0)
+            retention_policy = gr.Textbox(label="Deletion policy", value="Delete course data after the configured retention period.", lines=2)
+            save_retention_button = gr.Button("Save retention settings")
+            save_retention_button.click(update_retention_from_ui, [token, retention_course, retention_days, retention_policy], status)
+            delete_project_id = gr.Textbox(label="Project UUID to delete")
+            confirm_delete = gr.Checkbox(label="I understand this permanently deletes the project", value=False)
+            delete_project_button = gr.Button("Delete project", variant="stop")
+            delete_project_button.click(delete_project_from_ui, [token, delete_project_id, confirm_delete], status)
         with gr.Column(visible=False) as team_panel:
             language_selector = gr.Dropdown(label="Language / Sprache", choices=[("English", "en"), ("Deutsch", "de")], value="en")
             section_selector = gr.Radio(label="Current section", choices=["Project Brief", "Dimension Explorer", "Notes", "Hypothesis Backlog", "Experiments", "Summary & Export"], value="Project Brief")

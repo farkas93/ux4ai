@@ -76,6 +76,8 @@ ops/restore_postgres.sh /secure/backup/location/aipm-20260101-120000.dump
 
 The restore script is intentionally destructive and requires `CONFIRM_RESTORE=YES`. Production operations should encrypt backups at rest, restrict access to instructors/operators, retain multiple dated copies, and perform a restore drill before the workshop deployment. Course retention and deletion policy should be configured by the deployment owner; no personal names are required in team content.
 
+Instructors can configure course retention days and deletion policy in the instructor area. Project deletion requires instructor authorization and explicit confirmation; team accounts cannot delete projects.
+
 Set `AIPM_DATABASE_URL` for PostgreSQL. The default SQLite URL is intended only for a quick local smoke test; integration and production use PostgreSQL.
 
 The current implementation includes the Dimension Explorer and a historical baseline catalog. Import the legacy instructor references with:
