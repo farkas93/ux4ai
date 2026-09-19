@@ -6,6 +6,7 @@ from ..i18n import load_catalog
 from . import tabs_assessment, tabs_backlog, tabs_priority, tabs_setup, tabs_summary
 from .callbacks import (
     auto_login,
+    backlog_columns_from_ui,
     checklist_text,
     delete_product_from_ui,
     dimension_notes_from_ui,
@@ -161,5 +162,9 @@ def build_app():
             load_backlog_from_ui,
             [token, project_id],
             [backlog["notes_display"], backlog["hypotheses_display"], backlog["hypothesis_note"], backlog["relation_source"], backlog["relation_target"], backlog["note_edit_selector"], backlog["hypothesis_edit_selector"]],
-        ).then(lambda choices: choices, backlog["relation_source"], priority["experiment_primary"]).then(load_experiment_choices, [token, project_id], priority["experiment_selector"]).then(checklist_text, [token, project_id], summary["checklist_display"]).then(priority_text, [token, project_id], priority["priority_display"])
+        ).then(lambda choices: choices, backlog["relation_source"], priority["experiment_primary"]).then(load_experiment_choices, [token, project_id], priority["experiment_selector"]).then(checklist_text, [token, project_id], summary["checklist_display"]).then(priority_text, [token, project_id], priority["priority_display"]).then(
+            backlog_columns_from_ui,
+            [token, project_id],
+            [backlog["assumption_selector"], backlog["question_selector"], backlog["assumptions_display"], backlog["questions_display"]],
+        )
     return app

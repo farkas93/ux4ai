@@ -367,6 +367,41 @@ def _notes_text(items) -> str:
     return "\n".join(f"[{item.note_type}] {item.text}" for item in items) or "No notes yet."
 
 
+def backlog_columns_from_ui(token: str | None, project_id: str | None, request: gr.Request | None = None):
+    token = _resolve_token(token, request)
+    if not project_id:
+        return gr.update(choices=[]), gr.update(choices=[]), "No assumptions yet.", "No questions yet."
+    with SessionLocal() as db:
+        try:
+            user = get_authenticated_user(db, token)
+            get_project(db, user, UUID(project_id))
+            notes = list_notes(db, user, UUID(project_id))
+        except AuthenticationError:
+            return gr.update(choices=[]), gr.update(choices=[]), "Session expired.", "Session expired."
+    assumptions = [(f"{index}. {note.text[:100]}", str(note.id)) for index, note in enumerate((item for item in notes if item.note_type == "assumption"), start=1)]
+    questions = [(f"{index}. {note.text[:100]}", str(note.id)) for index, note in enumerate((item for item in notes if item.note_type == "question"), start=1)]
+    assumptions_text = "\n".join(label for label, _ in assumptions) or "No assumptions yet."
+    questions_text = "\n".join(label for label, _ in questions) or "No questions yet."
+    return gr.update(choices=assumptions), gr.update(choices=questions), assumptions_text, questions_text
+
+
+def derive_hypothesis_from_note(token: str | None, note_id: str | None, request: gr.Request | None = None):
+    token = _resolve_token(token, request)
+    if not note_id:
+        return "Select an assumption or question first.", gr.update()
+    with SessionLocal() as db:
+        try:
+            user = get_authenticated_user(db, token)
+            note = db.get(Note, UUID(note_id))
+            if note is None:
+                raise ValueError("Note not found")
+            get_project(db, user, note.project_id)
+        except (AuthenticationError, ValueError, AuthorizationError) as exc:
+            return str(exc), gr.update()
+    prefill = f"Derived from {note.note_type}: {note.text}"
+    return prefill, gr.update(value=note_id)
+
+
 def load_backlog_from_ui(token: str, project_id: str | None, request: gr.Request | None = None):
     token = _resolve_token(token, request)
     if not project_id:
@@ -401,7 +436,7 @@ def save_note_from_ui(token: str, project_id: str | None, note_type: str, text: 
 def load_note_edit_from_ui(token: str, note_id: str | None, request: gr.Request | None = None):
     token = _resolve_token(token, request)
     if not note_id:
-        return "observation", "", None
+        return "observation", "", None, []
     with SessionLocal() as db:
         try:
             user = get_authenticated_user(db, token)
@@ -409,9 +444,11 @@ def load_note_edit_from_ui(token: str, note_id: str | None, request: gr.Request 
             if note is None:
                 raise ValueError("Note not found")
             get_project(db, user, note.project_id)
+            linked = [item.dimension_key for item in db.query(NoteDimension).filter_by(note_id=note.id).all()]
         except (AuthenticationError, ValueError, AuthorizationError) as exc:
-            return str(exc), "", None
-    return note.note_type, note.text, note.revision
+            return str(exc), "", None, []
+    titles = [definition["title"] for definition in DEFAULT_DIMENSIONS if definition["key"] in linked]
+    return note.note_type, note.text, note.revision, titles
 
 
 def save_note_edit_from_ui(token: str, note_id: str | None, revision: int | None, note_type: str, text: str, dimensions: list[str], request: gr.Request | None = None):
