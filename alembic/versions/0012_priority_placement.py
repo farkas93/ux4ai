@@ -5,6 +5,7 @@ Revises: 0011_remove_retention
 """
 
 import sqlalchemy as sa
+
 from alembic import op
 
 revision = "0012_priority_placement"

@@ -47,6 +47,10 @@ def create_auth_app(session_factory=SessionLocal) -> FastAPI:
     async def healthz():
         return {"status": "ok"}
 
+    @app.get("/", include_in_schema=False)
+    async def root():
+        return RedirectResponse("/auth/login", status_code=303)
+
     @app.get("/auth/login", response_class=HTMLResponse)
     async def login_page(next: str = "/app"):
         return HTMLResponse(_login_page(next_path=_safe_next(next)))

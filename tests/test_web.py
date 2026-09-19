@@ -17,6 +17,10 @@ def test_cookie_session_protects_app_and_supports_logout(tmp_path):
         db.add(User(username="web-user", password_hash=hash_password("P" * 16), role=Role.INSTRUCTOR.value))
     client = TestClient(create_auth_app(factory))
 
+    root = client.get("/", follow_redirects=False)
+    assert root.status_code == 303
+    assert root.headers["location"] == "/auth/login"
+
     protected = client.get("/app", follow_redirects=False)
     assert protected.status_code == 303
     assert protected.headers["location"].startswith("/auth/login")
