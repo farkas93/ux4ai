@@ -107,7 +107,7 @@ def workspace(token: str | None, request: gr.Request | None = None):
         try:
             user = get_authenticated_user(db, token)
         except AuthenticationError:
-            return "Session expired. Please sign in again.", gr.update(visible=True), gr.update(visible=False)
+            return "Session expired. Please sign in again.", gr.update(visible=True), gr.update(visible=False), gr.update(visible=False), gr.update()
     if user.role == Role.INSTRUCTOR.value:
         return "Instructor area: course progress, teams, and baselines.", gr.update(visible=False), gr.update(visible=True), gr.update(visible=False), gr.update()
     with SessionLocal() as db:

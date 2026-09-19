@@ -99,7 +99,7 @@ def build_app():
                 backlog = tabs_backlog.build_backlog_tab(token, project_id, status)
                 priority = tabs_priority.build_priority_tab(token, project_id, status)
                 summary = tabs_summary.build_summary_tab(token, project_id, status, setup["project_dropdown"])
-            instructor_panel = _build_instructor_panel(token, status, setup["project_dropdown"])
+        instructor_panel = _build_instructor_panel(token, status, setup["project_dropdown"])
         dimension_note_outputs = assessment["dimension_note_lists"]
 
         label_bindings = [
