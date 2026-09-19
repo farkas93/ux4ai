@@ -641,7 +641,21 @@ def section_context(section: str, language: str = "en") -> str:
 
 
 def build_app():
-    with gr.Blocks(title="AIPM Toolkit") as app:
+    with gr.Blocks(title="AIPM Toolkit", js="""() => {
+        window.aipmDirty = false;
+        document.addEventListener('input', () => { window.aipmDirty = true; }, true);
+        window.addEventListener('beforeunload', (event) => {
+            if (window.aipmDirty) {
+                event.preventDefault();
+                event.returnValue = '';
+            }
+        });
+        const observer = new MutationObserver(() => {
+            const text = document.body.innerText || '';
+            if (text.includes('Saved.') || text.includes('saved automatically')) window.aipmDirty = false;
+        });
+        observer.observe(document.body, {subtree: true, childList: true, characterData: true});
+    }""") as app:
         token = gr.State(None)
         status = gr.Markdown()
         with gr.Column(visible=True) as login_panel:
