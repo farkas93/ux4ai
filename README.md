@@ -90,6 +90,8 @@ The importer preserves source records for instructor-only access, keeps valid ze
 
 Legacy reference imports preserve per-dimension scale metadata. The historical autonomy scale is marked incompatible with the current autonomy definition, so its numeric difference is suppressed and its baseline radar point is shown as a gap.
 
+Published baseline datasets are immutable. Re-importing a source file after publication skips it and reports that a replacement dataset version is required.
+
 The workspace also includes structured Notes and a Hypothesis Backlog. Notes can be linked to dimensions and used as provenance when creating supporting hypotheses. Hypothesis relationships are project-scoped; self-links and dependency cycles are rejected.
 
 Saved notes and hypotheses can be reopened from the workspace, edited, and saved with revision checks. Stale edits are rejected instead of silently overwriting newer content.

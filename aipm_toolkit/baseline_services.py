@@ -31,7 +31,7 @@ def _percentile(values: list[float], fraction: float) -> float | None:
 
 def import_legacy_reference_json(db: Session, directory: str | Path, cohort_label: str = "Legacy instructor reference") -> dict:
     directory = Path(directory)
-    report = {"files": 0, "records": 0, "invalid_values": [], "products": []}
+    report = {"files": 0, "records": 0, "invalid_values": [], "products": [], "skipped_published": []}
     for path in sorted(directory.glob("*.json")):
         report["files"] += 1
         try:
@@ -54,6 +54,9 @@ def import_legacy_reference_json(db: Session, directory: str | Path, cohort_labe
             dataset = BaselineDataset(product_id=product.id, source_type="instructor_reference", cohort_label=cohort_label, scale_version=1, scale_versions=json.dumps({key: (0 if key == "autonomy" else 1) for key in DIMENSION_KEYS}), provenance_notes="Imported from a legacy instructor reference JSON; scope and date were not inferred. Legacy autonomy uses the historical Procedural to Full Agentic wording and is incompatible with the current autonomy scale.")
             db.add(dataset)
             db.flush()
+        elif dataset.published:
+            report["skipped_published"].append({"file": path.name, "product": product_name, "reason": "Published datasets are immutable; import as a replacement version."})
+            continue
         source_id = path.name
         raw_record = json.dumps(payload, ensure_ascii=False, sort_keys=True)
         for key in DIMENSION_KEYS:

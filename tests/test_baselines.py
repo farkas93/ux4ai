@@ -53,3 +53,15 @@ def test_comparator_must_be_published_and_is_project_scoped(db, tmp_path):
     publish_all_reference_datasets(db)
     snapshot = select_comparator(db, user, project.id, dataset.id, "task_comparator", "Same task")
     assert snapshot.project_id == project.id
+
+
+def test_published_dataset_is_not_overwritten_on_reimport(db, tmp_path):
+    source = tmp_path / "immutable.json"
+    source.write_text(json.dumps({"product_name": "Immutable", "scores": {key: 1 for key in ("conversational", "specialization", "autonomy", "accessibility", "explainability")}}), encoding="utf-8")
+    first = import_legacy_reference_json(db, tmp_path)
+    assert first["records"] == 1
+    publish_all_reference_datasets(db)
+    source.write_text(json.dumps({"product_name": "Immutable", "scores": {key: 4 for key in ("conversational", "specialization", "autonomy", "accessibility", "explainability")}}), encoding="utf-8")
+    second = import_legacy_reference_json(db, tmp_path)
+    assert second["records"] == 0
+    assert second["skipped_published"]
