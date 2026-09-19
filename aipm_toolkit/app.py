@@ -839,6 +839,39 @@ def build_app():
             feedback_human = gr.Textbox(label="Human interpretation or approval needed", lines=2)
             feedback_evaluation = gr.Textbox(label="Evaluation after the change", lines=2)
             save_feedback_button = gr.Button("Save feedback-loop reflection")
+        label_bindings = [
+             (language_selector, "language", "Language / Sprache"),
+             (section_selector, "current_section", "Current section"),
+             (project_dropdown, "projects", "Your projects"),
+             (new_project_name, "new_product", "New product name"),
+             (product_name, "product_name", "Product name"),
+             (product_type, "product_type", "AI product type"),
+             (description, "description", "Short description"),
+             (target_user, "target_user", "Target user"),
+             (job, "job", "Job to be done"),
+             (problem, "problem", "Current problem or workflow"),
+             (hypothesis, "main_hypothesis", "Main value hypothesis"),
+             (figma_url, "figma_url", "Figma prototype URL (optional)"),
+             (comparator, "comparator", "Historical comparator"),
+             (notes_display, "notes", "Saved notes"),
+             (hypotheses_display, "hypotheses", "Hypothesis backlog"),
+             (experiment_selector, "experiments", "Reopen experiment"),
+             (experiment_title, "experiment_title", "Experiment title"),
+             (experiment_method, "experiment_method", "Method"),
+             (experiment_status, "experiment_status", "Status"),
+             (checklist_display, "checklist", "Workshop checklist"),
+             (priority_display, "priority", "Priority matrix"),
+             (json_download, "json_export", "JSON export"),
+             (markdown_download, "markdown_export", "Markdown export"),
+             (risk_score, "risk_score", "Optional subjective risk estimate"),
+             (feedback_signal, "feedback_signal", "Signal to collect"),
+         ]
+
+        def update_ui_labels(language):
+            labels = load_catalog(language)["labels"]
+            return [gr.update(label=labels.get(key, default)) for _, key, default in label_bindings]
+
+        language_selector.change(update_ui_labels, language_selector, [component for component, _, _ in label_bindings])
         submit.click(login, [username, password], [status, token, login_panel, workspace_panel]).then(workspace, token, [workspace_text, login_panel, instructor_panel, team_panel, project_dropdown])
         create_button.click(create_project_from_ui, [token, new_project_name], [status, project_dropdown, product_name, project_revision])
         with gr.Row():
