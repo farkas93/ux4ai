@@ -6,14 +6,13 @@ from ..i18n import load_catalog
 from . import tabs_assessment, tabs_backlog, tabs_priority, tabs_setup, tabs_summary
 from .callbacks import (
     auto_login,
-    backlog_columns_from_ui,
     checklist_text,
     create_project_from_ui,
     delete_product_from_ui,
     dimension_notes_from_ui,
     instructor_overview_from_ui,
     live_profile_from_ui,
-    load_backlog_from_ui,
+    load_backlog_table_from_ui,
     load_comparator_choices,
     load_estimates_from_ui,
     load_experiment_choices,
@@ -51,6 +50,23 @@ BLOCKS_JS = """() => {
     }, true);
 }"""
 
+BLOCKS_CSS = """
+.backlog-table-container {
+    max-height: 560px;
+    overflow-y: auto;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 12px;
+}
+.backlog-table-header {
+    font-weight: 600;
+    margin-bottom: 4px;
+    padding-bottom: 4px;
+    border-bottom: 2px solid #e5e7eb;
+}
+"""
+
 
 def _build_instructor_panel(token, status, product_dropdown):
     with gr.Column(visible=False) as instructor_panel:
@@ -83,7 +99,7 @@ def _build_instructor_panel(token, status, product_dropdown):
 
 
 def build_app():
-    with gr.Blocks(title="AIPM Toolkit", js=BLOCKS_JS) as app:
+    with gr.Blocks(title="AIPM Toolkit", js=BLOCKS_JS, css=BLOCKS_CSS) as app:
         token = gr.State(None)
         project_id = gr.State(None)
         project_revision = gr.State(None)
@@ -128,7 +144,6 @@ def build_app():
             (setup["hypothesis"], "main_hypothesis", "Main value hypothesis"),
             (setup["figma_url"], "figma_url", "Figma prototype URL (optional)"),
             (assessment["comparator"], "comparator", "Historical comparator"),
-            (backlog["notes_display"], "notes", "Saved notes"),
             (backlog["hypotheses_display"], "hypotheses", "Hypothesis backlog"),
             (priority["experiment_selector"], "experiments", "Reopen experiment"),
             (summary["checklist_display"], "checklist", "Workshop checklist"),
@@ -204,17 +219,9 @@ def build_app():
             [token, project_id, assessment["dimension_note_states"][4]],
             dimension_note_outputs[4],
         ).then(
-            load_backlog_from_ui,
+            load_backlog_table_from_ui,
             [token, project_id],
-            [
-                backlog["notes_display"],
-                backlog["hypotheses_display"],
-                backlog["hypothesis_note"],
-                backlog["relation_source"],
-                backlog["relation_target"],
-                backlog["note_edit_selector"],
-                backlog["hypothesis_edit_selector"],
-            ],
+            backlog["table_flat_outputs"] + [backlog["visible_rows_count"], backlog["hypotheses_display"], backlog["relation_source"], backlog["relation_target"]],
         ).then(
             lambda choices: choices,
             backlog["relation_source"],
@@ -228,15 +235,6 @@ def build_app():
             [token, project_id],
             summary["checklist_display"],
         ).then(
-            backlog_columns_from_ui,
-            [token, project_id],
-            [
-                backlog["assumption_selector"],
-                backlog["question_selector"],
-                backlog["assumptions_display"],
-                backlog["questions_display"],
-            ],
-        ).then(
             load_placements_from_ui,
             [token, project_id],
             priority["placement_outputs"] + [priority["ranking_display"], priority["matrix_fig"]],
@@ -245,4 +243,15 @@ def build_app():
             [token, project_id],
             summary["summary_preview"],
         )
+
+        for r in backlog["row_components"]:
+            r["save_btn"].click(
+                load_placements_from_ui,
+                [token, project_id],
+                priority["placement_outputs"] + [priority["ranking_display"], priority["matrix_fig"]],
+            ).then(
+                checklist_text,
+                [token, project_id],
+                summary["checklist_display"],
+            )
     return app

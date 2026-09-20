@@ -10,7 +10,7 @@ from uuid import UUID
 
 import gradio as gr
 import plotly.graph_objects as go
-from sqlalchemy import select
+from sqlalchemy import delete, select
 
 from ..assessment_services import (
     ensure_scale_definitions,
@@ -58,6 +58,7 @@ from ..models import (
     Experiment,
     Hypothesis,
     HypothesisDimension,
+    HypothesisSource,
     Note,
     NoteDimension,
     Role,
@@ -439,6 +440,295 @@ def _hypothesis_text(items: list[Hypothesis]) -> str:
 
 def _notes_text(items) -> str:
     return "\n".join(f"[{item.note_type}] {item.text}" for item in items) or "No notes yet."
+
+
+MAX_BACKLOG_ROWS = 16
+
+
+def show_next_row_from_ui(current_visible: int | None):
+    count = min((current_visible or 1) + 1, MAX_BACKLOG_ROWS)
+    return count, *(gr.update(visible=(i < count)) for i in range(MAX_BACKLOG_ROWS))
+
+
+def update_relations_from_ui(token: str | None, project_id: str | None, request: gr.Request | None = None):
+    token = _resolve_token(token, request)
+    if not project_id:
+        return gr.update(choices=[]), gr.update(choices=[]), "No hypotheses yet."
+    with SessionLocal() as db:
+        try:
+            user = get_authenticated_user(db, token)
+            get_project(db, user, UUID(project_id))
+            all_hyps = list(db.scalars(
+                select(Hypothesis)
+                .where(Hypothesis.project_id == UUID(project_id))
+                .order_by(Hypothesis.kind, Hypothesis.created_at)
+            ))
+        except (AuthenticationError, AuthorizationError, ValueError):
+            return gr.update(choices=[]), gr.update(choices=[]), "Session expired."
+    choices = [(f"[{h.kind}] {h.statement[:80]}", str(h.id)) for h in all_hyps]
+    return gr.update(choices=choices), gr.update(choices=choices), _hypothesis_text(all_hyps)
+
+
+def save_backlog_row_from_ui(
+    token: str | None,
+    project_id: str | None,
+    dimension_key: str,
+    assumption_text: str,
+    question_text: str,
+    hypothesis_text: str,
+    note_id: str | None,
+    hyp_id: str | None,
+    hyp_rev: int | None,
+    request: gr.Request | None = None,
+):
+    token = _resolve_token(token, request)
+    if not project_id:
+        return "Select a product first.", note_id, hyp_id, hyp_rev
+
+    with SessionLocal() as db:
+        try:
+            user = get_authenticated_user(db, token)
+            project = get_project(db, user, UUID(project_id))
+
+            clean_dim = (dimension_key or "conversational").strip()
+            clean_assumption = (assumption_text or "").strip()
+            clean_question = (question_text or "").strip()
+            clean_hypothesis = (hypothesis_text or "").strip()
+
+            if not clean_assumption and not clean_question and not clean_hypothesis:
+                return "Row is empty. Enter an assumption, question, or hypothesis.", note_id, hyp_id, hyp_rev
+
+            primary_note = None
+            if note_id:
+                existing_note = db.get(Note, UUID(note_id))
+                if existing_note and existing_note.project_id == project.id:
+                    primary_note = existing_note
+                    if existing_note.note_type == "assumption" and clean_assumption:
+                        existing_note.text = clean_assumption
+                    elif existing_note.note_type == "question" and clean_question:
+                        existing_note.text = clean_question
+                    db.execute(delete(NoteDimension).where(NoteDimension.note_id == existing_note.id))
+                    db.add(NoteDimension(note_id=existing_note.id, dimension_key=clean_dim))
+
+            if not primary_note:
+                if clean_assumption:
+                    primary_note = Note(project_id=project.id, note_type="assumption", text=clean_assumption)
+                    db.add(primary_note)
+                    db.flush()
+                    db.add(NoteDimension(note_id=primary_note.id, dimension_key=clean_dim))
+                elif clean_question:
+                    primary_note = Note(project_id=project.id, note_type="question", text=clean_question)
+                    db.add(primary_note)
+                    db.flush()
+                    db.add(NoteDimension(note_id=primary_note.id, dimension_key=clean_dim))
+
+            # If user also filled the counterpart column that didn't exist before:
+            if primary_note and primary_note.note_type == "question" and clean_assumption:
+                # Add assumption note as well if not already present
+                existing_a = db.scalar(select(Note).where(Note.project_id == project.id, Note.note_type == "assumption", Note.text == clean_assumption))
+                if not existing_a:
+                    extra_a = Note(project_id=project.id, note_type="assumption", text=clean_assumption)
+                    db.add(extra_a)
+                    db.flush()
+                    db.add(NoteDimension(note_id=extra_a.id, dimension_key=clean_dim))
+            elif primary_note and primary_note.note_type == "assumption" and clean_question:
+                existing_q = db.scalar(select(Note).where(Note.project_id == project.id, Note.note_type == "question", Note.text == clean_question))
+                if not existing_q:
+                    extra_q = Note(project_id=project.id, note_type="question", text=clean_question)
+                    db.add(extra_q)
+                    db.flush()
+                    db.add(NoteDimension(note_id=extra_q.id, dimension_key=clean_dim))
+
+            saved_hyp_id = hyp_id
+            saved_hyp_rev = hyp_rev
+
+            if clean_hypothesis:
+                if hyp_id and hyp_rev is not None:
+                    existing_hyp = db.get(Hypothesis, UUID(hyp_id))
+                    if existing_hyp and existing_hyp.project_id == project.id:
+                        existing_hyp.statement = clean_hypothesis
+                        existing_hyp.revision += 1
+                        saved_hyp_rev = existing_hyp.revision
+                        db.execute(delete(HypothesisDimension).where(HypothesisDimension.hypothesis_id == existing_hyp.id))
+                        db.add(HypothesisDimension(hypothesis_id=existing_hyp.id, dimension_key=clean_dim))
+                        if primary_note:
+                            exists = db.scalar(select(HypothesisSource).where(HypothesisSource.hypothesis_id == existing_hyp.id, HypothesisSource.note_id == primary_note.id))
+                            if not exists:
+                                db.add(HypothesisSource(hypothesis_id=existing_hyp.id, note_id=primary_note.id))
+                else:
+                    new_hyp = Hypothesis(
+                        project_id=project.id,
+                        kind="supporting",
+                        statement=clean_hypothesis,
+                        value_link=f"Supports {clean_dim} dimension",
+                        priority_risk=0.0,
+                        priority_evidence=0.0,
+                        revision=1,
+                    )
+                    db.add(new_hyp)
+                    db.flush()
+                    db.add(HypothesisDimension(hypothesis_id=new_hyp.id, dimension_key=clean_dim))
+                    if primary_note:
+                        db.add(HypothesisSource(hypothesis_id=new_hyp.id, note_id=primary_note.id))
+                    saved_hyp_id = str(new_hyp.id)
+                    saved_hyp_rev = new_hyp.revision
+
+            db.commit()
+            msg = "Row saved: notes and hypothesis updated." if clean_hypothesis else "Row saved: notes updated."
+            return (
+                msg,
+                str(primary_note.id) if primary_note else note_id,
+                saved_hyp_id,
+                saved_hyp_rev,
+            )
+        except (AuthenticationError, AuthorizationError, ValueError, RevisionConflict) as exc:
+            return str(exc), note_id, hyp_id, hyp_rev
+
+
+def load_backlog_table_from_ui(
+    token: str | None,
+    project_id: str | None,
+    request: gr.Request | None = None,
+):
+    token = _resolve_token(token, request)
+    empty_slot = (
+        gr.update(visible=False),
+        gr.update(value="conversational"),
+        "",
+        "",
+        "",
+        None,
+        None,
+        None,
+    )
+    if not project_id:
+        row_0 = (gr.update(visible=True), gr.update(value="conversational"), "", "", "", None, None, None)
+        slots = [row_0] + [empty_slot for _ in range(MAX_BACKLOG_ROWS - 1)]
+        flat = [val for slot in slots for val in slot]
+        return (*flat, 1, "No hypotheses yet.", gr.update(choices=[]), gr.update(choices=[]))
+
+    with SessionLocal() as db:
+        try:
+            user = get_authenticated_user(db, token)
+            project = get_project(db, user, UUID(project_id))
+
+            notes = list(db.scalars(
+                select(Note)
+                .where(Note.project_id == project.id, Note.note_type.in_(["assumption", "question"]))
+                .order_by(Note.created_at)
+            ))
+            note_dims = {}
+            if notes:
+                for nd in db.execute(select(NoteDimension.note_id, NoteDimension.dimension_key).where(NoteDimension.note_id.in_([n.id for n in notes]))).all():
+                    note_dims[nd[0]] = nd[1]
+
+            hypotheses = list(db.scalars(
+                select(Hypothesis)
+                .where(Hypothesis.project_id == project.id, Hypothesis.kind == "supporting")
+                .order_by(Hypothesis.created_at)
+            ))
+            hyp_dims = {}
+            if hypotheses:
+                for hd in db.execute(select(HypothesisDimension.hypothesis_id, HypothesisDimension.dimension_key).where(HypothesisDimension.hypothesis_id.in_([h.id for h in hypotheses]))).all():
+                    hyp_dims[hd[0]] = hd[1]
+
+            hyp_sources = list(db.scalars(
+                select(HypothesisSource)
+                .where(HypothesisSource.hypothesis_id.in_([h.id for h in hypotheses]))
+            )) if hypotheses else []
+            note_to_hyp = {hs.note_id: hs.hypothesis_id for hs in hyp_sources if hs.note_id}
+            hyp_by_id = {h.id: h for h in hypotheses}
+
+            rows = []
+            used_hyp_ids = set()
+
+            for note in notes:
+                dim = note_dims.get(note.id, "conversational")
+                a_text = note.text if note.note_type == "assumption" else ""
+                q_text = note.text if note.note_type == "question" else ""
+
+                h_text = ""
+                h_id = None
+                h_rev = None
+
+                if note.id in note_to_hyp:
+                    matched_hyp = hyp_by_id.get(note_to_hyp[note.id])
+                    if matched_hyp:
+                        h_text = matched_hyp.statement
+                        h_id = str(matched_hyp.id)
+                        h_rev = matched_hyp.revision
+                        used_hyp_ids.add(matched_hyp.id)
+                        dim = hyp_dims.get(matched_hyp.id, dim)
+
+                rows.append({
+                    "dim": dim,
+                    "assumption": a_text,
+                    "question": q_text,
+                    "hypothesis": h_text,
+                    "note_id": str(note.id),
+                    "hyp_id": h_id,
+                    "hyp_rev": h_rev,
+                })
+
+            for hyp in hypotheses:
+                if hyp.id not in used_hyp_ids:
+                    dim = hyp_dims.get(hyp.id, "conversational")
+                    rows.append({
+                        "dim": dim,
+                        "assumption": "",
+                        "question": "",
+                        "hypothesis": hyp.statement,
+                        "note_id": None,
+                        "hyp_id": str(hyp.id),
+                        "hyp_rev": hyp.revision,
+                    })
+
+            slots = []
+            m = len(rows)
+            for i in range(MAX_BACKLOG_ROWS):
+                if i < m:
+                    r = rows[i]
+                    slots.append((
+                        gr.update(visible=True),
+                        gr.update(value=r["dim"]),
+                        r["assumption"],
+                        r["question"],
+                        r["hypothesis"],
+                        r["note_id"],
+                        r["hyp_id"],
+                        r["hyp_rev"],
+                    ))
+                elif i == m:
+                    slots.append((
+                        gr.update(visible=True),
+                        gr.update(value="conversational"),
+                        "",
+                        "",
+                        "",
+                        None,
+                        None,
+                        None,
+                    ))
+                else:
+                    slots.append(empty_slot)
+
+            visible_count = min(m + 1, MAX_BACKLOG_ROWS)
+            flat = [val for slot in slots for val in slot]
+
+            all_hyps = list(db.scalars(
+                select(Hypothesis)
+                .where(Hypothesis.project_id == project.id)
+                .order_by(Hypothesis.kind, Hypothesis.created_at)
+            ))
+            choices = [(f"[{h.kind}] {h.statement[:80]}", str(h.id)) for h in all_hyps]
+            hyps_text = _hypothesis_text(all_hyps)
+
+            return (*flat, visible_count, hyps_text, gr.update(choices=choices), gr.update(choices=choices))
+        except (AuthenticationError, AuthorizationError, ValueError):
+            row_0 = (gr.update(visible=True), gr.update(value="conversational"), "", "", "", None, None, None)
+            slots = [row_0] + [empty_slot for _ in range(MAX_BACKLOG_ROWS - 1)]
+            flat = [val for slot in slots for val in slot]
+            return (*flat, 1, "Unable to load backlog.", gr.update(choices=[]), gr.update(choices=[]))
 
 
 def backlog_columns_from_ui(token: str | None, project_id: str | None, request: gr.Request | None = None):

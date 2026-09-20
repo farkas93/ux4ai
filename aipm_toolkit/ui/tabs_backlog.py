@@ -1,19 +1,15 @@
-"""Backlog creator tab: assumptions | questions | hypothesis columns with derivation."""
+"""Backlog creator tab: 4-column table for Dimension, Assumption, Question, Hypothesis."""
 
 import gradio as gr
 
 from ..dimensions import DEFAULT_DIMENSIONS
 from .callbacks import (
-    backlog_columns_from_ui,
-    derive_hypothesis_from_note,
+    MAX_BACKLOG_ROWS,
     filter_hypotheses_from_ui,
-    load_backlog_from_ui,
-    load_hypothesis_edit_from_ui,
-    load_note_edit_from_ui,
-    save_hypothesis_edit_from_ui,
-    save_hypothesis_from_ui,
-    save_note_edit_from_ui,
+    save_backlog_row_from_ui,
     save_relation_from_ui,
+    show_next_row_from_ui,
+    update_relations_from_ui,
 )
 
 IMPACT_CHOICES = ["unknown", "low", "medium", "high"]
@@ -28,83 +24,127 @@ RELATION_CHOICES = [
 
 def build_backlog_tab(token, project_id, status):
     with gr.Tab("Backlog creator") as tab:
-        gr.Markdown("Derive one supporting hypothesis from each question or assumption you recorded in the Assessment tab. Numbered items come from your dimension notes.")
-        with gr.Row():
-            with gr.Column():
-                gr.Markdown("### 1. Assumptions")
-                assumptions_display = gr.Textbox(label="Assumptions from Assessment", interactive=False, lines=6)
-                assumption_selector = gr.Dropdown(label="Select assumption to derive from", choices=[])
-                derive_from_assumption = gr.Button("Derive hypothesis from assumption")
-            with gr.Column():
-                gr.Markdown("### 2. Questions")
-                questions_display = gr.Textbox(label="Questions from Assessment", interactive=False, lines=6)
-                question_selector = gr.Dropdown(label="Select question to derive from", choices=[])
-                derive_from_question = gr.Button("Derive hypothesis from question")
-            with gr.Column():
-                gr.Markdown("### 3. Hypothesis")
-                hypothesis_statement = gr.Textbox(label="Supporting hypothesis statement", lines=3, placeholder="Complete or confirm the hypothesis statement here.")
-                hypothesis_value_link = gr.Textbox(label="Why it matters / value link", lines=2)
-                hypothesis_impact = gr.Dropdown(label="Impact if wrong", choices=IMPACT_CHOICES, value="unknown")
-                hypothesis_evidence = gr.Dropdown(label="Evidence strength", choices=EVIDENCE_CHOICES, value="unknown")
-                hypothesis_evidence_rationale = gr.Textbox(label="Evidence rationale", lines=2)
-                hypothesis_note = gr.Dropdown(label="Originating note (provenance)", choices=[])
-                save_hypothesis_button = gr.Button("Create supporting hypothesis", variant="primary")
+        gr.Markdown(
+            "### Backlog Table\n"
+            "Rows are auto-populated from your Assessment questions and assumptions. "
+            "Expand each row with the missing counterpart and formulate a testable hypothesis. "
+            "All assumptions and questions can be edited directly."
+        )
 
-        gr.Markdown("## Hypothesis backlog")
-        hypotheses_display = gr.Textbox(label="Hypothesis backlog", interactive=False, lines=8)
-        hypothesis_filter_dimension = gr.Dropdown(label="Filter dimension", choices=[("All dimensions", "all")] + [(definition["title"], definition["key"]) for definition in DEFAULT_DIMENSIONS], value="all")
-        hypothesis_filter_status = gr.Dropdown(label="Filter workflow status", choices=[("All statuses", "all"), "draft", "ready_to_test", "testing", "reviewed", "archived"], value="all")
-        hypothesis_filter_impact = gr.Dropdown(label="Filter impact", choices=[("All impact", "all")] + IMPACT_CHOICES, value="all")
-        hypothesis_filter_evidence = gr.Dropdown(label="Filter evidence", choices=[("All evidence", "all")] + EVIDENCE_CHOICES, value="all")
-        with gr.Row():
-            with gr.Column():
-                gr.Markdown("### Edit hypothesis")
-                hypothesis_edit_selector = gr.Dropdown(label="Reopen hypothesis", choices=[])
-                hypothesis_edit_statement = gr.Textbox(label="Edited hypothesis statement", lines=3)
-                hypothesis_edit_value = gr.Textbox(label="Edited value link", lines=2)
-                hypothesis_edit_impact = gr.Dropdown(label="Edited impact if wrong", choices=IMPACT_CHOICES, value="unknown")
-                hypothesis_edit_evidence = gr.Dropdown(label="Edited evidence strength", choices=EVIDENCE_CHOICES, value="unknown")
-                hypothesis_edit_rationale = gr.Textbox(label="Edited evidence rationale", lines=2)
-                hypothesis_edit_revision = gr.State(None)
-                update_hypothesis_button = gr.Button("Update hypothesis")
-            with gr.Column():
-                gr.Markdown("### Link hypotheses")
-                relation_type = gr.Dropdown(label="Relationship", choices=RELATION_CHOICES, value="contributes_to")
-                relation_source = gr.Dropdown(label="From hypothesis", choices=[])
-                relation_target = gr.Dropdown(label="To hypothesis", choices=[])
-                save_relation_button = gr.Button("Save relationship")
-            with gr.Column():
-                gr.Markdown("### Edit note (optional)")
-                note_edit_selector = gr.Dropdown(label="Reopen note", choices=[])
-                note_edit_type = gr.Dropdown(label="Edited note type", choices=[("Observation", "observation"), ("Assumption", "assumption"), ("Question", "question"), ("Design decision", "design_decision")], value="question")
-                note_edit_text = gr.Textbox(label="Edited note", lines=3)
-                note_edit_dimensions = gr.CheckboxGroup(label="Edited linked dimensions", choices=[definition["title"] for definition in DEFAULT_DIMENSIONS])
-                note_edit_revision = gr.State(None)
-                update_note_button = gr.Button("Update note")
-        notes_display = gr.Textbox(label="All notes", interactive=False, lines=5)
+        # Header row
+        with gr.Row(elem_classes=["backlog-table-header"]):
+            with gr.Column(scale=2, min_width=120):
+                gr.Markdown("**Dimension**")
+            with gr.Column(scale=3):
+                gr.Markdown("**Assumption**")
+            with gr.Column(scale=3):
+                gr.Markdown("**Question**")
+            with gr.Column(scale=4):
+                gr.Markdown("**Hypothesis**")
+            with gr.Column(scale=1, min_width=80):
+                gr.Markdown("**Action**")
 
-        derive_from_assumption.click(derive_hypothesis_from_note, [token, assumption_selector], [hypothesis_statement, hypothesis_note])
-        derive_from_question.click(derive_hypothesis_from_note, [token, question_selector], [hypothesis_statement, hypothesis_note])
-        save_hypothesis_button.click(save_hypothesis_from_ui, [token, project_id, hypothesis_statement, hypothesis_value_link, hypothesis_impact, hypothesis_evidence, hypothesis_evidence_rationale, hypothesis_note], [status, hypotheses_display, relation_source]).then(load_backlog_from_ui, [token, project_id], [notes_display, hypotheses_display, hypothesis_note, relation_source, relation_target, note_edit_selector, hypothesis_edit_selector]).then(backlog_columns_from_ui, [token, project_id], [assumption_selector, question_selector, assumptions_display, questions_display])
-        for hypothesis_filter in (hypothesis_filter_dimension, hypothesis_filter_status, hypothesis_filter_impact, hypothesis_filter_evidence):
-            hypothesis_filter.change(filter_hypotheses_from_ui, [token, project_id, hypothesis_filter_dimension, hypothesis_filter_status, hypothesis_filter_impact, hypothesis_filter_evidence], [hypotheses_display, relation_source, relation_target])
-        hypothesis_edit_selector.change(load_hypothesis_edit_from_ui, [token, hypothesis_edit_selector], [hypothesis_edit_statement, hypothesis_edit_value, hypothesis_edit_impact, hypothesis_edit_evidence, hypothesis_edit_rationale, hypothesis_edit_revision])
-        update_hypothesis_button.click(save_hypothesis_edit_from_ui, [token, hypothesis_edit_selector, hypothesis_edit_revision, hypothesis_edit_statement, hypothesis_edit_value, hypothesis_edit_impact, hypothesis_edit_evidence, hypothesis_edit_rationale], [status, hypothesis_edit_revision, hypotheses_display]).then(load_backlog_from_ui, [token, project_id], [notes_display, hypotheses_display, hypothesis_note, relation_source, relation_target, note_edit_selector, hypothesis_edit_selector])
-        save_relation_button.click(save_relation_from_ui, [token, project_id, relation_type, relation_source, relation_target], status)
-        note_edit_selector.change(load_note_edit_from_ui, [token, note_edit_selector], [note_edit_type, note_edit_text, note_edit_revision, note_edit_dimensions])
-        update_note_button.click(save_note_edit_from_ui, [token, note_edit_selector, note_edit_revision, note_edit_type, note_edit_text, note_edit_dimensions], [status, note_edit_revision, notes_display]).then(load_backlog_from_ui, [token, project_id], [notes_display, hypotheses_display, hypothesis_note, relation_source, relation_target, note_edit_selector, hypothesis_edit_selector]).then(backlog_columns_from_ui, [token, project_id], [assumption_selector, question_selector, assumptions_display, questions_display])
+        # Scrollable container for rows (scrollview active if > 10 rows)
+        row_components = []
+        with gr.Column(elem_classes=["backlog-table-container"]):
+            for i in range(MAX_BACKLOG_ROWS):
+                with gr.Row(visible=(i == 0), variant="panel") as row_box:
+                    dim_dropdown = gr.Dropdown(
+                        choices=[(d["title"], d["key"]) for d in DEFAULT_DIMENSIONS],
+                        value="conversational",
+                        show_label=False,
+                        scale=2,
+                    )
+                    assumption_box = gr.Textbox(
+                        show_label=False,
+                        placeholder="Assumption (from Assessment or enter new)...",
+                        lines=2,
+                        scale=3,
+                    )
+                    question_box = gr.Textbox(
+                        show_label=False,
+                        placeholder="Question (from Assessment or enter new)...",
+                        lines=2,
+                        scale=3,
+                    )
+                    hypothesis_box = gr.Textbox(
+                        show_label=False,
+                        placeholder="Testable hypothesis extending this...",
+                        lines=2,
+                        scale=4,
+                    )
+                    save_btn = gr.Button("Save", variant="primary", scale=1)
+                    note_id_state = gr.State(None)
+                    hyp_id_state = gr.State(None)
+                    hyp_rev_state = gr.State(None)
+
+                row_components.append({
+                    "box": row_box,
+                    "dim": dim_dropdown,
+                    "assumption": assumption_box,
+                    "question": question_box,
+                    "hypothesis": hypothesis_box,
+                    "save_btn": save_btn,
+                    "note_id": note_id_state,
+                    "hyp_id": hyp_id_state,
+                    "hyp_rev": hyp_rev_state,
+                })
+
+        with gr.Row():
+            add_row_btn = gr.Button("+ Add Row", variant="secondary")
+            visible_rows_count = gr.State(1)
+
+        gr.Markdown("---")
+        gr.Markdown("### Link hypotheses")
+        with gr.Row():
+            relation_type = gr.Dropdown(label="Relationship", choices=RELATION_CHOICES, value="contributes_to", scale=2)
+            relation_source = gr.Dropdown(label="From hypothesis", choices=[], scale=3)
+            relation_target = gr.Dropdown(label="To hypothesis", choices=[], scale=3)
+            save_relation_btn = gr.Button("Save relationship", scale=1)
+
+        gr.Markdown("### Hypothesis Backlog Overview")
+        with gr.Row():
+            filter_dim = gr.Dropdown(label="Filter dimension", choices=[("All dimensions", "all")] + [(d["title"], d["key"]) for d in DEFAULT_DIMENSIONS], value="all")
+            filter_status = gr.Dropdown(label="Filter workflow status", choices=[("All statuses", "all"), "draft", "ready_to_test", "testing", "reviewed", "archived"], value="all")
+            filter_impact = gr.Dropdown(label="Filter impact", choices=[("All impact", "all")] + IMPACT_CHOICES, value="all")
+            filter_evidence = gr.Dropdown(label="Filter evidence", choices=[("All evidence", "all")] + EVIDENCE_CHOICES, value="all")
+
+        hypotheses_display = gr.Textbox(label="Hypothesis backlog", interactive=False, lines=6)
+
+        # Event: add row reveals next hidden slot
+        add_row_btn.click(
+            show_next_row_from_ui,
+            [visible_rows_count],
+            [visible_rows_count, *[r["box"] for r in row_components]],
+        )
+
+        # Event: save row saves notes + hypothesis, then updates relation choices & overview
+        for r in row_components:
+            r["save_btn"].click(
+                save_backlog_row_from_ui,
+                [token, project_id, r["dim"], r["assumption"], r["question"], r["hypothesis"], r["note_id"], r["hyp_id"], r["hyp_rev"]],
+                [status, r["note_id"], r["hyp_id"], r["hyp_rev"]],
+            ).then(
+                update_relations_from_ui,
+                [token, project_id],
+                [relation_source, relation_target, hypotheses_display],
+            )
+
+        save_relation_btn.click(save_relation_from_ui, [token, project_id, relation_type, relation_source, relation_target], status)
+
+        for f in (filter_dim, filter_status, filter_impact, filter_evidence):
+            f.change(filter_hypotheses_from_ui, [token, project_id, filter_dim, filter_status, filter_impact, filter_evidence], [hypotheses_display, relation_source, relation_target])
+
+    table_flat_outputs = []
+    for r in row_components:
+        table_flat_outputs.extend([r["box"], r["dim"], r["assumption"], r["question"], r["hypothesis"], r["note_id"], r["hyp_id"], r["hyp_rev"]])
 
     return {
         "tab": tab,
-        "notes_display": notes_display,
-        "note_edit_selector": note_edit_selector,
+        "row_components": row_components,
+        "table_flat_outputs": table_flat_outputs,
+        "visible_rows_count": visible_rows_count,
         "hypotheses_display": hypotheses_display,
-        "hypothesis_note": hypothesis_note,
         "relation_source": relation_source,
         "relation_target": relation_target,
-        "hypothesis_edit_selector": hypothesis_edit_selector,
-        "assumption_selector": assumption_selector,
-        "question_selector": question_selector,
-        "assumptions_display": assumptions_display,
-        "questions_display": questions_display,
     }
