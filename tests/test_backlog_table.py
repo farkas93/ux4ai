@@ -5,6 +5,7 @@ from aipm_toolkit.models import (
     Course,
     Hypothesis,
     HypothesisDimension,
+    HypothesisSource,
     Note,
     Role,
     Team,
@@ -80,6 +81,13 @@ def test_save_backlog_row_creates_notes_hypothesis_and_links(db, monkeypatch):
 
     dim_link = db.query(HypothesisDimension).filter_by(hypothesis_id=hypothesis.id).first()
     assert dim_link.dimension_key == "autonomy"
+
+    # Verify provenance source link has UUID id, note_id, and null comparison_snapshot_id
+    source_link = db.query(HypothesisSource).filter_by(hypothesis_id=hypothesis.id).first()
+    assert source_link is not None
+    assert source_link.id is not None
+    assert source_link.note_id == UUID(note_id)
+    assert source_link.comparison_snapshot_id is None
 
     # Verify edit in place updates without duplication
     edit_msg, _note_id2, hyp_id2, hyp_rev2 = save_backlog_row_from_ui(

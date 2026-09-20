@@ -273,9 +273,10 @@ class HypothesisDimension(Base):
 class HypothesisSource(Base):
     __tablename__ = "hypothesis_sources"
 
-    hypothesis_id: Mapped[UUID] = mapped_column(ForeignKey("hypotheses.id"), primary_key=True)
-    note_id: Mapped[UUID | None] = mapped_column(ForeignKey("notes.id"), primary_key=True, nullable=True)
-    comparison_snapshot_id: Mapped[UUID | None] = mapped_column(ForeignKey("comparison_snapshots.id"), primary_key=True, nullable=True)
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    hypothesis_id: Mapped[UUID] = mapped_column(ForeignKey("hypotheses.id"), nullable=False)
+    note_id: Mapped[UUID | None] = mapped_column(ForeignKey("notes.id"), nullable=True)
+    comparison_snapshot_id: Mapped[UUID | None] = mapped_column(ForeignKey("comparison_snapshots.id"), nullable=True)
 
 
 class HypothesisRelation(Base):
