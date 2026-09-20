@@ -140,16 +140,15 @@ def create_project_from_ui(token: str, product_name: str, request: gr.Request | 
 def load_project_from_ui(token: str, project_id: str | None, request: gr.Request | None = None):
     token = _resolve_token(token, request)
     if not project_id:
-        return "", "", "", "", "", "", None, "", None, None
+        return "", "", "", "", "", None, "", None
     with SessionLocal() as db:
         try:
             user = get_authenticated_user(db, token)
             project = get_project(db, user, UUID(project_id))
             hypothesis = next(iter(project.hypotheses), None)
         except (AuthenticationError, ValueError, LookupError):
-            return "", "", "", "", "", "", None, "", None, None
+            return "", "", "", "", "", None, "", None
     return (
-        project.product_name,
         project.short_description,
         project.target_user,
         project.job_to_be_done,
@@ -157,12 +156,11 @@ def load_project_from_ui(token: str, project_id: str | None, request: gr.Request
         hypothesis.statement if hypothesis else "",
         project.product_type,
         project.figma_url,
-        str(project.id),
         project.revision,
     )
 
 
-def save_project_from_ui(token: str, project_id: str | None, revision: int | None, product_name: str, product_type: str | None, description: str, target_user: str, job: str, problem: str, hypothesis: str, figma_url: str, request: gr.Request | None = None):
+def save_project_from_ui(token: str, project_id: str | None, revision: int | None, product_type: str | None, description: str, target_user: str, job: str, problem: str, hypothesis: str, figma_url: str, request: gr.Request | None = None):
     token = _resolve_token(token, request)
     if not project_id or revision is None:
         return "Select a product first.", revision
@@ -170,28 +168,28 @@ def save_project_from_ui(token: str, project_id: str | None, revision: int | Non
         try:
             user = get_authenticated_user(db, token)
             updated_url = validate_figma_url(figma_url)
-            project = update_project(db, user, UUID(project_id), revision, product_name=product_name.strip(), product_type=product_type, short_description=description, target_user=target_user, job_to_be_done=job, current_problem=problem, figma_url=updated_url)
+            project = update_project(db, user, UUID(project_id), revision, product_type=product_type, short_description=description, target_user=target_user, job_to_be_done=job, current_problem=problem, figma_url=updated_url)
             main = next(iter(project.hypotheses), None)
             if main:
                 update_main_hypothesis(db, user, project.id, main.revision, hypothesis)
         except (AuthenticationError, RevisionConflict, ValueError) as exc:
             return str(exc), revision
-    return "Saved.", project.revision
+    return "Product setup saved.", project.revision
 
 
-def save_project_action(token: str, project_id: str | None, revision: int | None, product_name: str, product_type: str | None, description: str, target_user: str, job: str, problem: str, hypothesis: str, figma_url: str, request: gr.Request | None = None):
+def save_project_action(token: str, project_id: str | None, revision: int | None, product_type: str | None, description: str, target_user: str, job: str, problem: str, hypothesis: str, figma_url: str, request: gr.Request | None = None):
     token = _resolve_token(token, request)
-    status, new_revision = save_project_from_ui(token, project_id, revision, product_name, product_type, description, target_user, job, problem, hypothesis, figma_url)
-    return status, new_revision, not status.startswith("Saved")
+    status, new_revision = save_project_from_ui(token, project_id, revision, product_type, description, target_user, job, problem, hypothesis, figma_url)
+    return status, new_revision, not status.startswith("Product setup saved")
 
 
-def autosave_project_from_ui(token: str, project_id: str | None, revision: int | None, dirty: bool, product_name: str, product_type: str | None, description: str, target_user: str, job: str, problem: str, hypothesis: str, figma_url: str, request: gr.Request | None = None):
+def autosave_project_from_ui(token: str, project_id: str | None, revision: int | None, dirty: bool, product_type: str | None, description: str, target_user: str, job: str, problem: str, hypothesis: str, figma_url: str, request: gr.Request | None = None):
     token = _resolve_token(token, request)
     if not dirty:
         return gr.update(), revision, dirty
-    status, new_revision = save_project_from_ui(token, project_id, revision, product_name, product_type, description, target_user, job, problem, hypothesis, figma_url)
-    if status.startswith("Saved"):
-        return "Saved automatically.", new_revision, False
+    status, new_revision = save_project_from_ui(token, project_id, revision, product_type, description, target_user, job, problem, hypothesis, figma_url)
+    if status.startswith("Product setup saved"):
+        return "Product setup saved automatically.", new_revision, False
     return f"Save failed: {status}", new_revision, True
 
 
@@ -1171,16 +1169,19 @@ def provision_team_from_ui(token: str | None, course_name: str, alias: str, pass
     return f"Team account '{team.alias}' created. Share the password securely and do not store it in product content."
 
 
-def delete_product_from_ui(token: str | None, project_id: str, confirm: bool, request: gr.Request | None = None):
+def delete_product_from_ui(token: str | None, project_id: str | None, confirm: bool, request: gr.Request | None = None):
     token = _resolve_token(token, request)
+    if not project_id:
+        return "Select a product to delete.", gr.update()
     with SessionLocal() as db:
         try:
             user = get_authenticated_user(db, token)
             delete_project(db, user, UUID(project_id), confirm)
             choices = [(item.product_name, str(item.id)) for item in list_projects(db, user)]
-        except (AuthenticationError, ValueError) as exc:
+            next_value = choices[0][1] if choices else None
+        except (AuthenticationError, AuthorizationError, ValueError) as exc:
             return str(exc), gr.update()
-    return "Product and its editable content were deleted.", gr.update(choices=choices, value=None)
+    return "Product and its editable content were deleted.", gr.update(choices=choices, value=next_value)
 
 
 def section_context(section: str, language: str = "en") -> str:

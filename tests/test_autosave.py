@@ -3,7 +3,7 @@ from aipm_toolkit.ui import callbacks as app_module
 
 def test_autosave_keeps_dirty_state_after_conflict(monkeypatch):
     monkeypatch.setattr(app_module, "save_project_from_ui", lambda *args: ("The project changed since it was loaded", 3))
-    status, revision, dirty = app_module.autosave_project_from_ui("token", "project", 2, True, "Product", None, "", "", "", "", "", "")
+    status, revision, dirty = app_module.autosave_project_from_ui("token", "project", 2, True, None, "", "", "", "", "", "")
     assert status.startswith("Save failed")
     assert revision == 3
     assert dirty is True
@@ -14,7 +14,7 @@ def test_autosave_does_not_write_when_clean(monkeypatch):
         raise AssertionError("clean autosave must not write")
 
     monkeypatch.setattr(app_module, "save_project_from_ui", fail_if_called)
-    _status, revision, dirty = app_module.autosave_project_from_ui("token", "project", 2, False, "Product", None, "", "", "", "", "", "")
+    _status, revision, dirty = app_module.autosave_project_from_ui("token", "project", 2, False, None, "", "", "", "", "", "")
     assert revision == 2
     assert dirty is False
 

@@ -25,7 +25,7 @@ METHOD_CHOICES = [
 ]
 
 
-def build_priority_tab(token, project_id, status):
+def build_priority_tab(token, product_dropdown, status):
     with gr.Tab("Prioritization") as tab:
         gr.Markdown("Left: open a hypothesis and set risk and evidence (0-10; every hypothesis starts at 0/0). Right: the ranked backlog updates in real time - risk 10 with evidence 0 ranks first, evidence 10 with risk 0 ranks last.")
         with gr.Row():
@@ -101,15 +101,15 @@ def build_priority_tab(token, project_id, status):
         for experiment_field in experiment_fields:
             experiment_field.input(lambda: True, outputs=experiment_dirty)
 
-        create_experiment_button.click(save_experiment_plan, [token, project_id, experiment_primary, experiment_title, experiment_method], [status, experiment_id, experiment_revision]).then(load_experiment_choices, [token, project_id], experiment_selector).then(lambda: False, outputs=experiment_dirty)
+        create_experiment_button.click(save_experiment_plan, [token, product_dropdown, experiment_primary, experiment_title, experiment_method], [status, experiment_id, experiment_revision]).then(load_experiment_choices, [token, product_dropdown], experiment_selector).then(lambda: False, outputs=experiment_dirty)
         save_experiment_button.click(
             save_experiment_action,
-            [token, project_id, experiment_id, experiment_revision, experiment_procedure, experiment_participants, experiment_baseline, experiment_metric, experiment_success, experiment_guardrail, experiment_resources, experiment_owner, experiment_date, experiment_status, experiment_results, experiment_links, experiment_limitations, experiment_conclusion, experiment_decision],
+            [token, product_dropdown, experiment_id, experiment_revision, experiment_procedure, experiment_participants, experiment_baseline, experiment_metric, experiment_success, experiment_guardrail, experiment_resources, experiment_owner, experiment_date, experiment_status, experiment_results, experiment_links, experiment_limitations, experiment_conclusion, experiment_decision],
             [status, experiment_revision, experiment_dirty],
         )
         experiment_timer.tick(
             autosave_experiment_from_ui,
-            [token, project_id, experiment_id, experiment_revision, experiment_dirty, experiment_procedure, experiment_participants, experiment_baseline, experiment_metric, experiment_success, experiment_guardrail, experiment_resources, experiment_owner, experiment_date, experiment_status, experiment_results, experiment_links, experiment_limitations, experiment_conclusion, experiment_decision],
+            [token, product_dropdown, experiment_id, experiment_revision, experiment_dirty, experiment_procedure, experiment_participants, experiment_baseline, experiment_metric, experiment_success, experiment_guardrail, experiment_resources, experiment_owner, experiment_date, experiment_status, experiment_results, experiment_links, experiment_limitations, experiment_conclusion, experiment_decision],
             [status, experiment_revision, experiment_dirty],
         )
         experiment_selector.change(

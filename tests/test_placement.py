@@ -69,6 +69,6 @@ def test_load_placements_and_estimates_unpack_proper_component_counts(db, monkey
     assert len(estimates_results) == 11
     assert not isinstance(estimates_results[0], list)
 
-    # load_project_from_ui must return exactly 10 fields
+    # load_project_from_ui must return exactly 8 fields
     project_results = load_project_from_ui("token", str(project.id))
-    assert len(project_results) == 10
+    assert len(project_results) == 8

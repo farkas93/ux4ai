@@ -22,7 +22,7 @@ RELATION_CHOICES = [
 ]
 
 
-def build_backlog_tab(token, project_id, status):
+def build_backlog_tab(token, product_dropdown, status):
     with gr.Tab("Backlog creator") as tab:
         gr.Markdown(
             "### Backlog Table\n"
@@ -122,18 +122,18 @@ def build_backlog_tab(token, project_id, status):
         for r in row_components:
             r["save_btn"].click(
                 save_backlog_row_from_ui,
-                [token, project_id, r["dim"], r["assumption"], r["question"], r["hypothesis"], r["note_id"], r["hyp_id"], r["hyp_rev"]],
+                [token, product_dropdown, r["dim"], r["assumption"], r["question"], r["hypothesis"], r["note_id"], r["hyp_id"], r["hyp_rev"]],
                 [status, r["note_id"], r["hyp_id"], r["hyp_rev"]],
             ).then(
                 update_relations_from_ui,
-                [token, project_id],
+                [token, product_dropdown],
                 [relation_source, relation_target, hypotheses_display],
             )
 
-        save_relation_btn.click(save_relation_from_ui, [token, project_id, relation_type, relation_source, relation_target], status)
+        save_relation_btn.click(save_relation_from_ui, [token, product_dropdown, relation_type, relation_source, relation_target], status)
 
         for f in (filter_dim, filter_status, filter_impact, filter_evidence):
-            f.change(filter_hypotheses_from_ui, [token, project_id, filter_dim, filter_status, filter_impact, filter_evidence], [hypotheses_display, relation_source, relation_target])
+            f.change(filter_hypotheses_from_ui, [token, product_dropdown, filter_dim, filter_status, filter_impact, filter_evidence], [hypotheses_display, relation_source, relation_target])
 
     table_flat_outputs = []
     for r in row_components:

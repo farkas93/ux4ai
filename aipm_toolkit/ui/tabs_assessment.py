@@ -15,7 +15,7 @@ from .callbacks import (
 DIMENSION_NOTE_CHOICES = ["Question", "Assumption"]
 
 
-def build_assessment_tab(token, project_id, status):
+def build_assessment_tab(token, product_dropdown, status):
     with gr.Tab("Assessment") as tab:
         frozen_state = gr.State({})
         unsaved_note = gr.Markdown()
@@ -82,7 +82,7 @@ def build_assessment_tab(token, project_id, status):
 
                         add_btn.click(
                             add_dimension_note_from_ui,
-                            [token, project_id, dim_key_state, note_type, note_input],
+                            [token, product_dropdown, dim_key_state, note_type, note_input],
                             [status, notes_list, note_input],
                         )
 
@@ -116,7 +116,7 @@ def build_assessment_tab(token, project_id, status):
         # Comparator dropdown event: immediately updates frozen_state, table, and chart
         comparator_dropdown.change(
             on_comparator_selected,
-            [token, project_id, comparator_dropdown],
+            [token, product_dropdown, comparator_dropdown],
             [frozen_state, comparison_table],
         ).then(
             live_profile_from_ui,
@@ -140,7 +140,7 @@ def build_assessment_tab(token, project_id, status):
         # Save assessments button
         save_assessments_button.click(
             save_assessments_action,
-            [token, project_id, assessment_revisions, *assessment_components],
+            [token, product_dropdown, assessment_revisions, *assessment_components],
             [status, assessment_revisions, assessment_dirty],
         )
 
@@ -166,12 +166,12 @@ def build_assessment_tab(token, project_id, status):
 
         save_risk_button.click(
             save_risk_reflection_from_ui,
-            [token, project_id, risk_score, risk_entry, risk_behavior, risk_affected, risk_consequence, risk_safeguard, risk_uncertainty],
+            [token, product_dropdown, risk_score, risk_entry, risk_behavior, risk_affected, risk_consequence, risk_safeguard, risk_uncertainty],
             status,
         )
         save_feedback_button.click(
             save_feedback_reflection_from_ui,
-            [token, project_id, feedback_signal, feedback_meaning, feedback_change, feedback_human, feedback_evaluation],
+            [token, product_dropdown, feedback_signal, feedback_meaning, feedback_change, feedback_human, feedback_evaluation],
             status,
         )
 

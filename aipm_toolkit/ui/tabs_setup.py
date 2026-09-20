@@ -8,12 +8,10 @@ from .callbacks import (
 )
 
 
-def build_setup_tab(token, project_id, project_revision, status):
+def build_setup_tab(token, product_dropdown, project_revision, status):
     with gr.Tab("Project Setup") as tab:
         gr.Markdown("Define your product concept, target user, core problem, and main value hypothesis.")
-        with gr.Row():
-            product_name = gr.Textbox(label="Product name", scale=2)
-            product_type = gr.Dropdown(label="AI product type", choices=["Feature", "Plugin", "Native", "Mixed/Undecided"], value=None, scale=1)
+        product_type = gr.Dropdown(label="AI product type", choices=["Feature", "Plugin", "Native", "Mixed/Undecided"], value=None)
         description = gr.Textbox(label="Short description", lines=3)
         target_user = gr.Textbox(label="Target user")
         job = gr.Textbox(label="Job to be done", lines=3)
@@ -23,23 +21,22 @@ def build_setup_tab(token, project_id, project_revision, status):
         save_button = gr.Button("Save product setup", variant="primary")
         brief_dirty = gr.State(False)
         brief_timer = gr.Timer(2.0)
-        for brief_field in (product_name, product_type, description, target_user, job, problem, hypothesis, figma_url):
+        for brief_field in (product_type, description, target_user, job, problem, hypothesis, figma_url):
             brief_field.input(lambda: True, outputs=brief_dirty)
 
         save_button.click(
             save_project_action,
-            [token, project_id, project_revision, product_name, product_type, description, target_user, job, problem, hypothesis, figma_url],
+            [token, product_dropdown, project_revision, product_type, description, target_user, job, problem, hypothesis, figma_url],
             [status, project_revision, brief_dirty],
         )
         brief_timer.tick(
             autosave_project_from_ui,
-            [token, project_id, project_revision, brief_dirty, product_name, product_type, description, target_user, job, problem, hypothesis, figma_url],
+            [token, product_dropdown, project_revision, brief_dirty, product_type, description, target_user, job, problem, hypothesis, figma_url],
             [status, project_revision, brief_dirty],
         )
 
     return {
         "tab": tab,
-        "product_name": product_name,
         "product_type": product_type,
         "description": description,
         "target_user": target_user,

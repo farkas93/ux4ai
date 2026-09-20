@@ -101,9 +101,9 @@ def _build_instructor_panel(token, status, product_dropdown):
 def build_app():
     with gr.Blocks(title="AIPM Toolkit", js=BLOCKS_JS, css=BLOCKS_CSS) as app:
         token = gr.State(None)
-        project_id = gr.State(None)
         project_revision = gr.State(None)
-        status = gr.Markdown()
+        delete_confirm_state = gr.State(True)
+
         with gr.Column(visible=True) as login_panel:
             username = gr.Textbox(label="Team alias or instructor username")
             password = gr.Textbox(label="Password", type="password")
@@ -115,27 +115,36 @@ def build_app():
                 with gr.Column(scale=4), gr.Row():
                     product_dropdown = gr.Dropdown(label="Product", choices=[], interactive=True, scale=3)
                     new_product_btn = gr.Button("+ New Product", scale=1, variant="secondary")
+                    delete_product_btn = gr.Button("Delete product", scale=1, variant="stop")
                 with gr.Column(scale=1, min_width=120):
                     language_selector = gr.Dropdown(label="Language / Sprache", choices=LANGUAGE_CHOICES, value="en", scale=0)
 
+            # Prominent status feedback banner directly under the top bar
+            status = gr.Markdown(elem_id="aipm-status-banner")
+
             with gr.Row(visible=False, variant="panel") as new_product_panel:
                 new_product_input = gr.Textbox(label="New product name", placeholder="e.g. HealthAI Assistant", scale=3)
-                create_product_btn = gr.Button("Create product", variant="primary", scale=1)
+                create_product_btn = gr.Button("Create", variant="primary", scale=1)
                 cancel_product_btn = gr.Button("Cancel", variant="secondary", scale=1)
 
+            with gr.Row(visible=False, variant="panel") as delete_confirm_panel:
+                gr.Markdown("⚠️ **Are you sure you want to permanently delete the selected product and all its data?**")
+                confirm_delete_btn = gr.Button("Yes, delete permanently", variant="stop", scale=1)
+                cancel_delete_btn = gr.Button("Cancel", variant="secondary", scale=1)
+
             with gr.Tabs():
-                setup = tabs_setup.build_setup_tab(token, project_id, project_revision, status)
-                assessment = tabs_assessment.build_assessment_tab(token, project_id, status)
-                backlog = tabs_backlog.build_backlog_tab(token, project_id, status)
-                priority = tabs_priority.build_priority_tab(token, project_id, status)
-                summary = tabs_summary.build_summary_tab(token, project_id, status, product_dropdown)
+                setup = tabs_setup.build_setup_tab(token, product_dropdown, project_revision, status)
+                assessment = tabs_assessment.build_assessment_tab(token, product_dropdown, status)
+                backlog = tabs_backlog.build_backlog_tab(token, product_dropdown, status)
+                priority = tabs_priority.build_priority_tab(token, product_dropdown, status)
+                summary = tabs_summary.build_summary_tab(token, product_dropdown, status)
+
         instructor_panel = _build_instructor_panel(token, status, product_dropdown)
         dimension_note_outputs = assessment["dimension_note_lists"]
 
         label_bindings = [
             (language_selector, "language", "Language / Sprache"),
             (product_dropdown, "projects", "Product"),
-            (setup["product_name"], "product_name", "Product name"),
             (setup["product_type"], "product_type", "AI product type"),
             (setup["description"], "description", "Short description"),
             (setup["target_user"], "target_user", "Target user"),
@@ -163,95 +172,139 @@ def build_app():
         # New product panel toggle
         new_product_btn.click(lambda: gr.update(visible=True), outputs=new_product_panel)
         cancel_product_btn.click(lambda: (gr.update(visible=False), ""), outputs=[new_product_panel, new_product_input])
-        create_product_btn.click(
+
+        # Delete confirmation panel toggle
+        delete_product_btn.click(lambda: gr.update(visible=True), outputs=delete_confirm_panel)
+        cancel_delete_btn.click(lambda: gr.update(visible=False), outputs=delete_confirm_panel)
+
+        def _wire_product_load(trigger):
+            return (
+                trigger.then(
+                    load_project_from_ui,
+                    [token, product_dropdown],
+                    [
+                        setup["description"],
+                        setup["target_user"],
+                        setup["job"],
+                        setup["problem"],
+                        setup["hypothesis"],
+                        setup["product_type"],
+                        setup["figma_url"],
+                        project_revision,
+                    ],
+                )
+                .then(lambda: False, outputs=setup["brief_dirty"])
+                .then(
+                    load_estimates_from_ui,
+                    [token, product_dropdown],
+                    assessment["assessment_components"] + [assessment["assessment_revisions"]],
+                )
+                .then(lambda: False, outputs=assessment["assessment_dirty"])
+                .then(
+                    load_comparator_choices,
+                    outputs=assessment["comparator"],
+                )
+                .then(
+                    live_profile_from_ui,
+                    [assessment["frozen_state"], *assessment["sliders"]],
+                    assessment["live_chart"],
+                )
+                .then(
+                    dimension_notes_from_ui,
+                    [token, product_dropdown, assessment["dimension_note_states"][0]],
+                    dimension_note_outputs[0],
+                )
+                .then(
+                    dimension_notes_from_ui,
+                    [token, product_dropdown, assessment["dimension_note_states"][1]],
+                    dimension_note_outputs[1],
+                )
+                .then(
+                    dimension_notes_from_ui,
+                    [token, product_dropdown, assessment["dimension_note_states"][2]],
+                    dimension_note_outputs[2],
+                )
+                .then(
+                    dimension_notes_from_ui,
+                    [token, product_dropdown, assessment["dimension_note_states"][3]],
+                    dimension_note_outputs[3],
+                )
+                .then(
+                    dimension_notes_from_ui,
+                    [token, product_dropdown, assessment["dimension_note_states"][4]],
+                    dimension_note_outputs[4],
+                )
+                .then(
+                    load_backlog_table_from_ui,
+                    [token, product_dropdown],
+                    backlog["table_flat_outputs"] + [backlog["visible_rows_count"], backlog["hypotheses_display"], backlog["relation_source"], backlog["relation_target"]],
+                )
+                .then(
+                    lambda choices: choices,
+                    backlog["relation_source"],
+                    priority["experiment_primary"],
+                )
+                .then(
+                    load_experiment_choices,
+                    [token, product_dropdown],
+                    priority["experiment_selector"],
+                )
+                .then(
+                    checklist_text,
+                    [token, product_dropdown],
+                    summary["checklist_display"],
+                )
+                .then(
+                    load_placements_from_ui,
+                    [token, product_dropdown],
+                    priority["placement_outputs"] + [priority["ranking_display"], priority["matrix_fig"]],
+                )
+                .then(
+                    summary_preview_from_ui,
+                    [token, product_dropdown],
+                    summary["summary_preview"],
+                )
+            )
+
+        # Wire product loading on dropdown change
+        _wire_product_load(product_dropdown.change(lambda: None))
+
+        # Create product: updates dropdown, then triggers full load
+        created_event = create_product_btn.click(
             create_project_from_ui,
             [token, new_product_input],
             [status, product_dropdown, new_product_input, new_product_panel],
         )
+        _wire_product_load(created_event)
 
-        submit.click(login, [username, password], [status, token, login_panel, workspace_panel]).then(workspace, token, [workspace_text, login_panel, instructor_panel, team_panel, product_dropdown])
-        app.load(auto_login, outputs=[status, token, login_panel, workspace_panel]).then(workspace, token, [workspace_text, login_panel, instructor_panel, team_panel, product_dropdown])
+        # Delete product: deletes product, updates dropdown, hides panel, then triggers full load
+        deleted_event = confirm_delete_btn.click(
+            delete_product_from_ui,
+            [token, product_dropdown, delete_confirm_state],
+            [status, product_dropdown],
+        ).then(lambda: gr.update(visible=False), outputs=delete_confirm_panel)
+        _wire_product_load(deleted_event)
 
-        product_dropdown.change(
-            load_project_from_ui,
-            [token, product_dropdown],
-            [
-                setup["product_name"],
-                setup["description"],
-                setup["target_user"],
-                setup["job"],
-                setup["problem"],
-                setup["hypothesis"],
-                setup["product_type"],
-                setup["figma_url"],
-                project_id,
-                project_revision,
-            ],
-        ).then(lambda: False, outputs=setup["brief_dirty"]).then(
-            load_estimates_from_ui,
-            [token, project_id],
-            assessment["assessment_components"] + [assessment["assessment_revisions"]],
-        ).then(lambda: False, outputs=assessment["assessment_dirty"]).then(
-            load_comparator_choices,
-            outputs=assessment["comparator"],
-        ).then(
-            live_profile_from_ui,
-            [assessment["frozen_state"], *assessment["sliders"]],
-            assessment["live_chart"],
-        ).then(
-            dimension_notes_from_ui,
-            [token, project_id, assessment["dimension_note_states"][0]],
-            dimension_note_outputs[0],
-        ).then(
-            dimension_notes_from_ui,
-            [token, project_id, assessment["dimension_note_states"][1]],
-            dimension_note_outputs[1],
-        ).then(
-            dimension_notes_from_ui,
-            [token, project_id, assessment["dimension_note_states"][2]],
-            dimension_note_outputs[2],
-        ).then(
-            dimension_notes_from_ui,
-            [token, project_id, assessment["dimension_note_states"][3]],
-            dimension_note_outputs[3],
-        ).then(
-            dimension_notes_from_ui,
-            [token, project_id, assessment["dimension_note_states"][4]],
-            dimension_note_outputs[4],
-        ).then(
-            load_backlog_table_from_ui,
-            [token, project_id],
-            backlog["table_flat_outputs"] + [backlog["visible_rows_count"], backlog["hypotheses_display"], backlog["relation_source"], backlog["relation_target"]],
-        ).then(
-            lambda choices: choices,
-            backlog["relation_source"],
-            priority["experiment_primary"],
-        ).then(
-            load_experiment_choices,
-            [token, project_id],
-            priority["experiment_selector"],
-        ).then(
-            checklist_text,
-            [token, project_id],
-            summary["checklist_display"],
-        ).then(
-            load_placements_from_ui,
-            [token, project_id],
-            priority["placement_outputs"] + [priority["ranking_display"], priority["matrix_fig"]],
-        ).then(
-            summary_preview_from_ui,
-            [token, project_id],
-            summary["summary_preview"],
+        # Login and auto-login: authenticate, reveal panels, update dropdown, then trigger full load
+        login_event = submit.click(login, [username, password], [status, token, login_panel, workspace_panel]).then(
+            workspace, token, [workspace_text, login_panel, instructor_panel, team_panel, product_dropdown]
         )
+        _wire_product_load(login_event)
+
+        load_event = app.load(auto_login, outputs=[status, token, login_panel, workspace_panel]).then(
+            workspace, token, [workspace_text, login_panel, instructor_panel, team_panel, product_dropdown]
+        )
+        _wire_product_load(load_event)
 
         for r in backlog["row_components"]:
             r["save_btn"].click(
                 load_placements_from_ui,
-                [token, project_id],
+                [token, product_dropdown],
                 priority["placement_outputs"] + [priority["ranking_display"], priority["matrix_fig"]],
             ).then(
                 checklist_text,
-                [token, project_id],
+                [token, product_dropdown],
                 summary["checklist_display"],
             )
+
     return app

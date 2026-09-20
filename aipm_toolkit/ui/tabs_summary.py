@@ -5,7 +5,7 @@ import gradio as gr
 from .callbacks import delete_product_from_ui, export_project_from_ui, summary_preview_from_ui
 
 
-def build_summary_tab(token, project_id, status, project_dropdown):
+def build_summary_tab(token, product_dropdown, status):
     with gr.Tab("Summary & Export") as tab:
         gr.Markdown("Review checklist progress and download the product record.")
         checklist_display = gr.Textbox(label="Workshop checklist", interactive=False, lines=8)
@@ -21,9 +21,9 @@ def build_summary_tab(token, project_id, status, project_dropdown):
         confirm_delete = gr.Checkbox(label="I understand this permanently deletes my product and its content", value=False)
         delete_button = gr.Button("Delete this product", variant="stop")
 
-        refresh_summary_button.click(summary_preview_from_ui, [token, project_id], summary_preview)
-        export_button.click(export_project_from_ui, [token, project_id], [status, json_download, markdown_download, pdf_download])
-        delete_button.click(delete_product_from_ui, [token, project_id, confirm_delete], [status, project_dropdown])
+        refresh_summary_button.click(summary_preview_from_ui, [token, product_dropdown], summary_preview)
+        export_button.click(export_project_from_ui, [token, product_dropdown], [status, json_download, markdown_download, pdf_download])
+        delete_button.click(delete_product_from_ui, [token, product_dropdown, confirm_delete], [status, product_dropdown])
 
     return {
         "tab": tab,
