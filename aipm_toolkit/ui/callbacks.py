@@ -198,17 +198,18 @@ def load_estimates_from_ui(token: str, project_id: str | None, request: gr.Reque
     token = _resolve_token(token, request)
     blank = []
     if not project_id:
-        return (*[value for _ in DEFAULT_DIMENSIONS for value in ("unassessed", None, "", None, "", "")], [])
+        return (*[value for _ in DEFAULT_DIMENSIONS for value in (2.5, "")], [])
     with SessionLocal() as db:
         try:
             user = get_authenticated_user(db, token)
             ensure_scale_definitions(db)
             estimates = get_project_estimates(db, user, UUID(project_id))
         except (AuthenticationError, ValueError):
-            return (*[value for _ in DEFAULT_DIMENSIONS for value in ("unassessed", None, "", None, "", "")], [])
+            return (*[value for _ in DEFAULT_DIMENSIONS for value in (2.5, "")], [])
     revisions = []
     for estimate in estimates:
-        blank.extend([estimate.status, estimate.score, estimate.rationale, estimate.basis, estimate.evidence, estimate.uncertainty])
+        score = 2.5 if estimate.score is None else float(estimate.score)
+        blank.extend([score, estimate.rationale or ""])
         revisions.append(estimate.revision)
     return (*blank, revisions)
 
@@ -220,16 +221,15 @@ def save_estimates_from_ui(token: str, project_id: str | None, revisions: list[i
     revisions = revisions or [None] * len(DEFAULT_DIMENSIONS)
     records = []
     for index, definition in enumerate(DEFAULT_DIMENSIONS):
-        offset = index * 6
+        offset = index * 2
+        score = values[offset] if offset < len(values) and values[offset] is not None else 2.5
+        reasoning = values[offset + 1] if offset + 1 < len(values) and values[offset + 1] is not None else ""
         records.append(
             {
                 "dimension_key": definition["key"],
-                "status": values[offset],
-                "score": values[offset + 1],
-                "rationale": values[offset + 2],
-                "basis": values[offset + 3],
-                "evidence": values[offset + 4],
-                "uncertainty": values[offset + 5],
+                "status": "estimated",
+                "score": float(score),
+                "rationale": str(reasoning),
                 "revision": revisions[index],
             }
         )
@@ -302,29 +302,71 @@ def comparison_table_from_ui(token: str | None, project_id: str | None, snapshot
 
 
 def live_profile_from_ui(frozen_state: dict | None, *values):
-    """Draw the spider chart from currently entered form values plus an optional frozen baseline."""
+    """Draw the spider chart from the 5 dimension slider values plus an optional frozen baseline."""
     frozen = frozen_state or {}
     labels = [definition["key"] for definition in DEFAULT_DIMENSIONS]
     ours = []
     for index in range(len(DEFAULT_DIMENSIONS)):
-        offset = index * 6
-        status = values[offset]
-        score = values[offset + 1]
-        ours.append(score if status == "estimated" and score is not None else None)
+        if index < len(values) and values[index] is not None:
+            ours.append(float(values[index]))
+        else:
+            ours.append(2.5)
     fig = go.Figure()
     theta = labels + [labels[0]]
-    fig.add_trace(go.Scatterpolar(r=[value for value in ours] + [ours[0]], theta=theta, name="Our profile (current form)", line={"color": "#1f77b4"}, fill="none"))
-    baseline = [None if not frozen.get(key, {}).get("compatible", True) else frozen.get(key, {}).get("median") for key in labels]
+    fig.add_trace(
+        go.Scatterpolar(
+            r=[v for v in ours] + [ours[0]],
+            theta=theta,
+            name="Current product",
+            line={"color": "#1f77b4", "width": 3},
+            fill="toself",
+            fillcolor="rgba(31, 119, 180, 0.15)",
+        )
+    )
+    baseline = [
+        None if not frozen.get(key, {}).get("compatible", True) else frozen.get(key, {}).get("median")
+        for key in labels
+    ]
     if any(value is not None for value in baseline):
-        fig.add_trace(go.Scatterpolar(r=baseline + [baseline[0]], theta=theta, name="Historical median", line={"color": "#d62728", "dash": "dash"}, fill="none"))
-    fig.update_layout(polar={"radialaxis": {"visible": True, "range": [0, 5]}}, showlegend=True, title="Live dimension profile (0-5; gaps = unknown)")
+        baseline_closed = baseline + [baseline[0]]
+        fig.add_trace(
+            go.Scatterpolar(
+                r=baseline_closed,
+                theta=theta,
+                name="Historical comparator",
+                line={"color": "#d62728", "width": 2, "dash": "dash"},
+                fill="none",
+            )
+        )
+    fig.update_layout(
+        polar={"radialaxis": {"visible": True, "range": [0, 5], "tickvals": [0, 1, 2, 3, 4, 5]}},
+        showlegend=True,
+        title="Live Dimension Profile (0–5)",
+        margin={"l": 40, "r": 40, "t": 40, "b": 40},
+        height=380,
+    )
     return fig
+
+
+def on_comparator_selected(token: str | None, project_id: str | None, dataset_id: str | None, request: gr.Request | None = None):
+    token = _resolve_token(token, request)
+    if not project_id or not dataset_id:
+        return {}, "No comparator selected."
+    with SessionLocal() as db:
+        try:
+            user = get_authenticated_user(db, token)
+            snapshot = select_comparator(db, user, UUID(project_id), UUID(dataset_id), "task_comparator", "Direct comparison")
+            frozen = json.loads(snapshot.frozen_profile or "{}")
+            table_text = comparison_table_from_ui(token, project_id, str(snapshot.id))
+            return frozen, table_text
+        except (AuthenticationError, ValueError) as exc:
+            return {}, str(exc)
 
 
 def dimension_notes_from_ui(token: str | None, project_id: str | None, dimension_key: str, request: gr.Request | None = None):
     token = _resolve_token(token, request)
     if not project_id or not dimension_key:
-        return "No notes for this dimension yet."
+        return "No questions or assumptions for this dimension yet."
     with SessionLocal() as db:
         try:
             user = get_authenticated_user(db, token)
@@ -333,21 +375,21 @@ def dimension_notes_from_ui(token: str | None, project_id: str | None, dimension
         except AuthenticationError:
             return "Session expired."
     if not rows:
-        return "No notes for this dimension yet."
+        return "No questions or assumptions for this dimension yet."
     return "\n".join(f"[{note_type}] {text}" for note_type, text in rows)
 
 
 def add_dimension_note_from_ui(token: str | None, project_id: str | None, dimension_key: str, note_type: str, text: str, request: gr.Request | None = None):
     token = _resolve_token(token, request)
-    if not project_id or not dimension_key:
-        return "Select a product first.", ""
+    if not project_id or not dimension_key or not text or not text.strip():
+        return "Select a product and enter note text.", dimension_notes_from_ui(token, project_id, dimension_key), ""
     with SessionLocal() as db:
         try:
             user = get_authenticated_user(db, token)
-            create_note(db, user, UUID(project_id), note_type, text, [dimension_key])
+            create_note(db, user, UUID(project_id), note_type.lower(), text.strip(), [dimension_key])
         except (AuthenticationError, ValueError) as exc:
-            return str(exc), ""
-    return "Note added to this dimension.", dimension_notes_from_ui(token, project_id, dimension_key)
+            return str(exc), "", ""
+    return "Added to this dimension.", dimension_notes_from_ui(token, project_id, dimension_key), ""
 
 
 def save_comparator_from_ui(token: str, project_id: str | None, dataset_id: str | None, purpose: str, scope: str, request: gr.Request | None = None):

@@ -181,7 +181,7 @@ def build_app():
             outputs=assessment["comparator"],
         ).then(
             live_profile_from_ui,
-            [assessment["frozen_state"], *assessment["assessment_components"]],
+            [assessment["frozen_state"], *assessment["sliders"]],
             assessment["live_chart"],
         ).then(
             dimension_notes_from_ui,
