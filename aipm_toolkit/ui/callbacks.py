@@ -941,8 +941,9 @@ def load_experiment_choices(token: str, project_id: str | None, request: gr.Requ
 
 def load_experiment_edit_from_ui(token: str, experiment_id: str | None, request: gr.Request | None = None):
     token = _resolve_token(token, request)
+    empty_tuple = ("", "prototype_walkthrough", "", "", "", "", "", "", "", "", "", "planned", "", "", "", "", "undecided", None)
     if not experiment_id:
-        return "", "prototype_walkthrough", "", "", "", "", "", "", "", "", "planned", "", "", "", "", "undecided", None
+        return empty_tuple
     with SessionLocal() as db:
         try:
             user = get_authenticated_user(db, token)
@@ -951,8 +952,27 @@ def load_experiment_edit_from_ui(token: str, experiment_id: str | None, request:
                 raise ValueError("Experiment not found")
             get_project(db, user, experiment.project_id)
         except (AuthenticationError, AuthorizationError, ValueError) as exc:
-            return str(exc), "prototype_walkthrough", "", "", "", "", "", "", "", "", "planned", "", "", "", "", "undecided", None
-    return (experiment.title, experiment.method, experiment.procedure, experiment.participants, experiment.comparison_baseline, experiment.metric, experiment.success_criterion, experiment.guardrail, experiment.resources, experiment.owner, experiment.planned_date, experiment.status, experiment.results, experiment.evidence_links, experiment.limitations, experiment.conclusion, experiment.resulting_decision, experiment.revision)
+            return (str(exc), "prototype_walkthrough", "", "", "", "", "", "", "", "", "", "planned", "", "", "", "", "undecided", None)
+    return (
+        experiment.title,
+        experiment.method,
+        experiment.procedure,
+        experiment.participants,
+        experiment.comparison_baseline,
+        experiment.metric,
+        experiment.success_criterion,
+        experiment.guardrail,
+        experiment.resources,
+        experiment.owner,
+        experiment.planned_date or "",
+        experiment.status,
+        experiment.results,
+        experiment.evidence_links,
+        experiment.limitations,
+        experiment.conclusion,
+        experiment.resulting_decision,
+        experiment.revision,
+    )
 
 
 def save_experiment_details(token: str, project_id: str | None, experiment_id: str | None, revision: int | None, procedure: str, participants: str, baseline: str, metric: str, success: str, guardrail: str, resources: str, owner: str, planned_date: str, status_value: str, results: str, evidence_links: str, limitations: str, conclusion: str, decision: str, request: gr.Request | None = None):
@@ -1015,10 +1035,17 @@ def _ranking_items(ids, statements, risks, evidences):
     for index in range(len(ids)):
         if not ids[index]:
             continue
-        risk = risks[index] if risks[index] is not None else 0.0
-        evidence = evidences[index] if evidences[index] is not None else 0.0
-        priority = risk + (10 - evidence)
-        items.append({"index": index, "statement": statements[index], "risk": risk, "evidence": evidence, "priority": priority})
+        try:
+            risk = float(risks[index]) if index < len(risks) and risks[index] is not None else 0.0
+        except (ValueError, TypeError):
+            risk = 0.0
+        try:
+            evidence = float(evidences[index]) if index < len(evidences) and evidences[index] is not None else 0.0
+        except (ValueError, TypeError):
+            evidence = 0.0
+        priority = risk + (10.0 - evidence)
+        stmt = str(statements[index]) if index < len(statements) and statements[index] is not None else ""
+        items.append({"index": index, "statement": stmt, "risk": risk, "evidence": evidence, "priority": priority})
     items.sort(key=lambda item: (-item["priority"], item["index"]))
     return items
 
@@ -1079,7 +1106,11 @@ def load_placements_from_ui(token: str | None, project_id: str | None, request: 
             ])
         else:
             outputs.extend([gr.update(visible=False, label=f"H{index + 1}", open=False), "", 0.0, 0.0, None, None])
-    ranking, fig = ranked_backlog_from_ui(*[output for slot in [(hypotheses[index].id if index < len(hypotheses) else None, hypotheses[index].statement if index < len(hypotheses) else "", hypotheses[index].priority_risk if index < len(hypotheses) else 0.0, hypotheses[index].priority_evidence if index < len(hypotheses) else 0.0) for index in range(PLACEMENT_SLOTS)] for output in slot])
+    slot_ids = [str(hypotheses[i].id) if i < len(hypotheses) else None for i in range(PLACEMENT_SLOTS)]
+    slot_statements = [hypotheses[i].statement if i < len(hypotheses) else "" for i in range(PLACEMENT_SLOTS)]
+    slot_risks = [float(hypotheses[i].priority_risk) if i < len(hypotheses) else 0.0 for i in range(PLACEMENT_SLOTS)]
+    slot_evidences = [float(hypotheses[i].priority_evidence) if i < len(hypotheses) else 0.0 for i in range(PLACEMENT_SLOTS)]
+    ranking, fig = ranked_backlog_from_ui(*(slot_ids + slot_statements + slot_risks + slot_evidences))
     return (*outputs, ranking, fig)
 
 

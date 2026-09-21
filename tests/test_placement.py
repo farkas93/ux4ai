@@ -6,6 +6,7 @@ from aipm_toolkit.models import Course, Role, Team, User
 from aipm_toolkit.services import create_project
 from aipm_toolkit.ui.callbacks import (
     load_estimates_from_ui,
+    load_experiment_edit_from_ui,
     load_placements_from_ui,
     load_project_from_ui,
     ranked_backlog_from_ui,
@@ -72,3 +73,36 @@ def test_load_placements_and_estimates_unpack_proper_component_counts(db, monkey
     # load_project_from_ui must return exactly 8 fields
     project_results = load_project_from_ui("token", str(project.id))
     assert len(project_results) == 8
+
+
+def test_load_placements_with_populated_hypotheses_does_not_fail_on_str_float(db, monkeypatch):
+    user, project = user_project(db, "placed-str-float")
+    h1 = create_hypothesis(db, user, project.id, "First supporting claim with text statement")
+    set_placement(db, user, h1.id, h1.revision, risk=8.5, evidence=2.0)
+    h2 = create_hypothesis(db, user, project.id, "Second supporting claim")
+    set_placement(db, user, h2.id, h2.revision, risk=3.0, evidence=7.5)
+
+    from aipm_toolkit.ui import callbacks as cb_mod
+    monkeypatch.setattr(cb_mod, "SessionLocal", lambda: db)
+    monkeypatch.setattr(cb_mod, "get_authenticated_user", lambda _db, _token: user)
+
+    # Must execute without TypeError: can only concatenate str (not "float") to str
+    placement_results = load_placements_from_ui("token", str(project.id))
+    assert len(placement_results) == 62
+    ranking_text = placement_results[-2]
+    assert "First supporting claim" in ranking_text
+
+
+def test_load_experiment_edit_returns_exact_18_outputs(db, monkeypatch):
+    user, _project = user_project(db, "exp-edit")
+    from aipm_toolkit.ui import callbacks as cb_mod
+    monkeypatch.setattr(cb_mod, "SessionLocal", lambda: db)
+    monkeypatch.setattr(cb_mod, "get_authenticated_user", lambda _db, _token: user)
+
+    # When experiment_id is None / empty, must return exactly 18 values (never 17!)
+    empty_results = load_experiment_edit_from_ui("token", None)
+    assert len(empty_results) == 18
+
+    # When experiment_id does not exist / error, must return exactly 18 values
+    error_results = load_experiment_edit_from_ui("token", "00000000-0000-0000-0000-000000000000")
+    assert len(error_results) == 18
