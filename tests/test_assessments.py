@@ -65,3 +65,43 @@ def test_assessments_can_be_saved_repeatedly_with_returned_revisions(db):
     updated = save_project_estimates(db, user, project.id, second)
     assert updated[0].revision > saved_revisions[0]
     assert updated[0].rationale == "Updated after discussion"
+
+
+def test_assessment_scores_and_reasoning_persist_and_reload_cleanly(db, monkeypatch):
+    user = team_user(db)
+    project = create_project(db, user, "Reload Prototype")
+    ensure_scale_definitions(db)
+
+    from aipm_toolkit.ui import callbacks as cb_mod
+    monkeypatch.setattr(cb_mod, "SessionLocal", lambda: db)
+    monkeypatch.setattr(cb_mod, "get_authenticated_user", lambda _db, _token: user)
+
+    # Initial load for a fresh product returns 2.5 default
+    initial = cb_mod.load_estimates_from_ui("token", str(project.id))
+    assert initial[0] == 2.5
+    assert initial[1] == ""
+
+    # Save custom scores and reasoning notes
+    custom_scores = [4.1, "Custom note 1", 1.3, "Custom note 2", 3.7, "Custom note 3", 5.0, "Custom note 4", 0.2, "Custom note 5"]
+    msg, revs = cb_mod.save_estimates_from_ui(
+        "token",
+        str(project.id),
+        initial[-1],  # revisions list
+        *custom_scores,
+    )
+    assert "saved" in msg.lower()
+    assert len(revs) == 5
+
+    # Reload estimates: must return the exact custom scores and notes, NOT 2.5!
+    reloaded = cb_mod.load_estimates_from_ui("token", str(project.id))
+    assert reloaded[0] == 4.1
+    assert reloaded[1] == "Custom note 1"
+    assert reloaded[2] == 1.3
+    assert reloaded[3] == "Custom note 2"
+    assert reloaded[4] == 3.7
+    assert reloaded[5] == "Custom note 3"
+    assert reloaded[6] == 5.0
+    assert reloaded[7] == "Custom note 4"
+    assert reloaded[8] == 0.2
+    assert reloaded[9] == "Custom note 5"
+    assert reloaded[10] == revs

@@ -213,16 +213,32 @@ def load_estimates_from_ui(token: str, project_id: str | None, request: gr.Reque
     return (*blank, revisions)
 
 
-def save_estimates_from_ui(token: str, project_id: str | None, revisions: list[int] | None, *values, request: gr.Request | None = None):
+def save_estimates_from_ui(
+    token: str,
+    project_id: str | None,
+    revisions: list[int] | None,
+    s0: float = 2.5,
+    r0: str = "",
+    s1: float = 2.5,
+    r1: str = "",
+    s2: float = 2.5,
+    r2: str = "",
+    s3: float = 2.5,
+    r3: str = "",
+    s4: float = 2.5,
+    r4: str = "",
+    request: gr.Request | None = None,
+):
     token = _resolve_token(token, request)
     if not project_id:
         return "Select a product before saving dimension assessments.", revisions or []
     revisions = revisions or [None] * len(DEFAULT_DIMENSIONS)
+    scores = [s0, s1, s2, s3, s4]
+    notes = [r0, r1, r2, r3, r4]
     records = []
     for index, definition in enumerate(DEFAULT_DIMENSIONS):
-        offset = index * 2
-        score = values[offset] if offset < len(values) and values[offset] is not None else 2.5
-        reasoning = values[offset + 1] if offset + 1 < len(values) and values[offset + 1] is not None else ""
+        score = scores[index] if index < len(scores) and scores[index] is not None else 2.5
+        reasoning = notes[index] if index < len(notes) and notes[index] is not None else ""
         records.append(
             {
                 "dimension_key": definition["key"],
@@ -243,17 +259,48 @@ def save_estimates_from_ui(token: str, project_id: str | None, revisions: list[i
     return "Dimension assessments saved.", [estimate.revision for estimate in saved]
 
 
-def save_assessments_action(token: str, project_id: str | None, revisions: list[int] | None, *values, request: gr.Request | None = None):
+def save_assessments_action(
+    token: str,
+    project_id: str | None,
+    revisions: list[int] | None,
+    s0: float = 2.5,
+    r0: str = "",
+    s1: float = 2.5,
+    r1: str = "",
+    s2: float = 2.5,
+    r2: str = "",
+    s3: float = 2.5,
+    r3: str = "",
+    s4: float = 2.5,
+    r4: str = "",
+    request: gr.Request | None = None,
+):
     token = _resolve_token(token, request)
-    status, new_revisions = save_estimates_from_ui(token, project_id, revisions, *values)
+    status, new_revisions = save_estimates_from_ui(token, project_id, revisions, s0, r0, s1, r1, s2, r2, s3, r3, s4, r4, request=request)
     return status, new_revisions, not status.endswith("saved.")
 
 
-def autosave_assessments_from_ui(token: str, project_id: str | None, revisions: list[int] | None, dirty: bool, *values, request: gr.Request | None = None):
+def autosave_assessments_from_ui(
+    token: str,
+    project_id: str | None,
+    revisions: list[int] | None,
+    dirty: bool,
+    s0: float = 2.5,
+    r0: str = "",
+    s1: float = 2.5,
+    r1: str = "",
+    s2: float = 2.5,
+    r2: str = "",
+    s3: float = 2.5,
+    r3: str = "",
+    s4: float = 2.5,
+    r4: str = "",
+    request: gr.Request | None = None,
+):
     token = _resolve_token(token, request)
     if not dirty:
         return gr.update(), revisions or [], dirty
-    status, new_revisions = save_estimates_from_ui(token, project_id, revisions, *values)
+    status, new_revisions = save_estimates_from_ui(token, project_id, revisions, s0, r0, s1, r1, s2, r2, s3, r3, s4, r4, request=request)
     if status.endswith("saved."):
         return "Dimension assessments saved automatically.", new_revisions, False
     return f"Save failed: {status}", new_revisions, True
