@@ -650,7 +650,7 @@ def load_backlog_table_from_ui(
         row_0 = (gr.update(visible=True), gr.update(value="conversational"), "", "", "", None, None, None)
         slots = [row_0] + [empty_slot for _ in range(MAX_BACKLOG_ROWS - 1)]
         flat = [val for slot in slots for val in slot]
-        return (*flat, 1, "No hypotheses yet.", gr.update(choices=[]), gr.update(choices=[]))
+        return (*flat, 1)
 
     with SessionLocal() as db:
         try:
@@ -759,21 +759,12 @@ def load_backlog_table_from_ui(
 
             visible_count = min(m + 1, MAX_BACKLOG_ROWS)
             flat = [val for slot in slots for val in slot]
-
-            all_hyps = list(db.scalars(
-                select(Hypothesis)
-                .where(Hypothesis.project_id == project.id)
-                .order_by(Hypothesis.kind, Hypothesis.created_at)
-            ))
-            choices = [(f"[{h.kind}] {h.statement[:80]}", str(h.id)) for h in all_hyps]
-            hyps_text = _hypothesis_text(all_hyps)
-
-            return (*flat, visible_count, hyps_text, gr.update(choices=choices), gr.update(choices=choices))
+            return (*flat, visible_count)
         except (AuthenticationError, AuthorizationError, ValueError):
             row_0 = (gr.update(visible=True), gr.update(value="conversational"), "", "", "", None, None, None)
             slots = [row_0] + [empty_slot for _ in range(MAX_BACKLOG_ROWS - 1)]
             flat = [val for slot in slots for val in slot]
-            return (*flat, 1, "Unable to load backlog.", gr.update(choices=[]), gr.update(choices=[]))
+            return (*flat, 1)
 
 
 def backlog_columns_from_ui(token: str | None, project_id: str | None, request: gr.Request | None = None):

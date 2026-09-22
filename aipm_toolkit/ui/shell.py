@@ -15,7 +15,6 @@ from .callbacks import (
     load_backlog_table_from_ui,
     load_comparator_choices,
     load_estimates_from_ui,
-    load_experiment_choices,
     load_placements_from_ui,
     load_project_from_ui,
     login,
@@ -51,6 +50,9 @@ BLOCKS_JS = """() => {
 }"""
 
 BLOCKS_CSS = """
+footer {
+    display: none !important;
+}
 .backlog-table-container {
     max-height: 560px;
     overflow-y: auto;
@@ -153,8 +155,6 @@ def build_app():
             (setup["hypothesis"], "main_hypothesis", "Main value hypothesis"),
             (setup["figma_url"], "figma_url", "Figma prototype URL (optional)"),
             (assessment["comparator"], "comparator", "Historical comparator"),
-            (backlog["hypotheses_display"], "hypotheses", "Hypothesis backlog"),
-            (priority["experiment_selector"], "experiments", "Reopen experiment"),
             (summary["checklist_display"], "checklist", "Workshop checklist"),
             (summary["pdf_download"], "pdf_export", "PDF export"),
             (summary["json_download"], "json_export", "JSON export"),
@@ -237,17 +237,7 @@ def build_app():
                 .then(
                     load_backlog_table_from_ui,
                     [token, product_dropdown],
-                    backlog["table_flat_outputs"] + [backlog["visible_rows_count"], backlog["hypotheses_display"], backlog["relation_source"], backlog["relation_target"]],
-                )
-                .then(
-                    lambda choices: choices,
-                    backlog["relation_source"],
-                    priority["experiment_primary"],
-                )
-                .then(
-                    load_experiment_choices,
-                    [token, product_dropdown],
-                    priority["experiment_selector"],
+                    backlog["table_flat_outputs"] + [backlog["visible_rows_count"]],
                 )
                 .then(
                     checklist_text,

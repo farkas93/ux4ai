@@ -39,9 +39,9 @@ def test_load_backlog_table_unpacks_correct_flat_count(db, monkeypatch):
     monkeypatch.setattr(cb_mod, "SessionLocal", lambda: db)
     monkeypatch.setattr(cb_mod, "get_authenticated_user", lambda _db, _token: user)
 
-    # 16 slots * 8 components + 4 extra (visible_count, hypotheses_display, relation_source, relation_target) = 132
+    # 16 slots * 8 components + 1 extra (visible_count) = 129
     results = load_backlog_table_from_ui("token", str(project.id))
-    assert len(results) == MAX_BACKLOG_ROWS * 8 + 4
+    assert len(results) == MAX_BACKLOG_ROWS * 8 + 1
     # Ensure outputs are flat
     assert not isinstance(results[0], (list, tuple))
 
