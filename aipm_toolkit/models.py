@@ -115,7 +115,7 @@ class Project(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     team: Mapped[Team] = relationship(back_populates="projects")
-    hypotheses: Mapped[list["Hypothesis"]] = relationship(back_populates="project")
+    hypotheses: Mapped[list["Hypothesis"]] = relationship(back_populates="project", order_by="Hypothesis.created_at")
     dimension_estimates: Mapped[list["DimensionEstimate"]] = relationship(back_populates="project")
 
 

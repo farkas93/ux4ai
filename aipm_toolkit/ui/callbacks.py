@@ -65,6 +65,7 @@ from ..models import (
 )
 from ..services import (
     create_project,
+    get_main_hypothesis,
     get_project,
     list_projects,
     update_main_hypothesis,
@@ -145,7 +146,10 @@ def load_project_from_ui(token: str, project_id: str | None, request: gr.Request
         try:
             user = get_authenticated_user(db, token)
             project = get_project(db, user, UUID(project_id))
-            hypothesis = next(iter(project.hypotheses), None)
+            try:
+                hypothesis = get_main_hypothesis(db, user, project.id)
+            except LookupError:
+                hypothesis = None
         except (AuthenticationError, ValueError, LookupError):
             return "", "", "", "", "", None, "", None
     return (
@@ -162,14 +166,19 @@ def load_project_from_ui(token: str, project_id: str | None, request: gr.Request
 
 def save_project_from_ui(token: str, project_id: str | None, revision: int | None, product_type: str | None, description: str, target_user: str, job: str, problem: str, hypothesis: str, figma_url: str, request: gr.Request | None = None):
     token = _resolve_token(token, request)
-    if not project_id or revision is None:
+    if not project_id:
         return "Select a product first.", revision
     with SessionLocal() as db:
         try:
             user = get_authenticated_user(db, token)
             updated_url = validate_figma_url(figma_url)
-            project = update_project(db, user, UUID(project_id), revision, product_type=product_type, short_description=description, target_user=target_user, job_to_be_done=job, current_problem=problem, figma_url=updated_url)
-            main = next(iter(project.hypotheses), None)
+            project = get_project(db, user, UUID(project_id))
+            target_rev = project.revision if (revision is None or revision != project.revision) else revision
+            project = update_project(db, user, UUID(project_id), target_rev, product_type=product_type, short_description=description, target_user=target_user, job_to_be_done=job, current_problem=problem, figma_url=updated_url)
+            try:
+                main = get_main_hypothesis(db, user, project.id)
+            except LookupError:
+                main = None
             if main:
                 update_main_hypothesis(db, user, project.id, main.revision, hypothesis)
         except (AuthenticationError, RevisionConflict, ValueError) as exc:

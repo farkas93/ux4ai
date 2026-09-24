@@ -72,3 +72,42 @@ def test_figma_url_validation(db):
     assert validate_figma_url("https://www.figma.com/file/example")
     with pytest.raises(ValueError):
         validate_figma_url("javascript:alert(1)")
+
+
+def test_project_setup_updates_main_hypothesis_with_supporting_hypotheses(db, monkeypatch):
+    from aipm_toolkit.hypothesis_services import create_hypothesis
+    from aipm_toolkit.ui import callbacks as cb_mod
+
+    user = team_user(db, "hyp_rev_test")
+    project = create_project(db, user, "Project With Multiple Hypotheses")
+
+    # Add supporting hypothesis with higher revision
+    h_supp = create_hypothesis(db, user, project.id, "Supporting claim text", kind="supporting")
+    h_supp.revision = 7
+    db.commit()
+
+    monkeypatch.setattr(cb_mod, "SessionLocal", lambda: db)
+    monkeypatch.setattr(cb_mod, "get_authenticated_user", lambda _db, _token: user)
+
+    # load_project_from_ui must load the MAIN hypothesis statement, not the supporting one
+    loaded = cb_mod.load_project_from_ui("token", str(project.id))
+    main_stmt = loaded[4]
+    assert main_stmt != "Supporting claim text"
+
+    # save_project_from_ui must update the main hypothesis cleanly even if revision drifted
+    msg, _rev = cb_mod.save_project_from_ui(
+        "token",
+        str(project.id),
+        revision=1,
+        product_type="Native",
+        description="Updated description",
+        target_user="Users",
+        job="Job",
+        problem="Problem",
+        hypothesis="Updated Main Hypothesis Statement",
+        figma_url="https://figma.com/file/test",
+    )
+
+    assert "saved" in msg.lower()
+    main_db = get_main_hypothesis(db, user, project.id)
+    assert main_db.statement == "Updated Main Hypothesis Statement"
