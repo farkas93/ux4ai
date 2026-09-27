@@ -35,10 +35,10 @@ def build_backlog_tab(token, product_dropdown, status):
         row_components = []
         with gr.Column(elem_classes=["backlog-table-container"]):
             for i in range(MAX_BACKLOG_ROWS):
-                with gr.Row(visible=(i == 0), variant="panel") as row_box:
+                with gr.Row(visible=False, variant="panel") as row_box:
                     dim_dropdown = gr.Dropdown(
                         choices=[(d["title"], d["key"]) for d in DEFAULT_DIMENSIONS],
-                        value="conversational",
+                        value=None,
                         show_label=False,
                         scale=2,
                     )
@@ -62,6 +62,7 @@ def build_backlog_tab(token, product_dropdown, status):
                     )
                     save_btn = gr.Button("Save", variant="primary", scale=1)
                     remove_btn = gr.Button("Remove", variant="stop", scale=1, visible=False)
+                    cancel_btn = gr.Button("Cancel", scale=1, visible=False)
                     note_id_state = gr.State(None)
                     hyp_id_state = gr.State(None)
                     hyp_rev_state = gr.State(None)
@@ -74,6 +75,7 @@ def build_backlog_tab(token, product_dropdown, status):
                     "hypothesis": hypothesis_box,
                     "save_btn": save_btn,
                     "remove_btn": remove_btn,
+                    "cancel_btn": cancel_btn,
                     "note_id": note_id_state,
                     "hyp_id": hyp_id_state,
                     "hyp_rev": hyp_rev_state,
@@ -81,18 +83,25 @@ def build_backlog_tab(token, product_dropdown, status):
 
         with gr.Row():
             add_row_btn = gr.Button("+ Add Row", variant="secondary")
-            visible_rows_count = gr.State(1)
+            visible_rows_count = gr.State(0)
 
         # Event: add row reveals next hidden slot
-        add_row_btn.click(
+        added = add_row_btn.click(
             show_next_row_from_ui,
             [visible_rows_count],
             [visible_rows_count, *[r["box"] for r in row_components]],
         )
 
+        def show_cancellations(count, *ids):
+            return [gr.update(visible=i < count and not ids[i * 2] and not ids[i * 2 + 1]) for i in range(MAX_BACKLOG_ROWS)]
+
+        added.then(show_cancellations,
+                   [visible_rows_count, *[part for r in row_components for part in (r["note_id"], r["hyp_id"])]],
+                   [r["cancel_btn"] for r in row_components])
+
     table_flat_outputs = []
     for r in row_components:
-        table_flat_outputs.extend([r["box"], r["dim"], r["assumption"], r["question"], r["hypothesis"], r["remove_btn"], r["note_id"], r["hyp_id"], r["hyp_rev"]])
+        table_flat_outputs.extend([r["box"], r["dim"], r["assumption"], r["question"], r["hypothesis"], r["remove_btn"], r["cancel_btn"], r["note_id"], r["hyp_id"], r["hyp_rev"]])
 
     return {
         "tab": tab,

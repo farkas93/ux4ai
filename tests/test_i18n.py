@@ -1,7 +1,7 @@
 
 from aipm_toolkit.i18n import SUPPORTED_LANGUAGES, load_catalog
 
-SECTION_KEYS = {"Project Setup", "Assessment", "Backlog creator", "Prioritization", "Summary & Export"}
+SECTION_KEYS = {"Project Setup", "Assessment", "AI Safety", "Self-Improvement", "Backlog creator", "Prioritization", "Summary & Export", "Project History"}
 
 
 def test_supported_catalogs_have_all_sections():

@@ -3,7 +3,16 @@
 import gradio as gr
 
 from ..i18n import load_catalog
-from . import tabs_assessment, tabs_backlog, tabs_history, tabs_priority, tabs_setup, tabs_summary
+from . import (
+    tabs_assessment,
+    tabs_backlog,
+    tabs_history,
+    tabs_improvement,
+    tabs_priority,
+    tabs_safety,
+    tabs_setup,
+    tabs_summary,
+)
 from .callbacks import (
     archive_backlog_row_from_ui,
     auto_login,
@@ -27,6 +36,7 @@ from .callbacks import (
     summary_preview_from_ui,
     workspace,
 )
+from .safety_callbacks import load_loop_choices_ui, load_safety_ui
 
 LANGUAGE_CHOICES = [("English", "en"), ("Deutsch", "de")]
 
@@ -140,6 +150,8 @@ def build_app():
             with gr.Tabs():
                 setup = tabs_setup.build_setup_tab(token, product_dropdown, project_revision, status)
                 assessment = tabs_assessment.build_assessment_tab(token, product_dropdown, status)
+                safety = tabs_safety.build_safety_tab(token, product_dropdown, status)
+                improvement = tabs_improvement.build_improvement_tab(token, product_dropdown, status)
                 backlog = tabs_backlog.build_backlog_tab(token, product_dropdown, status)
                 priority = tabs_priority.build_priority_tab(token, product_dropdown, status)
                 summary = tabs_summary.build_summary_tab(token, product_dropdown, status)
@@ -164,8 +176,6 @@ def build_app():
             (summary["pdf_download"], "pdf_export", "PDF export"),
             (summary["json_download"], "json_export", "JSON export"),
             (summary["markdown_download"], "markdown_export", "Markdown export"),
-            (assessment["risk_score"], "risk_score", "Optional subjective risk estimate"),
-            (assessment["feedback_signal"], "feedback_signal", "Signal to collect"),
         ]
 
         def update_ui_labels(language):
@@ -205,6 +215,8 @@ def build_app():
                     assessment["assessment_components"] + [assessment["assessment_revisions"]],
                 )
                 .then(lambda: False, outputs=assessment["assessment_dirty"])
+                .then(load_safety_ui, [token, product_dropdown], safety["inputs"] + [safety["revision"], safety["card"]])
+                .then(load_loop_choices_ui, [token, product_dropdown], [improvement["selector"], *improvement["fields"], improvement["card"]])
                 .then(
                     load_comparator_choices,
                     outputs=assessment["comparator"],
@@ -327,5 +339,11 @@ def build_app():
                 status,
             )
             _refresh_backlog_workspace(removed_event)
+            r["cancel_btn"].click(
+                load_backlog_table_from_ui, [token, product_dropdown], backlog["table_flat_outputs"] + [backlog["visible_rows_count"]],
+            )
+
+        for event in [*assessment["note_events"], *safety["hypothesis_events"]]:
+            event.then(load_backlog_table_from_ui, [token, product_dropdown], backlog["table_flat_outputs"] + [backlog["visible_rows_count"]])
 
     return app

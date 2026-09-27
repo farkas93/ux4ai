@@ -359,6 +359,54 @@ class ProjectReflection(Base):
     __table_args__ = (UniqueConstraint("project_id", "reflection_type", name="uq_project_reflection_type"),)
 
 
+class SafetyAssessment(Base):
+    __tablename__ = "safety_assessments"
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    project_id: Mapped[UUID] = mapped_column(ForeignKey("projects.id"), unique=True, nullable=False)
+    critical_risk: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class SafetyCheckpoint(Base):
+    __tablename__ = "safety_checkpoints"
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    assessment_id: Mapped[UUID] = mapped_column(ForeignKey("safety_assessments.id"), nullable=False)
+    checkpoint_key: Mapped[str] = mapped_column(String(30), nullable=False)
+    coverage: Mapped[str | None] = mapped_column(String(30))
+    maturity: Mapped[str | None] = mapped_column(String(20))
+    evidence: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    __table_args__ = (UniqueConstraint("assessment_id", "checkpoint_key", name="uq_safety_checkpoint"),)
+
+
+class SafetyHypothesisLink(Base):
+    __tablename__ = "safety_hypothesis_links"
+
+    hypothesis_id: Mapped[UUID] = mapped_column(ForeignKey("hypotheses.id"), primary_key=True)
+    checkpoint_key: Mapped[str] = mapped_column(String(30), nullable=False)
+
+
+class ImprovementLoop(Base):
+    __tablename__ = "improvement_loops"
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    project_id: Mapped[UUID] = mapped_column(ForeignKey("projects.id"), nullable=False)
+    name: Mapped[str] = mapped_column(String(300), nullable=False)
+    capabilities_json: Mapped[str] = mapped_column(Text, default="{}", nullable=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="intended")
+    change_scopes_json: Mapped[str] = mapped_column(Text, default="[]", nullable=False)
+    recursion_scope: Mapped[str] = mapped_column(String(30), nullable=False, default="product_behavior")
+    approval_boundary: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    release_approval: Mapped[str] = mapped_column(String(30), nullable=False, default="unspecified")
+    success_checks: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    rollback: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
 class ProjectEvent(Base):
     __tablename__ = "project_events"
 

@@ -18,7 +18,7 @@ def test_authenticated_workspace_smoke(page):
     page.get_by_label("Password").fill(password)
     page.get_by_role("button", name="Sign in").click()
     page.wait_for_url("**/app**")
-    for tab in ("Project Setup", "Assessment", "Backlog creator", "Prioritization", "Summary & Export"):
+    for tab in ("Project Setup", "Assessment", "AI Safety", "Self-Improvement", "Backlog creator", "Prioritization", "Summary & Export", "Project History"):
         assert page.get_by_role("tab", name=tab).count() == 1
     page.get_by_role("tab", name="Assessment").click()
     assert page.get_by_text("Live dimension profile", exact=False).count() > 0

@@ -594,7 +594,7 @@ MAX_BACKLOG_ROWS = 16
 
 
 def show_next_row_from_ui(current_visible: int | None):
-    count = min((current_visible or 1) + 1, MAX_BACKLOG_ROWS)
+    count = min((current_visible or 0) + 1, MAX_BACKLOG_ROWS)
     return count, *(gr.update(visible=(i < count)) for i in range(MAX_BACKLOG_ROWS))
 
 
@@ -638,7 +638,7 @@ def save_backlog_row_from_ui(
             user = get_authenticated_user(db, token)
             project = get_project(db, user, UUID(project_id))
 
-            clean_dim = (dimension_key or "conversational").strip()
+            clean_dim = (dimension_key or "").strip()
             if clean_dim not in {definition["key"] for definition in DEFAULT_DIMENSIONS}:
                 raise ValueError("Select one valid product dimension")
             clean_assumption = (assumption_text or "").strip()
@@ -821,20 +821,20 @@ def load_backlog_table_from_ui(
     token = _resolve_token(token, request)
     empty_slot = (
         gr.update(visible=False),
-        gr.update(value="conversational"),
+        gr.update(value=None),
         "",
         "",
         "",
+        gr.update(visible=False),
         gr.update(visible=False),
         None,
         None,
         None,
     )
     if not project_id:
-        row_0 = (gr.update(visible=True), gr.update(value="conversational"), "", "", "", gr.update(visible=False), None, None, None)
-        slots = [row_0] + [empty_slot for _ in range(MAX_BACKLOG_ROWS - 1)]
+        slots = [empty_slot for _ in range(MAX_BACKLOG_ROWS)]
         flat = [val for slot in slots for val in slot]
-        return (*flat, 1)
+        return (*flat, 0)
 
     with SessionLocal() as db:
         try:
@@ -901,7 +901,7 @@ def load_backlog_table_from_ui(
 
             for hyp in hypotheses:
                 if hyp.id not in used_hyp_ids:
-                    dim = hyp_dims.get(hyp.id, "conversational")
+                    dim = hyp_dims.get(hyp.id)
                     rows.append({
                         "dim": dim,
                         "assumption": "",
@@ -924,33 +924,21 @@ def load_backlog_table_from_ui(
                         r["question"],
                         r["hypothesis"],
                         gr.update(visible=bool(r["note_id"] or r["hyp_id"])),
+                        gr.update(visible=False),
                         r["note_id"],
                         r["hyp_id"],
                         r["hyp_rev"],
                     ))
-                elif i == m:
-                    slots.append((
-                        gr.update(visible=True),
-                        gr.update(value="conversational"),
-                        "",
-                        "",
-                        "",
-                        gr.update(visible=False),
-                        None,
-                        None,
-                        None,
-                    ))
                 else:
                     slots.append(empty_slot)
 
-            visible_count = min(m + 1, MAX_BACKLOG_ROWS)
+            visible_count = min(m, MAX_BACKLOG_ROWS)
             flat = [val for slot in slots for val in slot]
             return (*flat, visible_count)
         except (AuthenticationError, AuthorizationError, ValueError):
-            row_0 = (gr.update(visible=True), gr.update(value="conversational"), "", "", "", gr.update(visible=False), None, None, None)
-            slots = [row_0] + [empty_slot for _ in range(MAX_BACKLOG_ROWS - 1)]
+            slots = [empty_slot for _ in range(MAX_BACKLOG_ROWS)]
             flat = [val for slot in slots for val in slot]
-            return (*flat, 1)
+            return (*flat, 0)
 
 
 def backlog_columns_from_ui(token: str | None, project_id: str | None, request: gr.Request | None = None):

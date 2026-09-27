@@ -3,9 +3,12 @@
   "sections": {
     "Project Setup": "Kontext: Produktidee, Zielgruppe, Aufgabe, Problem, Prototyp und zentrale Wertehypothese definieren.",
     "Assessment": "Einschätzung: Alle fünf Dimensionen bewerten, Fragen und Annahmen festhalten und optional mit einem historischen Produkt vergleichen.",
+    "AI Safety": "Sechs Prüfpunkte zur Sicherheitsgestaltung bewerten; die Abdeckung ist keine Garantie für Produktsicherheit.",
+    "Self-Improvement": "Jede KI-gestützte Verbesserungsschleife einzeln beschreiben und einordnen.",
     "Backlog creator": "Hypothesen bilden: Aus Fragen und Annahmen Unterstützungshypothesen ableiten und mit dem Wert verknüpfen.",
     "Prioritization": "Priorisieren: Hypothesen nach Risiko und Evidenz ordnen und das nächste Experiment planen.",
-    "Summary & Export": "Überblick: Checklistenfortschritt prüfen und Produktdatensatz herunterladen."
+    "Summary & Export": "Überblick: Checklistenfortschritt prüfen und Produktdatensatz herunterladen.",
+    "Project History": "Änderungen an diesem Produkt ansehen."
   },
   "labels": {
     "language": "Sprache",

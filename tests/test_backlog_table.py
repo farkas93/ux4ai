@@ -46,9 +46,11 @@ def test_load_backlog_table_unpacks_correct_flat_count(db, monkeypatch):
     monkeypatch.setattr(cb_mod, "SessionLocal", lambda: db)
     monkeypatch.setattr(cb_mod, "get_authenticated_user", lambda _db, _token: user)
 
-    # 16 slots * 9 components + 1 extra (visible_count) = 145
+    # 16 slots * 10 components + 1 extra (visible_count) = 161
     results = load_backlog_table_from_ui("token", str(project.id))
-    assert len(results) == MAX_BACKLOG_ROWS * 9 + 1
+    assert len(results) == MAX_BACKLOG_ROWS * 10 + 1
+    assert results[-1] == 0
+    assert results[0]["visible"] is False
     # Ensure outputs are flat
     assert not isinstance(results[0], (list, tuple))
 
@@ -171,7 +173,7 @@ def test_remove_archives_entry_preserving_experiment_and_history(db, monkeypatch
     assert db.get(Experiment, experiment.id).primary_hypothesis_id == UUID(hyp_id)
 
     loaded = load_backlog_table_from_ui("token", str(project.id))
-    assert loaded[-1] == 2
+    assert loaded[-1] == 1
     assert loaded[2] == ""
     assert loaded[3] == "Can they intervene?"
     assert loaded[5]["visible"] is True

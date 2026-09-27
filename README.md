@@ -118,9 +118,11 @@ Instructor accounts now have a course overview with per-project checklist progre
 
 Instructors can also create course/team accounts from the instructor area. Passwords are Argon2-hashed immediately and are never included in project content or exports; the initial password should be shared through a separate secure channel.
 
-The workspace also includes separate adversarial-risk and feedback-loop reflections. Risk scores are optional subjective discussion inputs; they are not mixed into the five dimension profile or presented as calibrated security assessments.
+Assessment focuses on the five product dimensions, current rubric questions and assumptions, and the radar comparison. You can add questions and assumptions within each dimension and edit or move them in Backlog Creator. Saved backlog rows can be removed, while new rows are shown only after clicking **+ Add Row** (with **Cancel** for unsaved rows).
 
-The team workspace now exposes the six workshop sections through an explicit section selector and numbered context headings. The integration suite exercises a representative create, reload, assess, hypothesize, experiment, and export journey.
+**AI Safety** has six design checkpoints (scope, harms, controls, evaluation, response, and ownership). Each has coverage, maturity, evidence, and a way to create a linked supporting hypothesis. Not addressed is a definite zero; unknown or unanswered items yield a possible coverage range. Coverage is not product safety, and a team's "Tested" choice does not certify testing quality. **Self-Improvement** tracks multiple named loops separately: five guided capabilities, explicit questions about automatic experiments and bounded application, release approval, checks, recovery, and a provisional course-specific level 0–5. Legacy adversarial-risk and feedback-loop reflections remain available in JSON exports; they are not silently interpreted as the new assessments.
+
+The team workspace exposes the workshop sections through tabs. The integration suite exercises a representative create, reload, assess, hypothesize, experiment, and export journey.
 
 English and German resource catalogs are validated at startup. The workspace language selector changes section context text while preserving stable internal keys and stored project content; remaining field labels will be migrated to the same catalog in the next localization pass.
 

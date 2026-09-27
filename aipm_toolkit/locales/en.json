@@ -3,9 +3,12 @@
   "sections": {
     "Project Setup": "Context: define the product concept, target user, job, problem, prototype, and main value hypothesis.",
     "Assessment": "Estimate: assess all five dimensions, record questions and assumptions, and compare against an optional historical product.",
+    "AI Safety": "Assess six safety design checkpoints. Coverage is not a claim that the product is safe.",
+    "Self-Improvement": "Describe and classify each AI-assisted improvement loop separately.",
     "Backlog creator": "Hypothesize: derive supporting hypotheses from your questions and assumptions and connect them to value.",
     "Prioritization": "Prioritize: rank hypotheses by risk and evidence and plan the next experiment.",
-    "Summary & Export": "Review: inspect checklist progress and download the product record."
+    "Summary & Export": "Review: inspect checklist progress and download the product record.",
+    "Project History": "Review changes made to this product."
   },
   "labels": {
     "language": "Language",

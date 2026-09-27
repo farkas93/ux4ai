@@ -1,14 +1,13 @@
-"""Assessment tab: dimension sliders with reasoning and inline notes (left), comparator and live radar (right), reflections below."""
+"""Assessment tab: dimensions, current notes, historical comparator and radar."""
 
 import gradio as gr
 
 from ..dimensions import DEFAULT_DIMENSIONS
 from .callbacks import (
+    add_dimension_note_from_ui,
     live_profile_from_ui,
     on_comparator_selected,
     save_assessments_action,
-    save_feedback_reflection_from_ui,
-    save_risk_reflection_from_ui,
 )
 
 
@@ -22,13 +21,14 @@ def build_assessment_tab(token, product_dropdown, status):
             with gr.Column(scale=3):
                 gr.Markdown("### Product Dimensions")
                 gr.Markdown("Set your product's intended characteristic (0.0 to 5.0) and record key reasoning.")
-                gr.Markdown("Questions and assumptions are managed in **Backlog Creator**. Moving an entry there updates its current dimension assignment here.")
+                gr.Markdown("Add questions and assumptions here; edit, move or remove them in **Backlog Creator**.")
 
                 sliders = []
                 reasoning_fields = []
                 assessment_components = []
                 dimension_note_states = []
                 dimension_note_lists = []
+                note_events = []
 
                 for index, definition in enumerate(DEFAULT_DIMENSIONS):
                     with gr.Accordion(f"{definition['title']}", open=(index == 0)):
@@ -63,6 +63,11 @@ def build_assessment_tab(token, product_dropdown, status):
                             placeholder="No questions or assumptions for this dimension yet.",
                         )
                         dimension_note_lists.append(notes_list)
+                        with gr.Row():
+                            note_type = gr.Radio(choices=["Question", "Assumption"], value="Question", label="Add")
+                            note_text = gr.Textbox(label="Question or assumption", placeholder="What should the team test?", scale=3)
+                            add_button = gr.Button("Add", scale=1)
+                        note_events.append(add_button.click(add_dimension_note_from_ui, [token, product_dropdown, dim_key_state, note_type, note_text], [status, notes_list, note_text]))
 
                 assessment_revisions = gr.State([])
                 assessment_dirty = gr.State(False)
@@ -122,37 +127,6 @@ def build_assessment_tab(token, product_dropdown, status):
             [status, assessment_revisions, assessment_dirty],
         )
 
-        # BELOW: Adversarial-Risk and Feedback-Loop Reflections
-        gr.Markdown("## Adversarial-Risk Reflection")
-        gr.Markdown("Distinguish malicious manipulation from ordinary incorrect outputs. Any score here is a discussion input, not a calibrated security assessment.")
-        risk_score = gr.Slider(label="Optional subjective risk estimate", minimum=0, maximum=5, step=0.1, value=None)
-        risk_entry = gr.Textbox(label="Plausible attack entry point", lines=2)
-        risk_behavior = gr.Textbox(label="Unwanted behavior", lines=2)
-        risk_affected = gr.Textbox(label="Affected data or action", lines=2)
-        risk_consequence = gr.Textbox(label="Consequence", lines=2)
-        risk_safeguard = gr.Textbox(label="Proposed safeguard", lines=2)
-        risk_uncertainty = gr.Textbox(label="Remaining uncertainty", lines=2)
-        save_risk_button = gr.Button("Save risk reflection")
-
-        gr.Markdown("## Feedback-Loop Reflection")
-        feedback_signal = gr.Textbox(label="Signal to collect", lines=2)
-        feedback_meaning = gr.Textbox(label="What the signal might reveal", lines=2)
-        feedback_change = gr.Textbox(label="Possible product change", lines=2)
-        feedback_human = gr.Textbox(label="Human interpretation or approval needed", lines=2)
-        feedback_evaluation = gr.Textbox(label="Evaluation after the change", lines=2)
-        save_feedback_button = gr.Button("Save feedback-loop reflection")
-
-        save_risk_button.click(
-            save_risk_reflection_from_ui,
-            [token, product_dropdown, risk_score, risk_entry, risk_behavior, risk_affected, risk_consequence, risk_safeguard, risk_uncertainty],
-            status,
-        )
-        save_feedback_button.click(
-            save_feedback_reflection_from_ui,
-            [token, product_dropdown, feedback_signal, feedback_meaning, feedback_change, feedback_human, feedback_evaluation],
-            status,
-        )
-
     return {
         "tab": tab,
         "sliders": sliders,
@@ -162,10 +136,9 @@ def build_assessment_tab(token, product_dropdown, status):
         "assessment_dirty": assessment_dirty,
         "dimension_note_states": dimension_note_states,
         "dimension_note_lists": dimension_note_lists,
+        "note_events": note_events,
         "comparator": comparator_dropdown,
         "comparison_table": comparison_table,
         "live_chart": live_chart,
         "frozen_state": frozen_state,
-        "risk_score": risk_score,
-        "feedback_signal": feedback_signal,
     }

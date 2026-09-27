@@ -9,6 +9,7 @@ from fpdf import FPDF
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from .improvement_services import classify_loop
 from .models import (
     BaselineDataset,
     ComparisonSnapshot,
@@ -17,15 +18,20 @@ from .models import (
     Hypothesis,
     HypothesisDimension,
     HypothesisRelation,
+    ImprovementLoop,
     Note,
     NoteDimension,
     Product,
     Project,
     ProjectEvent,
     ProjectReflection,
+    SafetyAssessment,
+    SafetyCheckpoint,
+    SafetyHypothesisLink,
     ScaleDefinition,
     User,
 )
+from .safety_services import safety_result
 from .services import get_project
 
 EXPORT_SCHEMA_VERSION = "1.0"
@@ -64,6 +70,10 @@ def build_project_export(db: Session, actor: User, project_id: UUID) -> dict:
     scales = list(db.scalars(select(ScaleDefinition).where(ScaleDefinition.version == 1).order_by(ScaleDefinition.key)))
     experiments = list(db.scalars(select(Experiment).where(Experiment.project_id == project_id).order_by(Experiment.created_at)))
     reflections = list(db.scalars(select(ProjectReflection).where(ProjectReflection.project_id == project_id)))
+    safety = db.scalar(select(SafetyAssessment).where(SafetyAssessment.project_id == project_id))
+    safety_checkpoints = list(db.scalars(select(SafetyCheckpoint).where(SafetyCheckpoint.assessment_id == safety.id))) if safety else []
+    loops = list(db.scalars(select(ImprovementLoop).where(ImprovementLoop.project_id == project_id).order_by(ImprovementLoop.created_at)))
+    safety_links = list(db.scalars(select(SafetyHypothesisLink).where(SafetyHypothesisLink.hypothesis_id.in_(hypothesis_ids)))) if hypothesis_ids else []
     relations = list(db.scalars(select(HypothesisRelation).where(HypothesisRelation.project_id == project_id)))
     history = db.execute(
         select(ProjectEvent, User.username)
@@ -83,6 +93,9 @@ def build_project_export(db: Session, actor: User, project_id: UUID) -> dict:
         "hypothesis_relationships": [_record(HypothesisRelation, item) for item in relations],
         "experiments": [_record(Experiment, item) for item in experiments],
         "reflections": [_record(ProjectReflection, item) for item in reflections],
+        "safety_assessment": {**_record(SafetyAssessment, safety), "checkpoints": [_record(SafetyCheckpoint, item) for item in safety_checkpoints], "coverage_summary": safety_result([{"key": item.checkpoint_key, "coverage": item.coverage, "maturity": item.maturity} for item in safety_checkpoints], safety.critical_risk)} if safety else None,
+        "safety_hypothesis_links": [_record(SafetyHypothesisLink, item) for item in safety_links],
+        "improvement_loops": [{**_record(ImprovementLoop, item), "capabilities": json.loads(item.capabilities_json), "change_scopes": json.loads(item.change_scopes_json), "classification": classify_loop({key: answer["answer"] for key, answer in json.loads(item.capabilities_json).items()}, item.release_approval, item.success_checks, item.rollback, item.approval_boundary)} for item in loops],
         "project_history": [
             {
                 "id": str(event.id),
@@ -110,6 +123,22 @@ def export_project_markdown(db: Session, actor: User, project_id: UUID) -> str:
     lines = [f"# {project['product_name']}", "", f"> {WARNING}", "", "## Product and Value Hypothesis", f"- Short description: {project['short_description']}", f"- Target user: {project['target_user']}", f"- Job to be done: {project['job_to_be_done']}", f"- Current problem: {project['current_problem']}", f"- Main value hypothesis: {(main or {}).get('statement', '')}", "", "## Dimension Profile"]
     for assessment in document["dimension_assessments"]:
         lines.append(f"- {assessment['dimension_key']}: {assessment['status']}" + (f" ({assessment['score']}/5)" if assessment["score"] is not None else "") + f". {assessment['rationale']}")
+    lines.extend(["", "## AI Safety (design coverage, not product safety)"])
+    if document["safety_assessment"]:
+        safety = document["safety_assessment"]
+        result = safety["coverage_summary"]
+        lines.append(f"- Coverage: {result['score'] if result['score'] is not None else result['range']} / 5; incomplete: {result['incomplete']}; marked Tested: {result['tested']}/6 (team claim)")
+        lines.append(f"- Critical unresolved risk: {safety['critical_risk'] or 'Not specified'}")
+        for row in safety["checkpoints"]:
+            lines.append(f"- {row['checkpoint_key']}: {row['coverage'] or 'unassessed'} / {row['maturity'] or 'unassessed'} — {row['evidence']}")
+    else:
+        lines.append("- Not assessed.")
+    lines.extend(["", "## Self-Improvement (course-specific classification)"])
+    for loop in document["improvement_loops"]:
+        result = loop["classification"]
+        lines.append(f"- {loop['name']}: Level {result['level']} ({result['name']}); status: {loop['status']}; potential: {result['possible_level']} if unknowns resolve; scope: {', '.join(loop['change_scopes'])}; release approval: {loop['release_approval']}")
+    if not document["improvement_loops"]:
+        lines.append("- No improvement loops assessed.")
     lines.extend(["", "## Comparator and Provenance"])
     if document["comparison_snapshots"]:
         for snapshot in document["comparison_snapshots"]:
@@ -265,6 +294,24 @@ def export_project_pdf(db: Session, actor: User, project_id: UUID) -> bytes:
             pdf.multi_cell(0, 5, _pdf_text(f"[{note['note_type']}] {note['text']}", unicode_font), new_x="LMARGIN", new_y="NEXT")
     for experiment in document["experiments"]:
         pdf.multi_cell(0, 5, _pdf_text(f"[experiment: {experiment['status']}] {experiment['title']} - criterion: {experiment['success_criterion']}", unicode_font), new_x="LMARGIN", new_y="NEXT")
+    pdf.add_page()
+    pdf.set_font(font, size=14)
+    pdf.cell(0, 8, "AI safety design coverage", new_x="LMARGIN", new_y="NEXT")
+    pdf.set_font(font, size=9)
+    safety = document["safety_assessment"]
+    if safety:
+        result = safety["coverage_summary"]
+        score_label = f"{result['score']}/5" if result["score"] is not None else f"{result['range'][0]}-{result['range'][1]}/5 possible ({result['incomplete']} incomplete)"
+        pdf.multi_cell(0, 5, _pdf_text(f"Coverage: {score_label}; {result['tested']}/6 marked Tested (team claim, not certification).", unicode_font), new_x="LMARGIN", new_y="NEXT")
+        pdf.multi_cell(0, 5, _pdf_text(f"Critical unresolved risk: {safety['critical_risk'] or 'Not specified'}", unicode_font), new_x="LMARGIN", new_y="NEXT")
+    else:
+        pdf.multi_cell(0, 5, "Not assessed.", new_x="LMARGIN", new_y="NEXT")
+    pdf.set_font(font, size=14)
+    pdf.cell(0, 8, "Self-improvement (course-specific)", new_x="LMARGIN", new_y="NEXT")
+    pdf.set_font(font, size=9)
+    for loop in document["improvement_loops"]:
+        result = loop["classification"]
+        pdf.multi_cell(0, 5, _pdf_text(f"{loop['name']}: level {result['level']} - {result['name']}; status: {loop['status']}", unicode_font), new_x="LMARGIN", new_y="NEXT")
     if document["project_history"]:
         pdf.add_page()
         pdf.set_font(font, size=14)
