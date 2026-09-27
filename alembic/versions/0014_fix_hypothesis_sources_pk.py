@@ -5,6 +5,7 @@ Revises: 0013_import_batches
 """
 
 import sqlalchemy as sa
+
 from alembic import op
 
 revision = "0014_fix_hypothesis_sources_pk"

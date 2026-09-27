@@ -17,6 +17,7 @@ from .models import (
     RelationshipType,
     User,
 )
+from .project_history_services import record_project_event
 from .services import get_project
 
 
@@ -25,6 +26,8 @@ def create_note(db: Session, actor: User, project_id: UUID, note_type: str, text
     if note_type not in {item.value for item in NoteType} or not text.strip():
         raise ValueError("A note requires a valid type and text")
     dimensions = dimensions or []
+    if len(set(dimensions)) > 1:
+        raise ValueError("A backlog entry can be assigned to only one dimension")
     if not set(dimensions).issubset(DIMENSION_KEYS):
         raise ValueError("Unknown note dimension")
     note = Note(project_id=project_id, note_type=note_type, text=text.strip())
@@ -32,33 +35,50 @@ def create_note(db: Session, actor: User, project_id: UUID, note_type: str, text
     db.flush()
     for dimension in dimensions:
         db.add(NoteDimension(note_id=note.id, dimension_key=dimension))
+    record_project_event(db, actor, project_id, "backlog.note_created", "note", note.id, f"Added {note_type}", {"text": note.text, "dimensions": dimensions})
     db.commit()
     return note
 
 
 def list_notes(db: Session, actor: User, project_id: UUID) -> list[Note]:
     get_project(db, actor, project_id)
-    return list(db.scalars(select(Note).where(Note.project_id == project_id).order_by(Note.created_at.desc())))
+    return list(db.scalars(select(Note).where(Note.project_id == project_id, Note.archived_at.is_(None)).order_by(Note.created_at.desc())))
 
 
 def update_note(db: Session, actor: User, note_id: UUID, revision: int, note_type: str, text: str, dimensions: list[str] | None = None) -> Note:
     note = db.get(Note, note_id)
     if note is None:
         raise AuthorizationError("Note not found")
+    if note.archived_at is not None:
+        raise AuthorizationError("Archived notes cannot be edited")
     get_project(db, actor, note.project_id)
     if note.revision != revision:
         raise RevisionConflict("The note changed since it was loaded")
     if note_type not in {item.value for item in NoteType} or not text.strip():
         raise ValueError("A note requires a valid type and text")
     dimensions = dimensions or []
+    if len(set(dimensions)) > 1:
+        raise ValueError("A backlog entry can be assigned to only one dimension")
     if not set(dimensions).issubset(DIMENSION_KEYS):
         raise ValueError("Unknown note dimension")
+    before_dimensions = list(db.scalars(select(NoteDimension.dimension_key).where(NoteDimension.note_id == note_id)))
+    before = {"note_type": note.note_type, "text": note.text, "dimensions": before_dimensions}
     note.note_type = note_type
     note.text = text.strip()
     db.execute(delete(NoteDimension).where(NoteDimension.note_id == note_id))
     for dimension in dimensions:
         db.add(NoteDimension(note_id=note_id, dimension_key=dimension))
     note.revision += 1
+    record_project_event(
+        db,
+        actor,
+        note.project_id,
+        "backlog.note_updated",
+        "note",
+        note.id,
+        f"Updated {note_type}",
+        {"before": before, "after": {"note_type": note.note_type, "text": note.text, "dimensions": dimensions}},
+    )
     db.commit()
     return note
 
@@ -72,6 +92,8 @@ def create_hypothesis(db: Session, actor: User, project_id: UUID, statement: str
         if existing:
             raise ValueError("A project can have only one main hypothesis")
     dimensions = dimensions or []
+    if len(set(dimensions)) > 1:
+        raise ValueError("A backlog entry can be assigned to only one dimension")
     if not set(dimensions).issubset(DIMENSION_KEYS):
         raise ValueError("Unknown hypothesis dimension")
     hypothesis = Hypothesis(project_id=project_id, kind=kind, statement=statement.strip(), value_link=value_link.strip())
@@ -81,9 +103,19 @@ def create_hypothesis(db: Session, actor: User, project_id: UUID, statement: str
         db.add(HypothesisDimension(hypothesis_id=hypothesis.id, dimension_key=dimension))
     if note_id:
         note = db.get(Note, note_id)
-        if note is None or note.project_id != project_id:
+        if note is None or note.project_id != project_id or note.archived_at is not None:
             raise AuthorizationError("Note does not belong to this project")
         db.add(HypothesisSource(hypothesis_id=hypothesis.id, note_id=note_id))
+    record_project_event(
+        db,
+        actor,
+        project_id,
+        "backlog.hypothesis_created",
+        "hypothesis",
+        hypothesis.id,
+        "Added supporting hypothesis" if kind == HypothesisKind.SUPPORTING.value else "Added main hypothesis",
+        {"statement": hypothesis.statement, "dimensions": dimensions},
+    )
     db.commit()
     return hypothesis
 
@@ -92,8 +124,11 @@ def update_hypothesis(db: Session, actor: User, hypothesis_id: UUID, revision: i
     hypothesis = db.get(Hypothesis, hypothesis_id)
     if hypothesis is None:
         raise AuthorizationError("Hypothesis not found")
+    if hypothesis.archived_at is not None:
+        raise AuthorizationError("Archived hypotheses cannot be edited")
     get_project(db, actor, hypothesis.project_id)
     allowed = {"statement", "value_link", "expected_tradeoff", "impact_if_wrong", "evidence_strength", "evidence_rationale", "workflow_status", "review_conclusion", "next_decision"}
+    before = {key: getattr(hypothesis, key) for key in allowed}
     for key, value in fields.items():
         if key in allowed:
             setattr(hypothesis, key, value.strip() if isinstance(value, str) else value)
@@ -102,6 +137,10 @@ def update_hypothesis(db: Session, actor: User, hypothesis_id: UUID, revision: i
     if hypothesis.revision != revision:
         raise RevisionConflict("The hypothesis changed since it was loaded")
     hypothesis.revision += 1
+    after = {key: getattr(hypothesis, key) for key in allowed}
+    changed = {key: {"before": before[key], "after": after[key]} for key in allowed if before[key] != after[key]}
+    if changed:
+        record_project_event(db, actor, hypothesis.project_id, "hypothesis.updated", "hypothesis", hypothesis.id, "Updated hypothesis", changed)
     db.commit()
     return hypothesis
 
@@ -110,6 +149,8 @@ def set_placement(db: Session, actor: User, hypothesis_id: UUID, revision: int, 
     hypothesis = db.get(Hypothesis, hypothesis_id)
     if hypothesis is None:
         raise AuthorizationError("Hypothesis not found")
+    if hypothesis.archived_at is not None:
+        raise AuthorizationError("Archived hypotheses cannot be edited")
     get_project(db, actor, hypothesis.project_id)
     if hypothesis.revision != revision:
         raise RevisionConflict("The hypothesis changed since it was loaded")
@@ -119,6 +160,16 @@ def set_placement(db: Session, actor: User, hypothesis_id: UUID, revision: int, 
     hypothesis.priority_risk = float(risk)
     hypothesis.priority_evidence = float(evidence)
     hypothesis.revision += 1
+    record_project_event(
+        db,
+        actor,
+        hypothesis.project_id,
+        "hypothesis.priority_updated",
+        "hypothesis",
+        hypothesis.id,
+        "Updated hypothesis priority placement",
+        {"risk": hypothesis.priority_risk, "evidence": hypothesis.priority_evidence},
+    )
     db.commit()
     return hypothesis
 
@@ -135,7 +186,7 @@ def add_relation(db: Session, actor: User, project_id: UUID, relation_type: str,
         raise ValueError("Invalid hypothesis relationship")
     source = db.get(Hypothesis, source_id)
     target = db.get(Hypothesis, target_id)
-    if source is None or target is None or source.project_id != project_id or target.project_id != project_id:
+    if source is None or target is None or source.archived_at is not None or target.archived_at is not None or source.project_id != project_id or target.project_id != project_id:
         raise AuthorizationError("Hypotheses must belong to the same project")
     source_id, target_id = _relation_pair(relation_type, source_id, target_id)
     if relation_type == RelationshipType.DEPENDS_ON.value:
@@ -155,5 +206,15 @@ def add_relation(db: Session, actor: User, project_id: UUID, relation_type: str,
                 stack.extend(graph.get(node, ()))
     relation = HypothesisRelation(project_id=project_id, relation_type=relation_type, from_hypothesis_id=source_id, to_hypothesis_id=target_id)
     db.add(relation)
+    record_project_event(
+        db,
+        actor,
+        project_id,
+        "hypothesis.relation_added",
+        "hypothesis_relation",
+        relation.id,
+        f"Linked hypotheses ({relation_type.replace('_', ' ')})",
+        {"from_hypothesis_id": source_id, "to_hypothesis_id": target_id, "relation_type": relation_type},
+    )
     db.commit()
     return relation

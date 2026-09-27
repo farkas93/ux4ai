@@ -4,15 +4,12 @@ import gradio as gr
 
 from ..dimensions import DEFAULT_DIMENSIONS
 from .callbacks import (
-    add_dimension_note_from_ui,
     live_profile_from_ui,
     on_comparator_selected,
     save_assessments_action,
     save_feedback_reflection_from_ui,
     save_risk_reflection_from_ui,
 )
-
-DIMENSION_NOTE_CHOICES = ["Question", "Assumption"]
 
 
 def build_assessment_tab(token, product_dropdown, status):
@@ -25,6 +22,7 @@ def build_assessment_tab(token, product_dropdown, status):
             with gr.Column(scale=3):
                 gr.Markdown("### Product Dimensions")
                 gr.Markdown("Set your product's intended characteristic (0.0 to 5.0) and record key reasoning.")
+                gr.Markdown("Questions and assumptions are managed in **Backlog Creator**. Moving an entry there updates its current dimension assignment here.")
 
                 sliders = []
                 reasoning_fields = []
@@ -57,34 +55,14 @@ def build_assessment_tab(token, product_dropdown, status):
                         dim_key_state = gr.State(definition["key"])
                         dimension_note_states.append(dim_key_state)
 
-                        gr.Markdown("#### Questions & Assumptions")
-                        with gr.Row():
-                            note_type = gr.Dropdown(
-                                choices=DIMENSION_NOTE_CHOICES,
-                                value="Question",
-                                label="Type",
-                                scale=1,
-                            )
-                            note_input = gr.Textbox(
-                                placeholder="Add a question or assumption to test...",
-                                show_label=False,
-                                scale=4,
-                            )
-                            add_btn = gr.Button("Add", variant="secondary", scale=1)
-
+                        gr.Markdown("#### Current Questions & Assumptions")
                         notes_list = gr.Textbox(
                             show_label=False,
                             interactive=False,
                             lines=3,
-                            placeholder="No questions or assumptions added for this dimension yet.",
+                            placeholder="No questions or assumptions for this dimension yet.",
                         )
                         dimension_note_lists.append(notes_list)
-
-                        add_btn.click(
-                            add_dimension_note_from_ui,
-                            [token, product_dropdown, dim_key_state, note_type, note_input],
-                            [status, notes_list, note_input],
-                        )
 
                 assessment_revisions = gr.State([])
                 assessment_dirty = gr.State(False)

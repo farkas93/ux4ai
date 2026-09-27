@@ -35,6 +35,9 @@ def create_project(db: Session, actor: User, product_name: str) -> Project:
     db.add(project)
     db.flush()
     db.add(Hypothesis(project_id=project.id, kind=HypothesisKind.MAIN.value))
+    from .project_history_services import record_project_event
+
+    record_project_event(db, actor, project.id, "project.created", "project", project.id, f"Created product: {project.product_name}")
     db.commit()
     return project
 

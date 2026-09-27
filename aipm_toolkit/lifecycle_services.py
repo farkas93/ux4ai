@@ -21,6 +21,7 @@ from .models import (
     HypothesisSource,
     Note,
     NoteDimension,
+    ProjectEvent,
     ProjectReflection,
     Role,
     User,
@@ -48,6 +49,7 @@ def delete_project(db: Session, actor: User, project_id: UUID, confirm: bool) ->
     db.execute(delete(DimensionEstimate).where(DimensionEstimate.project_id == project_id))
     db.execute(delete(ProjectReflection).where(ProjectReflection.project_id == project_id))
     db.execute(delete(ComparisonSnapshot).where(ComparisonSnapshot.project_id == project_id))
+    db.execute(delete(ProjectEvent).where(ProjectEvent.project_id == project_id))
     db.execute(delete(Note).where(Note.project_id == project_id))
     db.execute(delete(Hypothesis).where(Hypothesis.project_id == project_id))
     db.delete(project)

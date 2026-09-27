@@ -21,6 +21,7 @@ from .models import (
     NoteDimension,
     Product,
     Project,
+    ProjectEvent,
     ProjectReflection,
     ScaleDefinition,
     User,
@@ -64,6 +65,12 @@ def build_project_export(db: Session, actor: User, project_id: UUID) -> dict:
     experiments = list(db.scalars(select(Experiment).where(Experiment.project_id == project_id).order_by(Experiment.created_at)))
     reflections = list(db.scalars(select(ProjectReflection).where(ProjectReflection.project_id == project_id)))
     relations = list(db.scalars(select(HypothesisRelation).where(HypothesisRelation.project_id == project_id)))
+    history = db.execute(
+        select(ProjectEvent, User.username)
+        .outerjoin(User, User.id == ProjectEvent.actor_user_id)
+        .where(ProjectEvent.project_id == project_id)
+        .order_by(ProjectEvent.created_at)
+    ).all()
     return {
         "schema_version": EXPORT_SCHEMA_VERSION,
         "warning": WARNING,
@@ -76,6 +83,19 @@ def build_project_export(db: Session, actor: User, project_id: UUID) -> dict:
         "hypothesis_relationships": [_record(HypothesisRelation, item) for item in relations],
         "experiments": [_record(Experiment, item) for item in experiments],
         "reflections": [_record(ProjectReflection, item) for item in reflections],
+        "project_history": [
+            {
+                "id": str(event.id),
+                "actor": username or ("Former user" if event.actor_user_id else "System"),
+                "event_type": event.event_type,
+                "entity_type": event.entity_type,
+                "entity_id": event.entity_id,
+                "summary": event.summary,
+                "details": json.loads(event.details_json or "{}"),
+                "created_at": _json_value(event.created_at),
+            }
+            for event, username in history
+        ],
     }
 
 
@@ -86,7 +106,7 @@ def export_project_json(db: Session, actor: User, project_id: UUID) -> str:
 def export_project_markdown(db: Session, actor: User, project_id: UUID) -> str:
     document = build_project_export(db, actor, project_id)
     project = document["project"]
-    main = next((item for item in document["hypotheses"] if item["kind"] == "main"), None)
+    main = next((item for item in document["hypotheses"] if item["kind"] == "main" and item["archived_at"] is None), None)
     lines = [f"# {project['product_name']}", "", f"> {WARNING}", "", "## Product and Value Hypothesis", f"- Short description: {project['short_description']}", f"- Target user: {project['target_user']}", f"- Job to be done: {project['job_to_be_done']}", f"- Current problem: {project['current_problem']}", f"- Main value hypothesis: {(main or {}).get('statement', '')}", "", "## Dimension Profile"]
     for assessment in document["dimension_assessments"]:
         lines.append(f"- {assessment['dimension_key']}: {assessment['status']}" + (f" ({assessment['score']}/5)" if assessment["score"] is not None else "") + f". {assessment['rationale']}")
@@ -98,10 +118,12 @@ def export_project_markdown(db: Session, actor: User, project_id: UUID) -> str:
         lines.append("- No comparator selected.")
     lines.extend(["", "## Main Observations"])
     for note in document["notes"]:
-        lines.append(f"- **{note['note_type']}**: {note['text']}")
+        if note["archived_at"] is None:
+            lines.append(f"- **{note['note_type']}**: {note['text']}")
     lines.extend(["", "## Hypothesis Backlog"])
     for hypothesis in document["hypotheses"]:
-        lines.append(f"- **{hypothesis['kind']}**: {hypothesis['statement']} (risk: {hypothesis['priority_risk']}/10, evidence: {hypothesis['priority_evidence']}/10)")
+        if hypothesis["archived_at"] is None:
+            lines.append(f"- **{hypothesis['kind']}**: {hypothesis['statement']} (risk: {hypothesis['priority_risk']}/10, evidence: {hypothesis['priority_evidence']}/10)")
     lines.extend(["", "## Relationships"])
     for relation in document["hypothesis_relationships"]:
         lines.append(f"- {relation['relation_type']}: {relation['from_hypothesis_id']} -> {relation['to_hypothesis_id']}")
@@ -113,8 +135,14 @@ def export_project_markdown(db: Session, actor: User, project_id: UUID) -> str:
         lines.append("- No planned experiment.")
     lines.extend(["", "## Open Questions"])
     for note in document["notes"]:
-        if note["note_type"] == "question":
+        if note["archived_at"] is None and note["note_type"] == "question":
             lines.append(f"- {note['text']}")
+    lines.extend(["", "## Project History"])
+    if document["project_history"]:
+        for event in document["project_history"]:
+            lines.append(f"- {event['created_at']} · {event['actor']}: {event['summary']}")
+    else:
+        lines.append("- No changes recorded yet.")
     return "\n".join(lines) + "\n"
 
 
@@ -179,7 +207,7 @@ def _draw_priority_matrix(pdf: FPDF, document: dict, x: float, y: float, width: 
     pdf.cell(width, 4, "Evidence provided (0-10)", align="C")
     pdf.set_xy(x, y - 5)
     pdf.cell(width, 4, "Risk to product (0-10)", align="C")
-    supporting = [item for item in document["hypotheses"] if item["kind"] == "supporting"]
+    supporting = [item for item in document["hypotheses"] if item["kind"] == "supporting" and item["archived_at"] is None]
     for index, hypothesis in enumerate(supporting, start=1):
         evidence = min(10, max(0, float(hypothesis.get("priority_evidence", 0))))
         risk = min(10, max(0, float(hypothesis.get("priority_risk", 0))))
@@ -194,7 +222,7 @@ def _draw_priority_matrix(pdf: FPDF, document: dict, x: float, y: float, width: 
 def export_project_pdf(db: Session, actor: User, project_id: UUID) -> bytes:
     document = build_project_export(db, actor, project_id)
     project = document["project"]
-    main = next((item for item in document["hypotheses"] if item["kind"] == "main"), None)
+    main = next((item for item in document["hypotheses"] if item["kind"] == "main" and item["archived_at"] is None), None)
     pdf = FPDF()
     pdf.set_auto_page_break(auto=True, margin=14)
     pdf.add_page()
@@ -223,7 +251,7 @@ def export_project_pdf(db: Session, actor: User, project_id: UUID) -> bytes:
     _draw_priority_matrix(pdf, document, 25, 35, 155, 110, font)
     pdf.set_y(155)
     pdf.set_font(font, size=9)
-    supporting = [item for item in document["hypotheses"] if item["kind"] == "supporting"]
+    supporting = [item for item in document["hypotheses"] if item["kind"] == "supporting" and item["archived_at"] is None]
     ranked = sorted(supporting, key=lambda item: (-(float(item.get("priority_risk", 0)) + (10 - float(item.get("priority_evidence", 0)))), item["created_at"]))
     for rank, hypothesis in enumerate(ranked, start=1):
         line = f"{rank}. H{supporting.index(hypothesis) + 1}: risk {hypothesis['priority_risk']}/10, evidence {hypothesis['priority_evidence']}/10 - {hypothesis['statement']}"
@@ -233,9 +261,18 @@ def export_project_pdf(db: Session, actor: User, project_id: UUID) -> bytes:
     pdf.cell(0, 8, "Questions, assumptions, and experiments", new_x="LMARGIN", new_y="NEXT")
     pdf.set_font(font, size=9)
     for note in document["notes"]:
-        pdf.multi_cell(0, 5, _pdf_text(f"[{note['note_type']}] {note['text']}", unicode_font), new_x="LMARGIN", new_y="NEXT")
+        if note["archived_at"] is None:
+            pdf.multi_cell(0, 5, _pdf_text(f"[{note['note_type']}] {note['text']}", unicode_font), new_x="LMARGIN", new_y="NEXT")
     for experiment in document["experiments"]:
         pdf.multi_cell(0, 5, _pdf_text(f"[experiment: {experiment['status']}] {experiment['title']} - criterion: {experiment['success_criterion']}", unicode_font), new_x="LMARGIN", new_y="NEXT")
+    if document["project_history"]:
+        pdf.add_page()
+        pdf.set_font(font, size=14)
+        pdf.cell(0, 8, "Project history", new_x="LMARGIN", new_y="NEXT")
+        pdf.set_font(font, size=9)
+        for event in document["project_history"]:
+            line = f"{event['created_at']} · {event['actor']}: {event['summary']}"
+            pdf.multi_cell(0, 5, _pdf_text(line, unicode_font), new_x="LMARGIN", new_y="NEXT")
     return bytes(pdf.output())
 
 

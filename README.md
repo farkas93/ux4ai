@@ -100,7 +100,7 @@ Legacy reference imports preserve per-dimension scale metadata. The historical a
 
 Published baseline datasets are immutable. Re-importing a source file after publication skips it and reports that a replacement dataset version is required. Instructors can create an unpublished replacement version with an explicit reason, review it, and publish it separately.
 
-The workspace also includes structured Notes and a Hypothesis Backlog. Notes can be linked to dimensions and used as provenance when creating supporting hypotheses. Hypothesis relationships are project-scoped; self-links and dependency cycles are rejected.
+The workspace also includes structured Notes and a Hypothesis Backlog. Backlog entries have one current dimension assignment; moving an entry in Backlog Creator updates the current questions-and-assumptions list in Assessment. Assessment presents the current rubric and assignments, while Project History records subsequent assessment, backlog, hypothesis, experiment, reflection, and project-setup changes. Removing a backlog entry archives it from active views while preserving its history and existing experiment references. Notes can be used as provenance when creating supporting hypotheses. Hypothesis relationships are project-scoped; self-links and dependency cycles are rejected.
 
 Saved notes and hypotheses can be reopened from the workspace, edited, and saved with revision checks. Stale edits are rejected instead of silently overwriting newer content.
 

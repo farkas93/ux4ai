@@ -24,6 +24,7 @@ from ..auth import (
     authenticate,
     get_authenticated_user,
 )
+from ..backlog_services import archive_backlog_entry
 from ..baseline_services import published_datasets, select_comparator
 from ..comparison_services import comparison_rows
 from ..db import SessionLocal
@@ -63,6 +64,7 @@ from ..models import (
     NoteDimension,
     Role,
 )
+from ..project_history_services import list_project_events, record_project_event
 from ..services import (
     create_project,
     get_main_hypothesis,
@@ -173,6 +175,18 @@ def save_project_from_ui(token: str, project_id: str | None, revision: int | Non
             user = get_authenticated_user(db, token)
             updated_url = validate_figma_url(figma_url)
             project = get_project(db, user, UUID(project_id))
+            before = {
+                "product_type": project.product_type,
+                "short_description": project.short_description,
+                "target_user": project.target_user,
+                "job_to_be_done": project.job_to_be_done,
+                "current_problem": project.current_problem,
+                "figma_url": project.figma_url,
+            }
+            try:
+                old_hypothesis = get_main_hypothesis(db, user, project.id).statement
+            except LookupError:
+                old_hypothesis = ""
             target_rev = project.revision if (revision is None or revision != project.revision) else revision
             project = update_project(db, user, UUID(project_id), target_rev, product_type=product_type, short_description=description, target_user=target_user, job_to_be_done=job, current_problem=problem, figma_url=updated_url)
             try:
@@ -181,6 +195,20 @@ def save_project_from_ui(token: str, project_id: str | None, revision: int | Non
                 main = None
             if main:
                 update_main_hypothesis(db, user, project.id, main.revision, hypothesis)
+            after = {
+                "product_type": project.product_type,
+                "short_description": project.short_description,
+                "target_user": project.target_user,
+                "job_to_be_done": project.job_to_be_done,
+                "current_problem": project.current_problem,
+                "figma_url": project.figma_url,
+                "main_hypothesis": hypothesis.strip(),
+            }
+            before["main_hypothesis"] = old_hypothesis
+            changed = {key: {"before": before[key], "after": after[key]} for key in before if before[key] != after[key]}
+            if changed:
+                record_project_event(db, user, project.id, "project_setup.updated", "project", project.id, "Updated project setup", changed)
+                db.commit()
         except (AuthenticationError, RevisionConflict, ValueError) as exc:
             return str(exc), revision
     return "Product setup saved.", project.revision
@@ -411,6 +439,17 @@ def on_comparator_selected(token: str | None, project_id: str | None, dataset_id
         try:
             user = get_authenticated_user(db, token)
             snapshot = select_comparator(db, user, UUID(project_id), UUID(dataset_id), "task_comparator", "Direct comparison")
+            record_project_event(
+                db,
+                user,
+                UUID(project_id),
+                "comparison.selected",
+                "comparison_snapshot",
+                snapshot.id,
+                "Selected a historical comparator",
+                {"dataset_id": str(dataset_id), "purpose": "task_comparator", "scope": "Direct comparison"},
+            )
+            db.commit()
             frozen = json.loads(snapshot.frozen_profile or "{}")
             table_text = comparison_table_from_ui(token, project_id, str(snapshot.id))
             return frozen, table_text
@@ -426,12 +465,56 @@ def dimension_notes_from_ui(token: str | None, project_id: str | None, dimension
         try:
             user = get_authenticated_user(db, token)
             get_project(db, user, UUID(project_id))
-            rows = db.execute(select(Note.note_type, Note.text).join(NoteDimension, NoteDimension.note_id == Note.id).where(Note.project_id == UUID(project_id), NoteDimension.dimension_key == dimension_key).order_by(Note.created_at)).all()
+            rows = db.execute(select(Note.note_type, Note.text).join(NoteDimension, NoteDimension.note_id == Note.id).where(Note.project_id == UUID(project_id), Note.archived_at.is_(None), NoteDimension.dimension_key == dimension_key).order_by(Note.created_at)).all()
         except AuthenticationError:
             return "Session expired."
     if not rows:
         return "No questions or assumptions for this dimension yet."
     return "\n".join(f"[{note_type}] {text}" for note_type, text in rows)
+
+
+def project_history_from_ui(token: str | None, project_id: str | None, request: gr.Request | None = None):
+    token = _resolve_token(token, request)
+    if not project_id:
+        return "Select a product to view its history."
+    with SessionLocal() as db:
+        try:
+            user = get_authenticated_user(db, token)
+            events = list_project_events(db, user, UUID(project_id))
+        except (AuthenticationError, AuthorizationError, ValueError) as exc:
+            return str(exc)
+    if not events:
+        return "No project history yet. Changes will appear here as the team works."
+    lines = []
+    for event, username in events:
+        stamp = event.created_at.strftime("%Y-%m-%d %H:%M UTC") if event.created_at else "Time unavailable"
+        actor_label = username or ("Former user" if event.actor_user_id else "System")
+        try:
+            details = json.loads(event.details_json or "{}")
+        except json.JSONDecodeError:
+            details = {}
+        changed = []
+        if event.event_type == "assessment.updated":
+            before, after = details.get("before") or {}, details.get("after") or {}
+            changed = [key.replace("_", " ") for key in after if before.get(key) != after.get(key)]
+        elif event.event_type == "backlog.entry_saved":
+            before, after = details.get("before") or {}, details.get("after") or {}
+            changed = [key for key in ("assumption", "question", "hypothesis") if before.get(key, "") != after.get(key, "")]
+        elif event.event_type == "backlog.entry_archived":
+            before = details.get("before") or {}
+            changed = [record.get("type", "hypothesis") for record in before.values() if isinstance(record, dict)]
+        elif event.event_type == "dimension.assignment_normalized":
+            before, after = details.get("before") or [], details.get("after") or []
+            changed = [f"kept {after[0]} from {', '.join(before)}"] if after else []
+        elif details and all(isinstance(value, dict) and {"before", "after"}.issubset(value) for value in details.values()):
+            changed = [key.replace("_", " ") for key, value in details.items() if value["before"] != value["after"]]
+        elif "before" in details and "after" in details:
+            before, after = details["before"], details["after"]
+            if isinstance(before, dict) and isinstance(after, dict):
+                changed = [key.replace("_", " ") for key in after if before.get(key) != after.get(key)]
+        detail_line = f"\n_Changed: {', '.join(changed)}_" if changed else ""
+        lines.append(f"**{stamp} · {actor_label}**  \n{event.summary}{detail_line}")
+    return "\n\n---\n\n".join(lines)
 
 
 def add_dimension_note_from_ui(token: str | None, project_id: str | None, dimension_key: str, note_type: str, text: str, request: gr.Request | None = None):
@@ -455,6 +538,17 @@ def save_comparator_from_ui(token: str, project_id: str | None, dataset_id: str 
         try:
             user = get_authenticated_user(db, token)
             snapshot = select_comparator(db, user, UUID(project_id), UUID(dataset_id), purpose, scope)
+            record_project_event(
+                db,
+                user,
+                UUID(project_id),
+                "comparison.selected",
+                "comparison_snapshot",
+                snapshot.id,
+                "Selected a historical comparator",
+                {"dataset_id": str(dataset_id), "purpose": purpose, "scope": scope},
+            )
+            db.commit()
         except (AuthenticationError, ValueError) as exc:
             return str(exc), None
     return "Comparator selection saved as a frozen snapshot. Previous snapshots remain unchanged.", str(snapshot.id)
@@ -485,7 +579,7 @@ def publish_upload_from_ui(token: str | None, batch_id: str | None, request: gr.
 
 
 def _hypotheses(db, project_id: str) -> list[Hypothesis]:
-    return list(db.query(Hypothesis).filter(Hypothesis.project_id == UUID(project_id)).order_by(Hypothesis.kind, Hypothesis.created_at))
+    return list(db.query(Hypothesis).filter(Hypothesis.project_id == UUID(project_id), Hypothesis.archived_at.is_(None)).order_by(Hypothesis.kind, Hypothesis.created_at))
 
 
 def _hypothesis_text(items: list[Hypothesis]) -> str:
@@ -514,7 +608,7 @@ def update_relations_from_ui(token: str | None, project_id: str | None, request:
             get_project(db, user, UUID(project_id))
             all_hyps = list(db.scalars(
                 select(Hypothesis)
-                .where(Hypothesis.project_id == UUID(project_id))
+                .where(Hypothesis.project_id == UUID(project_id), Hypothesis.archived_at.is_(None))
                 .order_by(Hypothesis.kind, Hypothesis.created_at)
             ))
         except (AuthenticationError, AuthorizationError, ValueError):
@@ -545,6 +639,8 @@ def save_backlog_row_from_ui(
             project = get_project(db, user, UUID(project_id))
 
             clean_dim = (dimension_key or "conversational").strip()
+            if clean_dim not in {definition["key"] for definition in DEFAULT_DIMENSIONS}:
+                raise ValueError("Select one valid product dimension")
             clean_assumption = (assumption_text or "").strip()
             clean_question = (question_text or "").strip()
             clean_hypothesis = (hypothesis_text or "").strip()
@@ -553,16 +649,25 @@ def save_backlog_row_from_ui(
                 return "Row is empty. Enter an assumption, question, or hypothesis.", note_id, hyp_id, hyp_rev
 
             primary_note = None
+            before = {"dimension": None, "assumption": "", "question": "", "hypothesis": ""}
             if note_id:
                 existing_note = db.get(Note, UUID(note_id))
-                if existing_note and existing_note.project_id == project.id:
+                if existing_note and existing_note.project_id == project.id and existing_note.archived_at is None:
                     primary_note = existing_note
+                    old_dimensions = list(db.scalars(select(NoteDimension.dimension_key).where(NoteDimension.note_id == existing_note.id)))
+                    before["dimension"] = old_dimensions[0] if old_dimensions else None
+                    before[existing_note.note_type] = existing_note.text
+                    original_text = existing_note.text
                     if existing_note.note_type == "assumption" and clean_assumption:
                         existing_note.text = clean_assumption
                     elif existing_note.note_type == "question" and clean_question:
                         existing_note.text = clean_question
-                    db.execute(delete(NoteDimension).where(NoteDimension.note_id == existing_note.id))
-                    db.add(NoteDimension(note_id=existing_note.id, dimension_key=clean_dim))
+                    if existing_note.text != original_text or old_dimensions != [clean_dim]:
+                        db.execute(delete(NoteDimension).where(NoteDimension.note_id == existing_note.id))
+                        db.add(NoteDimension(note_id=existing_note.id, dimension_key=clean_dim))
+                        existing_note.revision += 1
+                else:
+                    raise AuthorizationError("Backlog note not found")
 
             if not primary_note:
                 if clean_assumption:
@@ -579,19 +684,31 @@ def save_backlog_row_from_ui(
             # If user also filled the counterpart column that didn't exist before:
             if primary_note and primary_note.note_type == "question" and clean_assumption:
                 # Add assumption note as well if not already present
-                existing_a = db.scalar(select(Note).where(Note.project_id == project.id, Note.note_type == "assumption", Note.text == clean_assumption))
+                existing_a = db.scalar(select(Note).where(Note.project_id == project.id, Note.note_type == "assumption", Note.text == clean_assumption, Note.archived_at.is_(None)))
                 if not existing_a:
                     extra_a = Note(project_id=project.id, note_type="assumption", text=clean_assumption)
                     db.add(extra_a)
                     db.flush()
                     db.add(NoteDimension(note_id=extra_a.id, dimension_key=clean_dim))
+                else:
+                    existing_dims = list(db.scalars(select(NoteDimension.dimension_key).where(NoteDimension.note_id == existing_a.id)))
+                    if existing_dims != [clean_dim]:
+                        db.execute(delete(NoteDimension).where(NoteDimension.note_id == existing_a.id))
+                        db.add(NoteDimension(note_id=existing_a.id, dimension_key=clean_dim))
+                        existing_a.revision += 1
             elif primary_note and primary_note.note_type == "assumption" and clean_question:
-                existing_q = db.scalar(select(Note).where(Note.project_id == project.id, Note.note_type == "question", Note.text == clean_question))
+                existing_q = db.scalar(select(Note).where(Note.project_id == project.id, Note.note_type == "question", Note.text == clean_question, Note.archived_at.is_(None)))
                 if not existing_q:
                     extra_q = Note(project_id=project.id, note_type="question", text=clean_question)
                     db.add(extra_q)
                     db.flush()
                     db.add(NoteDimension(note_id=extra_q.id, dimension_key=clean_dim))
+                else:
+                    existing_dims = list(db.scalars(select(NoteDimension.dimension_key).where(NoteDimension.note_id == existing_q.id)))
+                    if existing_dims != [clean_dim]:
+                        db.execute(delete(NoteDimension).where(NoteDimension.note_id == existing_q.id))
+                        db.add(NoteDimension(note_id=existing_q.id, dimension_key=clean_dim))
+                        existing_q.revision += 1
 
             saved_hyp_id = hyp_id
             saved_hyp_rev = hyp_rev
@@ -599,16 +716,25 @@ def save_backlog_row_from_ui(
             if clean_hypothesis:
                 if hyp_id and hyp_rev is not None:
                     existing_hyp = db.get(Hypothesis, UUID(hyp_id))
-                    if existing_hyp and existing_hyp.project_id == project.id:
-                        existing_hyp.statement = clean_hypothesis
-                        existing_hyp.revision += 1
+                    if existing_hyp and existing_hyp.project_id == project.id and existing_hyp.archived_at is None:
+                        if existing_hyp.revision != hyp_rev:
+                            raise RevisionConflict("The hypothesis changed since it was loaded")
+                        before["hypothesis"] = existing_hyp.statement
+                        hyp_dimensions = list(db.scalars(select(HypothesisDimension.dimension_key).where(HypothesisDimension.hypothesis_id == existing_hyp.id)))
+                        if hyp_dimensions:
+                            before["dimension"] = hyp_dimensions[0]
+                        if existing_hyp.statement != clean_hypothesis or hyp_dimensions != [clean_dim]:
+                            existing_hyp.statement = clean_hypothesis
+                            existing_hyp.revision += 1
+                            db.execute(delete(HypothesisDimension).where(HypothesisDimension.hypothesis_id == existing_hyp.id))
+                            db.add(HypothesisDimension(hypothesis_id=existing_hyp.id, dimension_key=clean_dim))
                         saved_hyp_rev = existing_hyp.revision
-                        db.execute(delete(HypothesisDimension).where(HypothesisDimension.hypothesis_id == existing_hyp.id))
-                        db.add(HypothesisDimension(hypothesis_id=existing_hyp.id, dimension_key=clean_dim))
                         if primary_note:
                             exists = db.scalar(select(HypothesisSource).where(HypothesisSource.hypothesis_id == existing_hyp.id, HypothesisSource.note_id == primary_note.id))
                             if not exists:
                                 db.add(HypothesisSource(hypothesis_id=existing_hyp.id, note_id=primary_note.id))
+                    else:
+                        raise AuthorizationError("Supporting hypothesis not found")
                 else:
                     new_hyp = Hypothesis(
                         project_id=project.id,
@@ -621,12 +747,36 @@ def save_backlog_row_from_ui(
                     )
                     db.add(new_hyp)
                     db.flush()
+                    before["hypothesis"] = ""
                     db.add(HypothesisDimension(hypothesis_id=new_hyp.id, dimension_key=clean_dim))
                     if primary_note:
                         db.add(HypothesisSource(hypothesis_id=new_hyp.id, note_id=primary_note.id))
                     saved_hyp_id = str(new_hyp.id)
                     saved_hyp_rev = new_hyp.revision
 
+            if before["dimension"] and before["dimension"] != clean_dim:
+                event_summary = f"Moved backlog entry from {before['dimension'].replace('_', ' ')} to {clean_dim.replace('_', ' ')}"
+            elif not note_id and not hyp_id:
+                event_summary = f"Added backlog entry in {clean_dim.replace('_', ' ')}"
+            else:
+                event_summary = f"Updated backlog entry in {clean_dim.replace('_', ' ')}"
+            after = {
+                "dimension": clean_dim,
+                "assumption": clean_assumption,
+                "question": clean_question,
+                "hypothesis": clean_hypothesis,
+            }
+            if before != after:
+                record_project_event(
+                    db,
+                    user,
+                    project.id,
+                    "backlog.entry_saved",
+                    "backlog_entry",
+                    saved_hyp_id or (str(primary_note.id) if primary_note else None),
+                    event_summary,
+                    {"before": before, "after": after},
+                )
             db.commit()
             msg = "Row saved: notes and hypothesis updated." if clean_hypothesis else "Row saved: notes updated."
             return (
@@ -637,6 +787,30 @@ def save_backlog_row_from_ui(
             )
         except (AuthenticationError, AuthorizationError, ValueError, RevisionConflict) as exc:
             return str(exc), note_id, hyp_id, hyp_rev
+
+
+def archive_backlog_row_from_ui(
+    token: str | None,
+    project_id: str | None,
+    note_id: str | None,
+    hyp_id: str | None,
+    request: gr.Request | None = None,
+):
+    token = _resolve_token(token, request)
+    if not project_id:
+        return "Select a product first."
+    try:
+        note_uuid = UUID(note_id) if note_id else None
+        hyp_uuid = UUID(hyp_id) if hyp_id else None
+    except ValueError:
+        return "Backlog entry not found. Reload the product and try again."
+    with SessionLocal() as db:
+        try:
+            user = get_authenticated_user(db, token)
+            archive_backlog_entry(db, user, UUID(project_id), note_uuid, hyp_uuid)
+        except (AuthenticationError, AuthorizationError, ValueError) as exc:
+            return str(exc)
+    return "Removed from the active backlog. Its history and linked experiments are preserved."
 
 
 def load_backlog_table_from_ui(
@@ -651,12 +825,13 @@ def load_backlog_table_from_ui(
         "",
         "",
         "",
+        gr.update(visible=False),
         None,
         None,
         None,
     )
     if not project_id:
-        row_0 = (gr.update(visible=True), gr.update(value="conversational"), "", "", "", None, None, None)
+        row_0 = (gr.update(visible=True), gr.update(value="conversational"), "", "", "", gr.update(visible=False), None, None, None)
         slots = [row_0] + [empty_slot for _ in range(MAX_BACKLOG_ROWS - 1)]
         flat = [val for slot in slots for val in slot]
         return (*flat, 1)
@@ -668,7 +843,7 @@ def load_backlog_table_from_ui(
 
             notes = list(db.scalars(
                 select(Note)
-                .where(Note.project_id == project.id, Note.note_type.in_(["assumption", "question"]))
+                .where(Note.project_id == project.id, Note.note_type.in_(["assumption", "question"]), Note.archived_at.is_(None))
                 .order_by(Note.created_at)
             ))
             note_dims = {}
@@ -678,7 +853,7 @@ def load_backlog_table_from_ui(
 
             hypotheses = list(db.scalars(
                 select(Hypothesis)
-                .where(Hypothesis.project_id == project.id, Hypothesis.kind == "supporting")
+                .where(Hypothesis.project_id == project.id, Hypothesis.kind == "supporting", Hypothesis.archived_at.is_(None))
                 .order_by(Hypothesis.created_at)
             ))
             hyp_dims = {}
@@ -748,6 +923,7 @@ def load_backlog_table_from_ui(
                         r["assumption"],
                         r["question"],
                         r["hypothesis"],
+                        gr.update(visible=bool(r["note_id"] or r["hyp_id"])),
                         r["note_id"],
                         r["hyp_id"],
                         r["hyp_rev"],
@@ -759,6 +935,7 @@ def load_backlog_table_from_ui(
                         "",
                         "",
                         "",
+                        gr.update(visible=False),
                         None,
                         None,
                         None,
@@ -770,7 +947,7 @@ def load_backlog_table_from_ui(
             flat = [val for slot in slots for val in slot]
             return (*flat, visible_count)
         except (AuthenticationError, AuthorizationError, ValueError):
-            row_0 = (gr.update(visible=True), gr.update(value="conversational"), "", "", "", None, None, None)
+            row_0 = (gr.update(visible=True), gr.update(value="conversational"), "", "", "", gr.update(visible=False), None, None, None)
             slots = [row_0] + [empty_slot for _ in range(MAX_BACKLOG_ROWS - 1)]
             flat = [val for slot in slots for val in slot]
             return (*flat, 1)
@@ -1136,7 +1313,7 @@ def load_placements_from_ui(token: str | None, project_id: str | None, request: 
             try:
                 user = get_authenticated_user(db, token)
                 get_project(db, user, UUID(project_id))
-                hypotheses = list(db.scalars(select(Hypothesis).where(Hypothesis.project_id == UUID(project_id), Hypothesis.kind == "supporting").order_by(Hypothesis.created_at)))[:PLACEMENT_SLOTS]
+                hypotheses = list(db.scalars(select(Hypothesis).where(Hypothesis.project_id == UUID(project_id), Hypothesis.kind == "supporting", Hypothesis.archived_at.is_(None)).order_by(Hypothesis.created_at)))[:PLACEMENT_SLOTS]
             except (AuthenticationError, ValueError, AuthorizationError):
                 hypotheses = []
     outputs = []

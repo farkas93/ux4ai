@@ -12,6 +12,7 @@ from .models import (
     ProjectReflection,
     User,
 )
+from .project_history_services import record_project_event
 from .services import get_project
 
 METHODS = {"prototype_walkthrough", "user_interview", "comparative_usability_test", "model_output_evaluation", "technical_feasibility_test", "cost_estimate_simulation", "pilot", "other"}
@@ -27,12 +28,13 @@ def list_experiments(db: Session, actor: User, project_id: UUID) -> list[Experim
 def create_experiment(db: Session, actor: User, project_id: UUID, primary_hypothesis_id: UUID, title: str, method: str) -> Experiment:
     get_project(db, actor, project_id)
     hypothesis = db.get(Hypothesis, primary_hypothesis_id)
-    if hypothesis is None or hypothesis.project_id != project_id:
+    if hypothesis is None or hypothesis.project_id != project_id or hypothesis.archived_at is not None:
         raise AuthorizationError("Primary hypothesis must belong to this project")
     if not title.strip() or method not in METHODS:
         raise ValueError("An experiment requires a title and valid method")
     experiment = Experiment(project_id=project_id, primary_hypothesis_id=primary_hypothesis_id, title=title.strip(), method=method)
     db.add(experiment)
+    record_project_event(db, actor, project_id, "experiment.created", "experiment", experiment.id, f"Planned experiment: {experiment.title}", {"hypothesis_id": str(primary_hypothesis_id), "method": method})
     db.commit()
     return experiment
 
@@ -43,6 +45,7 @@ def update_experiment(db: Session, actor: User, experiment_id: UUID, revision: i
         raise AuthorizationError("Experiment not found")
     get_project(db, actor, experiment.project_id)
     allowed = {"title", "method", "procedure", "participants", "comparison_baseline", "metric", "success_criterion", "guardrail", "resources", "owner", "planned_date", "status", "results", "evidence_links", "limitations", "conclusion", "resulting_decision"}
+    before = {key: getattr(experiment, key) for key in allowed}
     for key, value in fields.items():
         if key in allowed:
             setattr(experiment, key, value.strip() if isinstance(value, str) else value)
@@ -51,6 +54,10 @@ def update_experiment(db: Session, actor: User, experiment_id: UUID, revision: i
     if experiment.revision != revision:
         raise RevisionConflict("The experiment changed since it was loaded")
     experiment.revision += 1
+    after = {key: getattr(experiment, key) for key in allowed}
+    changed = {key: {"before": before[key], "after": after[key]} for key in allowed if before[key] != after[key]}
+    if changed:
+        record_project_event(db, actor, experiment.project_id, "experiment.updated", "experiment", experiment.id, f"Updated experiment: {experiment.title}", changed)
     db.commit()
     return experiment
 
@@ -60,6 +67,20 @@ def save_reflection(db: Session, actor: User, project_id: UUID, reflection_type:
     if reflection_type not in {"adversarial_risk", "feedback_loop"}:
         raise ValueError("Invalid reflection type")
     reflection = db.scalar(select(ProjectReflection).where(ProjectReflection.project_id == project_id, ProjectReflection.reflection_type == reflection_type))
+    before = None if reflection is None else {
+        "content": reflection.content,
+        "subjective_score": reflection.subjective_score,
+        "attack_entry_point": reflection.attack_entry_point,
+        "unwanted_behavior": reflection.unwanted_behavior,
+        "affected_data_action": reflection.affected_data_action,
+        "consequence": reflection.consequence,
+        "proposed_safeguard": reflection.proposed_safeguard,
+        "signal_to_collect": reflection.signal_to_collect,
+        "signal_meaning": reflection.signal_meaning,
+        "possible_product_change": reflection.possible_product_change,
+        "human_interpretation_needed": reflection.human_interpretation_needed,
+        "evaluation_after_change": reflection.evaluation_after_change,
+    }
     if reflection is None:
         reflection = ProjectReflection(project_id=project_id, reflection_type=reflection_type, revision=1)
         db.add(reflection)
@@ -74,16 +95,32 @@ def save_reflection(db: Session, actor: User, project_id: UUID, reflection_type:
         if key in allowed:
             setattr(reflection, key, value or "")
     reflection.revision += 1
+    after = {
+        "content": reflection.content,
+        "subjective_score": reflection.subjective_score,
+        "attack_entry_point": reflection.attack_entry_point,
+        "unwanted_behavior": reflection.unwanted_behavior,
+        "affected_data_action": reflection.affected_data_action,
+        "consequence": reflection.consequence,
+        "proposed_safeguard": reflection.proposed_safeguard,
+        "signal_to_collect": reflection.signal_to_collect,
+        "signal_meaning": reflection.signal_meaning,
+        "possible_product_change": reflection.possible_product_change,
+        "human_interpretation_needed": reflection.human_interpretation_needed,
+        "evaluation_after_change": reflection.evaluation_after_change,
+    }
+    if before != after:
+        record_project_event(db, actor, project_id, "reflection.updated", "project_reflection", reflection.id, f"Updated {reflection_type.replace('_', ' ')} reflection", {"before": before, "after": after})
     db.commit()
     return reflection
 
 
 def completion_checklist(db: Session, actor: User, project_id: UUID) -> dict[str, bool]:
     project = get_project(db, actor, project_id)
-    main = db.scalar(select(Hypothesis).where(Hypothesis.project_id == project_id, Hypothesis.kind == "main"))
+    main = db.scalar(select(Hypothesis).where(Hypothesis.project_id == project_id, Hypothesis.kind == "main", Hypothesis.archived_at.is_(None)))
     estimates = list(getattr(project, "dimension_estimates", []))
     experiments = list_experiments(db, actor, project_id)
-    supporting = list(db.scalars(select(Hypothesis).where(Hypothesis.project_id == project_id, Hypothesis.kind == "supporting")))
+    supporting = list(db.scalars(select(Hypothesis).where(Hypothesis.project_id == project_id, Hypothesis.kind == "supporting", Hypothesis.archived_at.is_(None))))
     main_id = main.id if main else None
     relations = list(db.scalars(select(HypothesisRelation).where(HypothesisRelation.project_id == project_id, HypothesisRelation.relation_type == "contributes_to")))
     graph = {}
@@ -117,7 +154,7 @@ def completion_checklist(db: Session, actor: User, project_id: UUID) -> dict[str
 
 def priority_guidance(db: Session, actor: User, project_id: UUID) -> str:
     get_project(db, actor, project_id)
-    hypotheses = list(db.scalars(select(Hypothesis).where(Hypothesis.project_id == project_id, Hypothesis.kind == "supporting").order_by(Hypothesis.impact_if_wrong, Hypothesis.evidence_strength)))
+    hypotheses = list(db.scalars(select(Hypothesis).where(Hypothesis.project_id == project_id, Hypothesis.kind == "supporting", Hypothesis.archived_at.is_(None)).order_by(Hypothesis.impact_if_wrong, Hypothesis.evidence_strength)))
     if not hypotheses:
         return "No supporting hypotheses yet. Unknown impact or evidence stays outside the scored priority matrix."
     scored = [item for item in hypotheses if item.impact_if_wrong != "unknown" and item.evidence_strength != "unknown"]

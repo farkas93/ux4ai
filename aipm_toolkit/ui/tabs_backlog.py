@@ -5,7 +5,6 @@ import gradio as gr
 from ..dimensions import DEFAULT_DIMENSIONS
 from .callbacks import (
     MAX_BACKLOG_ROWS,
-    save_backlog_row_from_ui,
     show_next_row_from_ui,
 )
 
@@ -15,8 +14,8 @@ def build_backlog_tab(token, product_dropdown, status):
         gr.Markdown(
             "### Backlog Table\n"
             "Rows are auto-populated from your Assessment questions and assumptions. "
-            "Expand each row with the missing counterpart and formulate a testable hypothesis. "
-            "All assumptions and questions can be edited directly."
+            "Each entry belongs to one dimension. Change its dimension here to move it in the current Assessment view. "
+            "Add or edit the assumption, question, and testable hypothesis, then save. Removed entries remain in Project History."
         )
 
         # Header row
@@ -62,6 +61,7 @@ def build_backlog_tab(token, product_dropdown, status):
                         scale=4,
                     )
                     save_btn = gr.Button("Save", variant="primary", scale=1)
+                    remove_btn = gr.Button("Remove", variant="stop", scale=1, visible=False)
                     note_id_state = gr.State(None)
                     hyp_id_state = gr.State(None)
                     hyp_rev_state = gr.State(None)
@@ -73,6 +73,7 @@ def build_backlog_tab(token, product_dropdown, status):
                     "question": question_box,
                     "hypothesis": hypothesis_box,
                     "save_btn": save_btn,
+                    "remove_btn": remove_btn,
                     "note_id": note_id_state,
                     "hyp_id": hyp_id_state,
                     "hyp_rev": hyp_rev_state,
@@ -89,17 +90,9 @@ def build_backlog_tab(token, product_dropdown, status):
             [visible_rows_count, *[r["box"] for r in row_components]],
         )
 
-        # Event: save row saves notes + hypothesis
-        for r in row_components:
-            r["save_btn"].click(
-                save_backlog_row_from_ui,
-                [token, product_dropdown, r["dim"], r["assumption"], r["question"], r["hypothesis"], r["note_id"], r["hyp_id"], r["hyp_rev"]],
-                [status, r["note_id"], r["hyp_id"], r["hyp_rev"]],
-            )
-
     table_flat_outputs = []
     for r in row_components:
-        table_flat_outputs.extend([r["box"], r["dim"], r["assumption"], r["question"], r["hypothesis"], r["note_id"], r["hyp_id"], r["hyp_rev"]])
+        table_flat_outputs.extend([r["box"], r["dim"], r["assumption"], r["question"], r["hypothesis"], r["remove_btn"], r["note_id"], r["hyp_id"], r["hyp_rev"]])
 
     return {
         "tab": tab,

@@ -12,6 +12,7 @@ from .models import (
     ScaleDefinition,
     User,
 )
+from .project_history_services import record_project_event
 from .services import get_project
 
 
@@ -51,6 +52,14 @@ def save_project_estimates(db: Session, actor: User, project_id: UUID, values: l
         if basis is not None and basis not in {item.value for item in AssessmentBasis}:
             raise ValueError(f"Unknown assessment basis for {key}")
         estimate = current.get(key)
+        before = None if estimate is None else {
+            "status": estimate.status,
+            "score": estimate.score,
+            "rationale": estimate.rationale,
+            "basis": estimate.basis,
+            "evidence": estimate.evidence,
+            "uncertainty": estimate.uncertainty,
+        }
         if estimate is None:
             estimate = DimensionEstimate(project_id=project_id, dimension_key=key, scale_version=definitions[key].version, revision=1)
             db.add(estimate)
@@ -62,6 +71,25 @@ def save_project_estimates(db: Session, actor: User, project_id: UUID, values: l
         estimate.basis = basis
         estimate.evidence = value.get("evidence", "")
         estimate.uncertainty = value.get("uncertainty", "")
+        after = {
+            "status": estimate.status,
+            "score": estimate.score,
+            "rationale": estimate.rationale,
+            "basis": estimate.basis,
+            "evidence": estimate.evidence,
+            "uncertainty": estimate.uncertainty,
+        }
+        if before != after:
+            record_project_event(
+                db,
+                actor,
+                project_id,
+                "assessment.updated",
+                "dimension_assessment",
+                estimate.id,
+                f"Updated {key.replace('_', ' ')} assessment",
+                {"dimension": key, "before": before, "after": after},
+            )
         estimate.revision += 1
     db.commit()
     return get_project_estimates(db, actor, project_id)

@@ -7,7 +7,7 @@ from aipm_toolkit.assessment_services import (
 )
 from aipm_toolkit.auth import RevisionConflict, hash_password
 from aipm_toolkit.dimensions import DIMENSION_KEYS
-from aipm_toolkit.models import Course, Role, Team, User
+from aipm_toolkit.models import Course, ProjectEvent, Role, Team, User
 from aipm_toolkit.services import create_project
 
 
@@ -105,3 +105,5 @@ def test_assessment_scores_and_reasoning_persist_and_reload_cleanly(db, monkeypa
     assert reloaded[8] == 0.2
     assert reloaded[9] == "Custom note 5"
     assert reloaded[10] == revs
+    events = list(db.query(ProjectEvent).filter_by(project_id=project.id, event_type="assessment.updated"))
+    assert len(events) == 5

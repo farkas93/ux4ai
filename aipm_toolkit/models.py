@@ -2,7 +2,17 @@ from datetime import datetime
 from enum import StrEnum
 from uuid import UUID, uuid4
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint, func
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+    func,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .db import Base
@@ -240,6 +250,7 @@ class Hypothesis(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     project: Mapped[Project] = relationship(back_populates="hypotheses")
 
 
@@ -254,6 +265,7 @@ class Note(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class NoteDimension(Base):
@@ -261,6 +273,7 @@ class NoteDimension(Base):
 
     note_id: Mapped[UUID] = mapped_column(ForeignKey("notes.id"), primary_key=True)
     dimension_key: Mapped[str] = mapped_column(String(40), primary_key=True)
+    __table_args__ = (UniqueConstraint("note_id", name="uq_note_single_dimension"),)
 
 
 class HypothesisDimension(Base):
@@ -268,6 +281,7 @@ class HypothesisDimension(Base):
 
     hypothesis_id: Mapped[UUID] = mapped_column(ForeignKey("hypotheses.id"), primary_key=True)
     dimension_key: Mapped[str] = mapped_column(String(40), primary_key=True)
+    __table_args__ = (UniqueConstraint("hypothesis_id", name="uq_hypothesis_single_dimension"),)
 
 
 class HypothesisSource(Base):
@@ -343,6 +357,21 @@ class ProjectReflection(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     __table_args__ = (UniqueConstraint("project_id", "reflection_type", name="uq_project_reflection_type"),)
+
+
+class ProjectEvent(Base):
+    __tablename__ = "project_events"
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    project_id: Mapped[UUID] = mapped_column(ForeignKey("projects.id"), nullable=False)
+    actor_user_id: Mapped[UUID | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    event_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    entity_type: Mapped[str] = mapped_column(String(40), nullable=False)
+    entity_id: Mapped[str | None] = mapped_column(String(36))
+    summary: Mapped[str] = mapped_column(Text, nullable=False)
+    details_json: Mapped[str] = mapped_column(Text, default="{}", nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    __table_args__ = (Index("ix_project_events_project_created", "project_id", "created_at"),)
 
 
 class SessionRecord(Base):

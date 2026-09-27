@@ -33,6 +33,14 @@ def test_note_to_hypothesis_preserves_provenance(db):
     assert db.get(Hypothesis, hypothesis.id).statement.startswith("If we show")
 
 
+def test_backlog_note_and_hypothesis_have_one_dimension(db):
+    user, project = users_and_project(db, "single-dimension")
+    with pytest.raises(ValueError, match="only one dimension"):
+        create_note(db, user, project.id, "question", "Which rubric applies?", ["autonomy", "explainability"])
+    with pytest.raises(ValueError, match="only one dimension"):
+        create_hypothesis(db, user, project.id, "A testable claim", dimensions=["autonomy", "explainability"])
+
+
 def test_relationships_reject_cross_project_and_dependency_cycles(db):
     user_a, project_a = users_and_project(db, "a")
     user_b, project_b = users_and_project(db, "b")

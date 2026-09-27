@@ -3,8 +3,9 @@
 import gradio as gr
 
 from ..i18n import load_catalog
-from . import tabs_assessment, tabs_backlog, tabs_priority, tabs_setup, tabs_summary
+from . import tabs_assessment, tabs_backlog, tabs_history, tabs_priority, tabs_setup, tabs_summary
 from .callbacks import (
+    archive_backlog_row_from_ui,
     auto_login,
     checklist_text,
     create_project_from_ui,
@@ -19,8 +20,10 @@ from .callbacks import (
     load_project_from_ui,
     login,
     preview_upload_from_ui,
+    project_history_from_ui,
     provision_team_from_ui,
     publish_upload_from_ui,
+    save_backlog_row_from_ui,
     summary_preview_from_ui,
     workspace,
 )
@@ -140,9 +143,11 @@ def build_app():
                 backlog = tabs_backlog.build_backlog_tab(token, product_dropdown, status)
                 priority = tabs_priority.build_priority_tab(token, product_dropdown, status)
                 summary = tabs_summary.build_summary_tab(token, product_dropdown, status)
+                history = tabs_history.build_history_tab(token, product_dropdown)
 
         instructor_panel = _build_instructor_panel(token, status, product_dropdown)
         dimension_note_outputs = assessment["dimension_note_lists"]
+        status.change(project_history_from_ui, [token, product_dropdown], history["history"])
 
         label_bindings = [
             (language_selector, "language", "Language / Sprache"),
@@ -254,6 +259,11 @@ def build_app():
                     [token, product_dropdown],
                     summary["summary_preview"],
                 )
+                .then(
+                    project_history_from_ui,
+                    [token, product_dropdown],
+                    history["history"],
+                )
             )
 
         # Wire product loading on dropdown change
@@ -286,15 +296,36 @@ def build_app():
         )
         _wire_product_load(load_event)
 
-        for r in backlog["row_components"]:
-            r["save_btn"].click(
-                load_placements_from_ui,
+        def _refresh_backlog_workspace(event):
+            event = event.then(
+                load_backlog_table_from_ui,
                 [token, product_dropdown],
-                priority["placement_outputs"] + [priority["ranking_display"], priority["matrix_fig"]],
-            ).then(
-                checklist_text,
-                [token, product_dropdown],
-                summary["checklist_display"],
+                backlog["table_flat_outputs"] + [backlog["visible_rows_count"]],
             )
+            for note_state, note_output in zip(assessment["dimension_note_states"], dimension_note_outputs):
+                event = event.then(dimension_notes_from_ui, [token, product_dropdown, note_state], note_output)
+            return (
+                event.then(
+                    load_placements_from_ui,
+                    [token, product_dropdown],
+                    priority["placement_outputs"] + [priority["ranking_display"], priority["matrix_fig"]],
+                )
+                .then(checklist_text, [token, product_dropdown], summary["checklist_display"])
+                .then(project_history_from_ui, [token, product_dropdown], history["history"])
+            )
+
+        for r in backlog["row_components"]:
+            saved_event = r["save_btn"].click(
+                save_backlog_row_from_ui,
+                [token, product_dropdown, r["dim"], r["assumption"], r["question"], r["hypothesis"], r["note_id"], r["hyp_id"], r["hyp_rev"]],
+                [status, r["note_id"], r["hyp_id"], r["hyp_rev"]],
+            )
+            _refresh_backlog_workspace(saved_event)
+            removed_event = r["remove_btn"].click(
+                archive_backlog_row_from_ui,
+                [token, product_dropdown, r["note_id"], r["hyp_id"]],
+                status,
+            )
+            _refresh_backlog_workspace(removed_event)
 
     return app
