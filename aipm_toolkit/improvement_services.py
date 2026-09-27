@@ -59,6 +59,9 @@ def list_loops(db: Session, actor: User, project_id: UUID) -> list[ImprovementLo
 
 def save_loop(db: Session, actor: User, project_id: UUID, loop_id: UUID | None, revision: int | None, data: dict) -> ImprovementLoop:
     get_project(db, actor, project_id)
+    first = db.scalar(select(ImprovementLoop).where(ImprovementLoop.project_id == project_id).order_by(ImprovementLoop.created_at, ImprovementLoop.id))
+    if first is not None and (loop_id is None or loop_id != first.id):
+        raise ValueError("This product already has a learning loop. Edit the first saved loop instead.")
     loop = db.get(ImprovementLoop, loop_id) if loop_id else None
     if loop_id and (loop is None or loop.project_id != project_id):
         raise AuthorizationError("Improvement loop not found")

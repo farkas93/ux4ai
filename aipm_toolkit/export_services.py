@@ -95,7 +95,7 @@ def build_project_export(db: Session, actor: User, project_id: UUID) -> dict:
         "reflections": [_record(ProjectReflection, item) for item in reflections],
         "safety_assessment": {**_record(SafetyAssessment, safety), "checkpoints": [_record(SafetyCheckpoint, item) for item in safety_checkpoints], "coverage_summary": safety_result([{"key": item.checkpoint_key, "coverage": item.coverage, "maturity": item.maturity} for item in safety_checkpoints], safety.critical_risk)} if safety else None,
         "safety_hypothesis_links": [_record(SafetyHypothesisLink, item) for item in safety_links],
-        "improvement_loops": [{**_record(ImprovementLoop, item), "capabilities": json.loads(item.capabilities_json), "change_scopes": json.loads(item.change_scopes_json), "classification": classify_loop({key: answer["answer"] for key, answer in json.loads(item.capabilities_json).items()}, item.release_approval, item.success_checks, item.rollback, item.approval_boundary)} for item in loops],
+        "improvement_loops": [{**_record(ImprovementLoop, item), "learning_loop": index == 0, "capabilities": json.loads(item.capabilities_json), "change_scopes": json.loads(item.change_scopes_json), "classification": classify_loop({key: answer["answer"] for key, answer in json.loads(item.capabilities_json).items()}, item.release_approval, item.success_checks, item.rollback, item.approval_boundary)} for index, item in enumerate(loops)],
         "project_history": [
             {
                 "id": str(event.id),
@@ -136,7 +136,8 @@ def export_project_markdown(db: Session, actor: User, project_id: UUID) -> str:
     lines.extend(["", "## Self-Improvement (course-specific classification)"])
     for loop in document["improvement_loops"]:
         result = loop["classification"]
-        lines.append(f"- {loop['name']}: Level {result['level']} ({result['name']}); status: {loop['status']}; potential: {result['possible_level']} if unknowns resolve; scope: {', '.join(loop['change_scopes'])}; release approval: {loop['release_approval']}")
+        label = "Learning loop" if loop["learning_loop"] else "Earlier additional loop (retained)"
+        lines.append(f"- {label}: {loop['name']}: Level {result['level']} ({result['name']}); status: {loop['status']}; potential: {result['possible_level']} if unknowns resolve; scope: {', '.join(loop['change_scopes'])}; release approval: {loop['release_approval']}")
     if not document["improvement_loops"]:
         lines.append("- No improvement loops assessed.")
     lines.extend(["", "## Comparator and Provenance"])
@@ -148,7 +149,8 @@ def export_project_markdown(db: Session, actor: User, project_id: UUID) -> str:
     lines.extend(["", "## Main Observations"])
     for note in document["notes"]:
         if note["archived_at"] is None:
-            lines.append(f"- **{note['note_type']}**: {note['text']}")
+            source = f" ({note['origin_section'].replace('_', ' ')}{': ' + note['origin_key'] if note['origin_key'] else ''})" if note['origin_section'] else ""
+            lines.append(f"- **{note['note_type']}**{source}: {note['text']}")
     lines.extend(["", "## Hypothesis Backlog"])
     for hypothesis in document["hypotheses"]:
         if hypothesis["archived_at"] is None:
@@ -291,7 +293,8 @@ def export_project_pdf(db: Session, actor: User, project_id: UUID) -> bytes:
     pdf.set_font(font, size=9)
     for note in document["notes"]:
         if note["archived_at"] is None:
-            pdf.multi_cell(0, 5, _pdf_text(f"[{note['note_type']}] {note['text']}", unicode_font), new_x="LMARGIN", new_y="NEXT")
+            source = f" / {note['origin_section'].replace('_', ' ')}: {note['origin_key']}" if note['origin_section'] and note['origin_key'] else f" / {note['origin_section'].replace('_', ' ')}" if note['origin_section'] else ""
+            pdf.multi_cell(0, 5, _pdf_text(f"[{note['note_type']}{source}] {note['text']}", unicode_font), new_x="LMARGIN", new_y="NEXT")
     for experiment in document["experiments"]:
         pdf.multi_cell(0, 5, _pdf_text(f"[experiment: {experiment['status']}] {experiment['title']} - criterion: {experiment['success_criterion']}", unicode_font), new_x="LMARGIN", new_y="NEXT")
     pdf.add_page()
@@ -311,7 +314,8 @@ def export_project_pdf(db: Session, actor: User, project_id: UUID) -> bytes:
     pdf.set_font(font, size=9)
     for loop in document["improvement_loops"]:
         result = loop["classification"]
-        pdf.multi_cell(0, 5, _pdf_text(f"{loop['name']}: level {result['level']} - {result['name']}; status: {loop['status']}", unicode_font), new_x="LMARGIN", new_y="NEXT")
+        label = "Learning loop" if loop["learning_loop"] else "Earlier additional loop"
+        pdf.multi_cell(0, 5, _pdf_text(f"{label}: {loop['name']}: level {result['level']} - {result['name']}; status: {loop['status']}", unicode_font), new_x="LMARGIN", new_y="NEXT")
     if document["project_history"]:
         pdf.add_page()
         pdf.set_font(font, size=14)

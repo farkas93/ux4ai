@@ -21,7 +21,7 @@ from .project_history_services import record_project_event
 from .services import get_project
 
 
-def create_note(db: Session, actor: User, project_id: UUID, note_type: str, text: str, dimensions: list[str] | None = None) -> Note:
+def create_note(db: Session, actor: User, project_id: UUID, note_type: str, text: str, dimensions: list[str] | None = None, *, origin_section: str | None = None, origin_key: str | None = None) -> Note:
     get_project(db, actor, project_id)
     if note_type not in {item.value for item in NoteType} or not text.strip():
         raise ValueError("A note requires a valid type and text")
@@ -30,12 +30,14 @@ def create_note(db: Session, actor: User, project_id: UUID, note_type: str, text
         raise ValueError("A backlog entry can be assigned to only one dimension")
     if not set(dimensions).issubset(DIMENSION_KEYS):
         raise ValueError("Unknown note dimension")
-    note = Note(project_id=project_id, note_type=note_type, text=text.strip())
+    if origin_section not in {None, "assessment", "backlog", "safety", "self_improvement"} or (origin_section == "safety" and origin_key not in {"scope", "harms", "controls", "evaluation", "response", "ownership"}) or (origin_section != "safety" and origin_key is not None):
+        raise ValueError("Unknown learning area")
+    note = Note(project_id=project_id, note_type=note_type, text=text.strip(), origin_section=origin_section, origin_key=origin_key)
     db.add(note)
     db.flush()
     for dimension in dimensions:
         db.add(NoteDimension(note_id=note.id, dimension_key=dimension))
-    record_project_event(db, actor, project_id, "backlog.note_created", "note", note.id, f"Added {note_type}", {"text": note.text, "dimensions": dimensions})
+    record_project_event(db, actor, project_id, "backlog.note_created", "note", note.id, f"Added {note_type}", {"text": note.text, "dimensions": dimensions, "origin_section": origin_section, "origin_key": origin_key})
     db.commit()
     return note
 

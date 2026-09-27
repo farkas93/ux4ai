@@ -1,4 +1,6 @@
 import json
+from datetime import timedelta
+from uuid import UUID
 
 import pytest
 from sqlalchemy import select
@@ -6,11 +8,14 @@ from sqlalchemy import select
 from aipm_toolkit.auth import AuthorizationError, RevisionConflict, hash_password
 from aipm_toolkit.experiment_services import save_reflection
 from aipm_toolkit.export_services import build_project_export
+from aipm_toolkit.hypothesis_services import create_hypothesis
 from aipm_toolkit.improvement_services import QUESTIONS, classify_loop, list_loops, save_loop
 from aipm_toolkit.lifecycle_services import delete_project
 from aipm_toolkit.models import (
     Course,
     Hypothesis,
+    HypothesisSource,
+    ImprovementLoop,
     ProjectEvent,
     Role,
     SafetyHypothesisLink,
@@ -90,15 +95,26 @@ def test_loop_levels_are_gated_by_capabilities_and_release_boundary():
     assert provisional["level"] == 3 and provisional["possible_level"] == 4 and provisional["provisional"]
 
 
-def test_multiple_loops_reload_and_are_project_scoped(db):
+def test_multiple_loops_reload_and_are_project_scoped(db, monkeypatch):
     user, project = project_for(db, "loop-team")
     user2, _other = project_for(db, "other-team")
     observation = data("Summarize failed support chats")
     observation["answers"]["observe"]["answer"] = "yes"
     observation["answers"]["observe"]["explanation"] = "Summaries reviewed by the team"
     first = save_loop(db, user, project.id, None, None, observation)
-    second = save_loop(db, user, project.id, None, None, data("Review prompt regressions"))
+    with pytest.raises(ValueError, match="already has a learning loop"):
+        save_loop(db, user, project.id, None, None, data("Review prompt regressions"))
+    # Preserve additional loops from before the single-loop teaching flow.
+    second = ImprovementLoop(project_id=project.id, name="Legacy extra loop", created_at=first.created_at + timedelta(seconds=1))
+    db.add(second)
+    db.commit()
     assert len(list_loops(db, user, project.id)) == 2
+    monkeypatch.setattr(safety_callbacks, "SessionLocal", lambda: db)
+    monkeypatch.setattr(safety_callbacks, "get_authenticated_user", lambda _db, _token: user)
+    assert safety_callbacks.load_primary_loop_ui("token", str(project.id))[0] == str(first.id)
+    assert len(build_project_export(db, user, project.id)["improvement_loops"]) == 2
+    with pytest.raises(ValueError, match="first saved loop"):
+        save_loop(db, user, project.id, second.id, second.revision, data("Can't edit old loop"))
     assert json.loads(first.capabilities_json)["observe"]["answer"] == "yes"
     assert classify_loop({key: item["answer"] for key, item in json.loads(first.capabilities_json).items()}, first.release_approval, first.success_checks, first.rollback)["level"] == 1
     with pytest.raises(RevisionConflict):
@@ -111,20 +127,33 @@ def test_multiple_loops_reload_and_are_project_scoped(db):
     assert second.status == "intended"
 
 
-def test_safety_hypothesis_links_and_export(db, monkeypatch):
+def test_safety_question_develops_in_backlog_and_legacy_hypothesis_survives(db, monkeypatch):
     user, project = project_for(db, "hyp-safety")
     monkeypatch.setattr(safety_callbacks, "SessionLocal", lambda: db)
     monkeypatch.setattr(safety_callbacks, "get_authenticated_user", lambda _db, _token: user)
-    status, cleared = safety_callbacks.create_safety_hypothesis_ui("token", str(project.id), "harms", "If retrieval leaks, users lose trust")
-    assert "created" in status and cleared == ""
-    link = db.scalar(select(SafetyHypothesisLink))
-    assert link.checkpoint_key == "harms"
-    assert db.get(Hypothesis, link.hypothesis_id).statement == "If retrieval leaks, users lose trust"
+    status, visible, cleared = safety_callbacks.add_learning_note_ui("token", str(project.id), "safety", "harms", "Question", "Could retrieval disclose another user's data?")
+    assert "Backlog Creator" in status and "disclose" in visible and cleared == ""
     monkeypatch.setattr(cb_mod, "SessionLocal", lambda: db)
     monkeypatch.setattr(cb_mod, "get_authenticated_user", lambda _db, _token: user)
     backlog = cb_mod.load_backlog_table_from_ui("token", str(project.id))
-    assert backlog[1]["value"] is None  # Safety is independent of the five product dimensions.
-    assert backlog[4] == "If retrieval leaks, users lose trust"
+    assert backlog[1] == "AI Safety · Harms"
+    assert backlog[2]["value"] is None  # Safety is independent of product dimensions.
+    assert backlog[4] == "Could retrieval disclose another user's data?"
+    saved, note_id, hyp_id, _revision = cb_mod.save_backlog_row_from_ui("token", str(project.id), None, "", backlog[4], "If retrieval leaks, users lose trust", backlog[8], None, None)
+    assert "saved" in saved
+    assert db.get(Hypothesis, UUID(hyp_id)).statement == "If retrieval leaks, users lose trust"
+    assert db.scalar(select(HypothesisSource).where(HypothesisSource.hypothesis_id == UUID(hyp_id))).note_id == UUID(note_id)
+    assert cb_mod.load_backlog_table_from_ui("token", str(project.id))[1] == "AI Safety · Harms"
+    saved, _, _, new_revision = cb_mod.save_backlog_row_from_ui("token", str(project.id), None, "", "Could retrieval expose another user's records?", "If retrieval is restricted, exposure decreases", note_id, hyp_id, _revision)
+    assert "saved" in saved and new_revision > _revision
+    assert "Could retrieval expose another user's records?" in safety_callbacks.learning_notes_ui("token", str(project.id), "safety", "harms")
+    assert "data?" not in safety_callbacks.learning_notes_ui("token", str(project.id), "safety", "controls")
+    assert "preserved" in cb_mod.archive_backlog_row_from_ui("token", str(project.id), note_id, hyp_id)
+    assert safety_callbacks.learning_notes_ui("token", str(project.id), "safety", "harms") == "No questions or assumptions yet."
+
+    legacy = create_hypothesis(db, user, project.id, "Existing safety hypothesis")
+    db.add(SafetyHypothesisLink(hypothesis_id=legacy.id, checkpoint_key="harms"))
+    db.commit()
     save_safety(db, user, project.id, None, rows(), "Data leakage")
     save_loop(db, user, project.id, None, None, data("Improve prompt failure handling"))
     save_reflection(db, user, project.id, "adversarial_risk", "Legacy concern")
@@ -133,6 +162,7 @@ def test_safety_hypothesis_links_and_export(db, monkeypatch):
     assert len(document["safety_assessment"]["checkpoints"]) == 6
     assert document["improvement_loops"][0]["name"] == "Improve prompt failure handling"
     assert document["safety_hypothesis_links"][0]["checkpoint_key"] == "harms"
+    assert document["notes"][0]["origin_section"] == "safety"
     assert document["reflections"][0]["content"] == "Legacy concern"
 
 
@@ -144,7 +174,8 @@ def test_assessment_can_add_question_and_backlog_loads_it(db, monkeypatch):
     assert status == "Added to this dimension."
     assert "Can users intervene?" in visible and cleared == ""
     loaded = cb_mod.load_backlog_table_from_ui("token", str(project.id))
-    assert loaded[3] == "Can users intervene?"
+    assert loaded[1] == "Assessment"
+    assert loaded[4] == "Can users intervene?"
     assert loaded[-1] == 1
 
 
@@ -161,12 +192,19 @@ def test_callbacks_reload_safety_and_loop_per_selected_project(db, monkeypatch):
 
     values = ["Review support chats", *[item for _ in QUESTIONS for item in ("unknown", "Not yet measured")],
               "intended", ["prompts"], "product_behavior", "human", "Review every release", "Compare against baseline", "Restore prompt"]
-    status, selected, loop_revision, _card = safety_callbacks.save_loop_ui("token", str(project.id), None, None, *values)
+    status, selected_id, loop_revision, _card = safety_callbacks.save_primary_loop_ui("token", str(project.id), None, None, *values)
     assert "saved" in status.lower() and loop_revision == 1
-    selected_id = selected["value"]
-    assert safety_callbacks.load_loop_choices_ui("token", str(project.id))[0]["value"] == selected_id
-    assert safety_callbacks.load_loop_choices_ui("token", str(second.id))[0]["value"] is None
-    assert safety_callbacks.load_loop_ui("token", str(project.id), selected_id)[0] == "Review support chats"
+    assert safety_callbacks.load_primary_loop_ui("token", str(project.id))[0] == selected_id
+    assert safety_callbacks.load_primary_loop_ui("token", str(second.id))[0] is None
+    assert safety_callbacks.load_primary_loop_ui("token", str(project.id))[1] == "Review support chats"
+    added, listed, _ = safety_callbacks.add_learning_note_ui("token", str(project.id), "self_improvement", None, "Assumption", "Summaries reveal repeat failures")
+    assert "Backlog Creator" in added and "repeat failures" in listed
+    monkeypatch.setattr(cb_mod, "SessionLocal", lambda: db)
+    monkeypatch.setattr(cb_mod, "get_authenticated_user", lambda _db, _token: user)
+    backlog = cb_mod.load_backlog_table_from_ui("token", str(project.id))
+    assert backlog[1] == "Self-Improvement" and backlog[2]["value"] is None
+    assert backlog[3] == "Summaries reveal repeat failures"
+    assert safety_callbacks.learning_notes_ui("token", str(second.id), "self_improvement") == "No questions or assumptions yet."
 
 
 def test_product_deletion_cleans_up_safety_and_loops(db):

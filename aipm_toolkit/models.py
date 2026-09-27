@@ -261,6 +261,8 @@ class Note(Base):
     project_id: Mapped[UUID] = mapped_column(ForeignKey("projects.id"), nullable=False)
     note_type: Mapped[str] = mapped_column(String(30), nullable=False)
     text: Mapped[str] = mapped_column(Text, nullable=False)
+    origin_section: Mapped[str | None] = mapped_column(String(30))
+    origin_key: Mapped[str | None] = mapped_column(String(30))
     comparator_snapshot_id: Mapped[UUID | None] = mapped_column(ForeignKey("comparison_snapshots.id"))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

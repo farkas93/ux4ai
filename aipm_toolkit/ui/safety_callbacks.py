@@ -7,10 +7,8 @@ import gradio as gr
 
 from ..auth import AuthenticationError, AuthorizationError, RevisionConflict, get_authenticated_user
 from ..db import SessionLocal
-from ..hypothesis_services import create_hypothesis
+from ..hypothesis_services import create_note, list_notes
 from ..improvement_services import QUESTIONS, classify_loop, list_loops, save_loop
-from ..models import SafetyHypothesisLink
-from ..project_history_services import record_project_event
 from ..safety_services import CHECKPOINTS, get_safety, safety_result, save_safety
 from .callbacks import _resolve_token
 
@@ -61,20 +59,30 @@ def save_safety_ui(token, project_id, revision, *values, request: gr.Request | N
             return str(exc), revision, safety_card(rows, risk)
 
 
-def create_safety_hypothesis_ui(token, project_id, checkpoint_key, statement, request: gr.Request | None = None):
-    if not project_id or checkpoint_key not in CHECKPOINTS or not (statement or "").strip():
-        return "Select a product and write a testable hypothesis first.", statement
+def learning_notes_ui(token, project_id, section, key=None, request: gr.Request | None = None):
+    if not project_id:
+        return "No questions or assumptions yet."
     with SessionLocal() as db:
         try:
             actor = get_authenticated_user(db, _resolve_token(token, request))
-            hypothesis = create_hypothesis(db, actor, UUID(project_id), statement)
-            db.add(SafetyHypothesisLink(hypothesis_id=hypothesis.id, checkpoint_key=checkpoint_key))
-            record_project_event(db, actor, UUID(project_id), "safety.hypothesis_created", "hypothesis", hypothesis.id,
-                                 f"Linked supporting hypothesis to Safety: {CHECKPOINTS[checkpoint_key][0]}", {"checkpoint": checkpoint_key, "statement": statement.strip()})
-            db.commit()
-            return "Supporting hypothesis created; find it in Backlog Creator.", ""
+            notes = [note for note in list_notes(db, actor, UUID(project_id)) if note.origin_section == section and note.origin_key == key and note.note_type in {"question", "assumption"}]
+            return "\n".join(f"[{note.note_type}] {note.text}" for note in notes) or "No questions or assumptions yet."
         except (AuthenticationError, AuthorizationError, ValueError) as exc:
-            return str(exc), statement
+            return str(exc)
+
+
+def add_learning_note_ui(token, project_id, section, key, note_type, text, request: gr.Request | None = None):
+    if section not in {"safety", "self_improvement"} or (section == "safety" and key not in CHECKPOINTS) or (section == "self_improvement" and key is not None):
+        return "Select a learning area first.", gr.update(), text
+    if not project_id or not (text or "").strip():
+        return "Select a product and write a question or assumption.", learning_notes_ui(token, project_id, section, key, request=request), text
+    with SessionLocal() as db:
+        try:
+            actor = get_authenticated_user(db, _resolve_token(token, request))
+            create_note(db, actor, UUID(project_id), (note_type or "").lower(), text, origin_section=section, origin_key=key)
+        except (AuthenticationError, AuthorizationError, ValueError) as exc:
+            return str(exc), gr.update(), text
+    return "Added. Develop it into a hypothesis in Backlog Creator.", learning_notes_ui(token, project_id, section, key, request=request), ""
 
 
 def _loop_fields(loop):
@@ -113,34 +121,9 @@ def live_loop_card(*values):
             "Course-specific classification—not a standardized benchmark. Status is the team's claim, not certification.")
 
 
-def load_loop_choices_ui(token, project_id, request: gr.Request | None = None):
+def save_primary_loop_ui(token, project_id, loop_id, revision, *values, request: gr.Request | None = None):
     if not project_id:
-        return gr.update(choices=[], value=None), *_loop_fields(None)
-    with SessionLocal() as db:
-        try:
-            actor = get_authenticated_user(db, _resolve_token(token, request))
-            loops = list_loops(db, actor, UUID(project_id))
-            selected = loops[0] if loops else None
-            return gr.update(choices=[(loop.name, str(loop.id)) for loop in loops], value=str(selected.id) if selected else None), *_loop_fields(selected)
-        except (AuthenticationError, AuthorizationError, ValueError):
-            return gr.update(choices=[], value=None), *_loop_fields(None)
-
-
-def load_loop_ui(token, project_id, loop_id, request: gr.Request | None = None):
-    if not project_id or not loop_id:
-        return _loop_fields(None)
-    with SessionLocal() as db:
-        try:
-            actor = get_authenticated_user(db, _resolve_token(token, request))
-            loop = next((item for item in list_loops(db, actor, UUID(project_id)) if str(item.id) == loop_id), None)
-            return _loop_fields(loop)
-        except (AuthenticationError, AuthorizationError, ValueError):
-            return _loop_fields(None)
-
-
-def save_loop_ui(token, project_id, loop_id, revision, *values, request: gr.Request | None = None):
-    if not project_id:
-        return "Select a product first.", gr.update(), revision, loop_card(None)
+        return "Select a product first.", loop_id, revision, loop_card(None)
     name = values[0]
     answers = {key: {"answer": values[1 + i * 2], "explanation": values[2 + i * 2]} for i, key in enumerate(QUESTIONS)}
     offset = 1 + len(QUESTIONS) * 2
@@ -151,11 +134,19 @@ def save_loop_ui(token, project_id, loop_id, revision, *values, request: gr.Requ
         try:
             actor = get_authenticated_user(db, _resolve_token(token, request))
             loop = save_loop(db, actor, UUID(project_id), UUID(loop_id) if loop_id else None, revision, data)
-            choices = [(item.name, str(item.id)) for item in list_loops(db, actor, UUID(project_id))]
-            return "Improvement loop saved.", gr.update(choices=choices, value=str(loop.id)), loop.revision, loop_card(loop)
+            return "Improvement loop saved.", str(loop.id), loop.revision, loop_card(loop)
         except (AuthenticationError, AuthorizationError, RevisionConflict, ValueError) as exc:
-            return str(exc), gr.update(), revision, "Save failed. Review your answers and retry."
+            return str(exc), loop_id, revision, "Save failed. Review your answers and retry."
 
 
-def blank_loop_ui():
-    return gr.update(value=None), *_loop_fields(None)
+def load_primary_loop_ui(token, project_id, request: gr.Request | None = None):
+    if not project_id:
+        return None, *_loop_fields(None)
+    with SessionLocal() as db:
+        try:
+            actor = get_authenticated_user(db, _resolve_token(token, request))
+            loops = list_loops(db, actor, UUID(project_id))
+            first = loops[0] if loops else None
+            return str(first.id) if first else None, *_loop_fields(first)
+        except (AuthenticationError, AuthorizationError, ValueError):
+            return None, *_loop_fields(None)

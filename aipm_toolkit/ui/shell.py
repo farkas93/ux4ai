@@ -36,7 +36,7 @@ from .callbacks import (
     summary_preview_from_ui,
     workspace,
 )
-from .safety_callbacks import load_loop_choices_ui, load_safety_ui
+from .safety_callbacks import learning_notes_ui, load_primary_loop_ui, load_safety_ui
 
 LANGUAGE_CHOICES = [("English", "en"), ("Deutsch", "de")]
 
@@ -216,7 +216,8 @@ def build_app():
                 )
                 .then(lambda: False, outputs=assessment["assessment_dirty"])
                 .then(load_safety_ui, [token, product_dropdown], safety["inputs"] + [safety["revision"], safety["card"]])
-                .then(load_loop_choices_ui, [token, product_dropdown], [improvement["selector"], *improvement["fields"], improvement["card"]])
+                .then(load_primary_loop_ui, [token, product_dropdown], [improvement["loop_id"], *improvement["fields"], improvement["card"]])
+                .then(learning_notes_ui, [token, product_dropdown, improvement["note_section"]], improvement["notes_list"])
                 .then(
                     load_comparator_choices,
                     outputs=assessment["comparator"],
@@ -251,6 +252,12 @@ def build_app():
                     [token, product_dropdown, assessment["dimension_note_states"][4]],
                     dimension_note_outputs[4],
                 )
+                .then(learning_notes_ui, [token, product_dropdown, safety["note_section"], safety["checkpoint_states"][0]], safety["note_lists"][0])
+                .then(learning_notes_ui, [token, product_dropdown, safety["note_section"], safety["checkpoint_states"][1]], safety["note_lists"][1])
+                .then(learning_notes_ui, [token, product_dropdown, safety["note_section"], safety["checkpoint_states"][2]], safety["note_lists"][2])
+                .then(learning_notes_ui, [token, product_dropdown, safety["note_section"], safety["checkpoint_states"][3]], safety["note_lists"][3])
+                .then(learning_notes_ui, [token, product_dropdown, safety["note_section"], safety["checkpoint_states"][4]], safety["note_lists"][4])
+                .then(learning_notes_ui, [token, product_dropdown, safety["note_section"], safety["checkpoint_states"][5]], safety["note_lists"][5])
                 .then(
                     load_backlog_table_from_ui,
                     [token, product_dropdown],
@@ -316,6 +323,9 @@ def build_app():
             )
             for note_state, note_output in zip(assessment["dimension_note_states"], dimension_note_outputs):
                 event = event.then(dimension_notes_from_ui, [token, product_dropdown, note_state], note_output)
+            for state, output in zip(safety["checkpoint_states"], safety["note_lists"]):
+                event = event.then(learning_notes_ui, [token, product_dropdown, safety["note_section"], state], output)
+            event = event.then(learning_notes_ui, [token, product_dropdown, improvement["note_section"]], improvement["notes_list"])
             return (
                 event.then(
                     load_placements_from_ui,
@@ -343,7 +353,7 @@ def build_app():
                 load_backlog_table_from_ui, [token, product_dropdown], backlog["table_flat_outputs"] + [backlog["visible_rows_count"]],
             )
 
-        for event in [*assessment["note_events"], *safety["hypothesis_events"]]:
+        for event in [*assessment["note_events"], *safety["note_events"], improvement["note_event"]]:
             event.then(load_backlog_table_from_ui, [token, product_dropdown], backlog["table_flat_outputs"] + [backlog["visible_rows_count"]])
 
     return app

@@ -46,9 +46,9 @@ def test_load_backlog_table_unpacks_correct_flat_count(db, monkeypatch):
     monkeypatch.setattr(cb_mod, "SessionLocal", lambda: db)
     monkeypatch.setattr(cb_mod, "get_authenticated_user", lambda _db, _token: user)
 
-    # 16 slots * 10 components + 1 extra (visible_count) = 161
+    # 16 slots * 11 components + 1 extra (visible_count) = 177
     results = load_backlog_table_from_ui("token", str(project.id))
-    assert len(results) == MAX_BACKLOG_ROWS * 10 + 1
+    assert len(results) == MAX_BACKLOG_ROWS * 11 + 1
     assert results[-1] == 0
     assert results[0]["visible"] is False
     # Ensure outputs are flat
@@ -174,9 +174,9 @@ def test_remove_archives_entry_preserving_experiment_and_history(db, monkeypatch
 
     loaded = load_backlog_table_from_ui("token", str(project.id))
     assert loaded[-1] == 1
-    assert loaded[2] == ""
-    assert loaded[3] == "Can they intervene?"
-    assert loaded[5]["visible"] is True
+    assert loaded[3] == ""
+    assert loaded[4] == "Can they intervene?"
+    assert loaded[6]["visible"] is True
     assert "Users trust automation" not in dimension_notes_from_ui("token", str(project.id), "autonomy")
     assert "Can they intervene?" in dimension_notes_from_ui("token", str(project.id), "autonomy")
     assert db.query(ProjectEvent).filter_by(event_type="backlog.entry_archived").count() == 1

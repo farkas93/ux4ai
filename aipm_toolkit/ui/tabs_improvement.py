@@ -1,39 +1,50 @@
-"""AI-assisted and automated improvement loops, classified individually."""
+"""Explore one AI-assisted improvement loop as a learning exercise."""
 
 import gradio as gr
 
 from ..improvement_services import QUESTIONS, SCOPES
-from .safety_callbacks import blank_loop_ui, live_loop_card, load_loop_ui, save_loop_ui
+from .safety_callbacks import add_learning_note_ui, live_loop_card, save_primary_loop_ui
 
 
 def build_improvement_tab(token, product_dropdown, status):
     with gr.Tab("Self-Improvement") as tab:
-        gr.Markdown("## Recursive Self-Improvement Assessment\n**AI-assisted and automated improvement loops**\n\nName one concrete loop at a time. Each loop receives its own course-specific classification; loops are never averaged.")
+        gr.Markdown("## Recursive Self-Improvement\nImagine one way your product might learn from its use. Write questions and assumptions first, then develop hypotheses in **Backlog Creator**.")
+        loop_id = gr.State(None)
+        name = gr.Textbox(label="Your improvement loop", placeholder="Analyze failed support conversations and propose better clarification prompts")
+        notes_list = gr.Textbox(label="Current questions and assumptions", interactive=False, lines=3)
         with gr.Row():
-            selector = gr.Dropdown(label="Saved improvement loops", choices=[])
-            new_button = gr.Button("+ New loop")
-        name = gr.Textbox(label="Specific improvement loop", placeholder="Analyze failed support conversations and propose clarification-prompt changes")
+            note_type = gr.Radio(choices=["Question", "Assumption"], value="Question", label="Add")
+            note_text = gr.Textbox(label="What needs exploring?", scale=3)
+            add_button = gr.Button("Add", scale=1)
+        section, origin_key = gr.State("self_improvement"), gr.State(None)
+        note_event = add_button.click(add_learning_note_ui, [token, product_dropdown, section, origin_key, note_type, note_text], [status, notes_list, note_text])
+        gr.Markdown("### Explore what AI contributes to the loop")
         answers = []
-        for key, question in QUESTIONS.items():
-            with gr.Accordion(question, open=(key == "observe")):
+        def add_capability(question):
+            with gr.Accordion(question, open=False):
                 answer = gr.Radio(choices=[("Yes", "yes"), ("Partly", "partly"), ("No", "no"), ("Unknown", "unknown")], label="Capability", value=None)
                 explanation = gr.Textbox(label="Explanation", lines=2)
                 answers.extend([answer, explanation])
-        gr.Markdown("The last two questions establish whether levels 4 and 5 are supported. 'Partly' does not satisfy a prerequisite.")
-        status_field = gr.Radio(choices=[("Intended", "intended"), ("Implemented", "implemented"), ("Demonstrated", "demonstrated")], label="Status", value="intended")
-        scopes = gr.CheckboxGroup(choices=[(key.replace("_", " ").title(), key) for key in sorted(SCOPES)], label="Change scope")
-        recursion = gr.Radio(choices=[("Product behavior", "product_behavior"), ("Improvement process itself", "improvement_process")], label="Recursion scope", value="product_behavior")
-        release = gr.Radio(choices=[("Human", "human"), ("Bounded automatic", "bounded_automatic"), ("Unspecified", "unspecified")], label="Release approval", value="unspecified")
-        boundary = gr.Textbox(label="Approval boundary and automatic-application limits", lines=2)
-        checks = gr.Textbox(label="Success criteria and regression checks", lines=2)
-        rollback = gr.Textbox(label="Rollback or recovery mechanism", lines=2)
+
+        for question in list(QUESTIONS.values())[:5]:
+            add_capability(question)
+        with gr.Accordion("Optional: explore more automated loops", open=False):
+            for question in list(QUESTIONS.values())[5:]:
+                add_capability(question)
+        with gr.Accordion("Optional: describe the implementation", open=False):
+            status_field = gr.Radio(choices=[("Intended", "intended"), ("Implemented", "implemented"), ("Demonstrated", "demonstrated")], label="Status", value="intended")
+            scopes = gr.CheckboxGroup(choices=[(key.replace("_", " ").title(), key) for key in sorted(SCOPES)], label="Change scope")
+            recursion = gr.Radio(choices=[("Product behavior", "product_behavior"), ("Improvement process itself", "improvement_process")], label="Recursion scope", value="product_behavior")
+            release = gr.Radio(choices=[("Human", "human"), ("Bounded automatic", "bounded_automatic"), ("Unspecified", "unspecified")], label="Release approval", value="unspecified")
+            boundary = gr.Textbox(label="Approval boundary and automatic-application limits", lines=2)
+            checks = gr.Textbox(label="Success criteria and regression checks", lines=2)
+            rollback = gr.Textbox(label="Rollback or recovery mechanism", lines=2)
         revision = gr.State(None)
         fields = [name, *answers, status_field, scopes, recursion, release, boundary, checks, rollback, revision]
-        card = gr.Markdown("Name a specific improvement loop to classify it. Course-specific classification—not a standardized benchmark.")
-        save = gr.Button("Save loop", variant="primary")
+        with gr.Accordion("Optional: course-specific level feedback", open=False):
+            card = gr.Markdown("Name a specific improvement loop to see a provisional course-specific level.")
+        save = gr.Button("Save learning loop", variant="primary")
         for component in fields[:-1]:
             component.change(live_loop_card, fields[:-1], card)
-        selector.change(load_loop_ui, [token, product_dropdown, selector], [*fields, card])
-        new_button.click(blank_loop_ui, outputs=[selector, *fields, card])
-        save.click(save_loop_ui, [token, product_dropdown, selector, revision, *fields[:-1]], [status, selector, revision, card])
-    return {"tab": tab, "selector": selector, "fields": fields, "card": card}
+        save.click(save_primary_loop_ui, [token, product_dropdown, loop_id, revision, *fields[:-1]], [status, loop_id, revision, card])
+    return {"tab": tab, "loop_id": loop_id, "fields": fields, "card": card, "notes_list": notes_list, "note_event": note_event, "note_section": section}

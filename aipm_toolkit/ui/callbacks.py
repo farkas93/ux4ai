@@ -63,6 +63,7 @@ from ..models import (
     Note,
     NoteDimension,
     Role,
+    SafetyHypothesisLink,
 )
 from ..project_history_services import list_project_events, record_project_event
 from ..services import (
@@ -524,7 +525,7 @@ def add_dimension_note_from_ui(token: str | None, project_id: str | None, dimens
     with SessionLocal() as db:
         try:
             user = get_authenticated_user(db, token)
-            create_note(db, user, UUID(project_id), note_type.lower(), text.strip(), [dimension_key])
+            create_note(db, user, UUID(project_id), note_type.lower(), text.strip(), [dimension_key], origin_section="assessment")
         except (AuthenticationError, ValueError) as exc:
             return str(exc), "", ""
     return "Added to this dimension.", dimension_notes_from_ui(token, project_id, dimension_key), ""
@@ -639,8 +640,12 @@ def save_backlog_row_from_ui(
             project = get_project(db, user, UUID(project_id))
 
             clean_dim = (dimension_key or "").strip()
-            if clean_dim not in {definition["key"] for definition in DEFAULT_DIMENSIONS}:
+            existing_note = db.get(Note, UUID(note_id)) if note_id else None
+            legacy_safety = db.get(SafetyHypothesisLink, UUID(hyp_id)) if hyp_id else None
+            if clean_dim not in {definition["key"] for definition in DEFAULT_DIMENSIONS} and clean_dim:
                 raise ValueError("Select one valid product dimension")
+            if not clean_dim and not (existing_note and existing_note.origin_section in {"safety", "self_improvement"}) and not legacy_safety:
+                raise ValueError("Choose a product dimension for this entry")
             clean_assumption = (assumption_text or "").strip()
             clean_question = (question_text or "").strip()
             clean_hypothesis = (hypothesis_text or "").strip()
@@ -651,7 +656,6 @@ def save_backlog_row_from_ui(
             primary_note = None
             before = {"dimension": None, "assumption": "", "question": "", "hypothesis": ""}
             if note_id:
-                existing_note = db.get(Note, UUID(note_id))
                 if existing_note and existing_note.project_id == project.id and existing_note.archived_at is None:
                     primary_note = existing_note
                     old_dimensions = list(db.scalars(select(NoteDimension.dimension_key).where(NoteDimension.note_id == existing_note.id)))
@@ -662,21 +666,22 @@ def save_backlog_row_from_ui(
                         existing_note.text = clean_assumption
                     elif existing_note.note_type == "question" and clean_question:
                         existing_note.text = clean_question
-                    if existing_note.text != original_text or old_dimensions != [clean_dim]:
+                    if existing_note.text != original_text or old_dimensions != ([clean_dim] if clean_dim else []):
                         db.execute(delete(NoteDimension).where(NoteDimension.note_id == existing_note.id))
-                        db.add(NoteDimension(note_id=existing_note.id, dimension_key=clean_dim))
+                        if clean_dim:
+                            db.add(NoteDimension(note_id=existing_note.id, dimension_key=clean_dim))
                         existing_note.revision += 1
                 else:
                     raise AuthorizationError("Backlog note not found")
 
             if not primary_note:
                 if clean_assumption:
-                    primary_note = Note(project_id=project.id, note_type="assumption", text=clean_assumption)
+                    primary_note = Note(project_id=project.id, note_type="assumption", text=clean_assumption, origin_section="backlog")
                     db.add(primary_note)
                     db.flush()
                     db.add(NoteDimension(note_id=primary_note.id, dimension_key=clean_dim))
                 elif clean_question:
-                    primary_note = Note(project_id=project.id, note_type="question", text=clean_question)
+                    primary_note = Note(project_id=project.id, note_type="question", text=clean_question, origin_section="backlog")
                     db.add(primary_note)
                     db.flush()
                     db.add(NoteDimension(note_id=primary_note.id, dimension_key=clean_dim))
@@ -684,30 +689,34 @@ def save_backlog_row_from_ui(
             # If user also filled the counterpart column that didn't exist before:
             if primary_note and primary_note.note_type == "question" and clean_assumption:
                 # Add assumption note as well if not already present
-                existing_a = db.scalar(select(Note).where(Note.project_id == project.id, Note.note_type == "assumption", Note.text == clean_assumption, Note.archived_at.is_(None)))
+                existing_a = db.scalar(select(Note).where(Note.project_id == project.id, Note.note_type == "assumption", Note.text == clean_assumption, Note.archived_at.is_(None), Note.origin_section == primary_note.origin_section, Note.origin_key == primary_note.origin_key))
                 if not existing_a:
-                    extra_a = Note(project_id=project.id, note_type="assumption", text=clean_assumption)
+                    extra_a = Note(project_id=project.id, note_type="assumption", text=clean_assumption, origin_section=primary_note.origin_section, origin_key=primary_note.origin_key)
                     db.add(extra_a)
                     db.flush()
-                    db.add(NoteDimension(note_id=extra_a.id, dimension_key=clean_dim))
+                    if clean_dim:
+                        db.add(NoteDimension(note_id=extra_a.id, dimension_key=clean_dim))
                 else:
                     existing_dims = list(db.scalars(select(NoteDimension.dimension_key).where(NoteDimension.note_id == existing_a.id)))
-                    if existing_dims != [clean_dim]:
+                    if existing_dims != ([clean_dim] if clean_dim else []):
                         db.execute(delete(NoteDimension).where(NoteDimension.note_id == existing_a.id))
-                        db.add(NoteDimension(note_id=existing_a.id, dimension_key=clean_dim))
+                        if clean_dim:
+                            db.add(NoteDimension(note_id=existing_a.id, dimension_key=clean_dim))
                         existing_a.revision += 1
             elif primary_note and primary_note.note_type == "assumption" and clean_question:
-                existing_q = db.scalar(select(Note).where(Note.project_id == project.id, Note.note_type == "question", Note.text == clean_question, Note.archived_at.is_(None)))
+                existing_q = db.scalar(select(Note).where(Note.project_id == project.id, Note.note_type == "question", Note.text == clean_question, Note.archived_at.is_(None), Note.origin_section == primary_note.origin_section, Note.origin_key == primary_note.origin_key))
                 if not existing_q:
-                    extra_q = Note(project_id=project.id, note_type="question", text=clean_question)
+                    extra_q = Note(project_id=project.id, note_type="question", text=clean_question, origin_section=primary_note.origin_section, origin_key=primary_note.origin_key)
                     db.add(extra_q)
                     db.flush()
-                    db.add(NoteDimension(note_id=extra_q.id, dimension_key=clean_dim))
+                    if clean_dim:
+                        db.add(NoteDimension(note_id=extra_q.id, dimension_key=clean_dim))
                 else:
                     existing_dims = list(db.scalars(select(NoteDimension.dimension_key).where(NoteDimension.note_id == existing_q.id)))
-                    if existing_dims != [clean_dim]:
+                    if existing_dims != ([clean_dim] if clean_dim else []):
                         db.execute(delete(NoteDimension).where(NoteDimension.note_id == existing_q.id))
-                        db.add(NoteDimension(note_id=existing_q.id, dimension_key=clean_dim))
+                        if clean_dim:
+                            db.add(NoteDimension(note_id=existing_q.id, dimension_key=clean_dim))
                         existing_q.revision += 1
 
             saved_hyp_id = hyp_id
@@ -723,11 +732,12 @@ def save_backlog_row_from_ui(
                         hyp_dimensions = list(db.scalars(select(HypothesisDimension.dimension_key).where(HypothesisDimension.hypothesis_id == existing_hyp.id)))
                         if hyp_dimensions:
                             before["dimension"] = hyp_dimensions[0]
-                        if existing_hyp.statement != clean_hypothesis or hyp_dimensions != [clean_dim]:
+                        if existing_hyp.statement != clean_hypothesis or hyp_dimensions != ([clean_dim] if clean_dim else []):
                             existing_hyp.statement = clean_hypothesis
                             existing_hyp.revision += 1
                             db.execute(delete(HypothesisDimension).where(HypothesisDimension.hypothesis_id == existing_hyp.id))
-                            db.add(HypothesisDimension(hypothesis_id=existing_hyp.id, dimension_key=clean_dim))
+                            if clean_dim:
+                                db.add(HypothesisDimension(hypothesis_id=existing_hyp.id, dimension_key=clean_dim))
                         saved_hyp_rev = existing_hyp.revision
                         if primary_note:
                             exists = db.scalar(select(HypothesisSource).where(HypothesisSource.hypothesis_id == existing_hyp.id, HypothesisSource.note_id == primary_note.id))
@@ -740,7 +750,7 @@ def save_backlog_row_from_ui(
                         project_id=project.id,
                         kind="supporting",
                         statement=clean_hypothesis,
-                        value_link=f"Supports {clean_dim} dimension",
+                        value_link=f"Supports {clean_dim} dimension" if clean_dim else "Explores an open question or assumption",
                         priority_risk=0.0,
                         priority_evidence=0.0,
                         revision=1,
@@ -748,20 +758,26 @@ def save_backlog_row_from_ui(
                     db.add(new_hyp)
                     db.flush()
                     before["hypothesis"] = ""
-                    db.add(HypothesisDimension(hypothesis_id=new_hyp.id, dimension_key=clean_dim))
+                    if clean_dim:
+                        db.add(HypothesisDimension(hypothesis_id=new_hyp.id, dimension_key=clean_dim))
                     if primary_note:
                         db.add(HypothesisSource(hypothesis_id=new_hyp.id, note_id=primary_note.id))
                     saved_hyp_id = str(new_hyp.id)
                     saved_hyp_rev = new_hyp.revision
 
+            area_label = clean_dim.replace("_", " ") if clean_dim else (
+                f"AI Safety · {primary_note.origin_key}" if primary_note and primary_note.origin_section == "safety" else
+                "Self-Improvement" if primary_note and primary_note.origin_section == "self_improvement" else
+                "AI Safety" if legacy_safety else "Backlog Creator"
+            )
             if before["dimension"] and before["dimension"] != clean_dim:
-                event_summary = f"Moved backlog entry from {before['dimension'].replace('_', ' ')} to {clean_dim.replace('_', ' ')}"
+                event_summary = f"Moved backlog entry from {before['dimension'].replace('_', ' ')} to {area_label}"
             elif not note_id and not hyp_id:
-                event_summary = f"Added backlog entry in {clean_dim.replace('_', ' ')}"
+                event_summary = f"Added backlog entry in {area_label}"
             else:
-                event_summary = f"Updated backlog entry in {clean_dim.replace('_', ' ')}"
+                event_summary = f"Updated backlog entry in {area_label}"
             after = {
-                "dimension": clean_dim,
+                "dimension": clean_dim or None,
                 "assumption": clean_assumption,
                 "question": clean_question,
                 "hypothesis": clean_hypothesis,
@@ -821,6 +837,7 @@ def load_backlog_table_from_ui(
     token = _resolve_token(token, request)
     empty_slot = (
         gr.update(visible=False),
+        "Backlog Creator",
         gr.update(value=None),
         "",
         "",
@@ -867,12 +884,19 @@ def load_backlog_table_from_ui(
             )) if hypotheses else []
             note_to_hyp = {hs.note_id: hs.hypothesis_id for hs in hyp_sources if hs.note_id}
             hyp_by_id = {h.id: h for h in hypotheses}
+            legacy_safety_links = {link.hypothesis_id: link.checkpoint_key for link in db.scalars(select(SafetyHypothesisLink).where(SafetyHypothesisLink.hypothesis_id.in_([h.id for h in hypotheses])))} if hypotheses else {}
 
             rows = []
             used_hyp_ids = set()
 
             for note in notes:
-                dim = note_dims.get(note.id, "conversational")
+                dim = note_dims.get(note.id)
+                if note.origin_section == "safety":
+                    source = f"AI Safety · {note.origin_key.title()}"
+                elif note.origin_section == "self_improvement":
+                    source = "Self-Improvement"
+                else:
+                    source = "Assessment" if note.origin_section == "assessment" else "Backlog Creator" if note.origin_section == "backlog" else "Earlier entry"
                 a_text = note.text if note.note_type == "assumption" else ""
                 q_text = note.text if note.note_type == "question" else ""
 
@@ -890,6 +914,7 @@ def load_backlog_table_from_ui(
                         dim = hyp_dims.get(matched_hyp.id, dim)
 
                 rows.append({
+                    "source": source,
                     "dim": dim,
                     "assumption": a_text,
                     "question": q_text,
@@ -903,6 +928,7 @@ def load_backlog_table_from_ui(
                 if hyp.id not in used_hyp_ids:
                     dim = hyp_dims.get(hyp.id)
                     rows.append({
+                        "source": f"AI Safety · {legacy_safety_links[hyp.id].title()}" if hyp.id in legacy_safety_links else "Backlog Creator",
                         "dim": dim,
                         "assumption": "",
                         "question": "",
@@ -919,6 +945,7 @@ def load_backlog_table_from_ui(
                     r = rows[i]
                     slots.append((
                         gr.update(visible=True),
+                        r["source"],
                         gr.update(value=r["dim"]),
                         r["assumption"],
                         r["question"],

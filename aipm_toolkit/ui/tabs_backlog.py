@@ -1,4 +1,4 @@
-"""Backlog creator tab: 4-column table for Dimension, Assumption, Question, Hypothesis."""
+"""Backlog creator: transform sourced questions and assumptions into hypotheses."""
 
 import gradio as gr
 
@@ -13,15 +13,17 @@ def build_backlog_tab(token, product_dropdown, status):
     with gr.Tab("Backlog creator") as tab:
         gr.Markdown(
             "### Backlog Table\n"
-            "Rows are auto-populated from your Assessment questions and assumptions. "
-            "Each entry belongs to one dimension. Change its dimension here to move it in the current Assessment view. "
+            "Rows are auto-populated from Assessment, AI Safety, and Self-Improvement. "
+            "Their source is preserved. A product dimension is optional for safety and improvement questions. "
             "Add or edit the assumption, question, and testable hypothesis, then save. Removed entries remain in Project History."
         )
 
         # Header row
         with gr.Row(elem_classes=["backlog-table-header"]):
             with gr.Column(scale=2, min_width=120):
-                gr.Markdown("**Dimension**")
+                gr.Markdown("**From**")
+            with gr.Column(scale=2, min_width=120):
+                gr.Markdown("**Product dimension**")
             with gr.Column(scale=3):
                 gr.Markdown("**Assumption**")
             with gr.Column(scale=3):
@@ -36,6 +38,7 @@ def build_backlog_tab(token, product_dropdown, status):
         with gr.Column(elem_classes=["backlog-table-container"]):
             for i in range(MAX_BACKLOG_ROWS):
                 with gr.Row(visible=False, variant="panel") as row_box:
+                    source = gr.Textbox(value="Backlog Creator", show_label=False, interactive=False, scale=2)
                     dim_dropdown = gr.Dropdown(
                         choices=[(d["title"], d["key"]) for d in DEFAULT_DIMENSIONS],
                         value=None,
@@ -69,6 +72,7 @@ def build_backlog_tab(token, product_dropdown, status):
 
                 row_components.append({
                     "box": row_box,
+                    "source": source,
                     "dim": dim_dropdown,
                     "assumption": assumption_box,
                     "question": question_box,
@@ -101,7 +105,7 @@ def build_backlog_tab(token, product_dropdown, status):
 
     table_flat_outputs = []
     for r in row_components:
-        table_flat_outputs.extend([r["box"], r["dim"], r["assumption"], r["question"], r["hypothesis"], r["remove_btn"], r["cancel_btn"], r["note_id"], r["hyp_id"], r["hyp_rev"]])
+        table_flat_outputs.extend([r["box"], r["source"], r["dim"], r["assumption"], r["question"], r["hypothesis"], r["remove_btn"], r["cancel_btn"], r["note_id"], r["hyp_id"], r["hyp_rev"]])
 
     return {
         "tab": tab,
