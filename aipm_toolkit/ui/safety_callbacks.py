@@ -8,7 +8,8 @@ import gradio as gr
 from ..auth import AuthenticationError, AuthorizationError, RevisionConflict, get_authenticated_user
 from ..db import SessionLocal
 from ..hypothesis_services import create_note, list_notes
-from ..improvement_services import QUESTIONS, classify_loop, list_loops, save_loop
+from ..improvement_services import QUESTIONS, list_loops, save_loop
+from ..models import ImprovementLoop
 from ..safety_services import CHECKPOINTS, get_safety, safety_result, save_safety
 from .callbacks import _resolve_token
 
@@ -85,68 +86,49 @@ def add_learning_note_ui(token, project_id, section, key, note_type, text, reque
     return "Added. Develop it into a hypothesis in Backlog Creator.", learning_notes_ui(token, project_id, section, key, request=request), ""
 
 
-def _loop_fields(loop):
-    if loop is None:
-        return ("", *[val for _ in QUESTIONS for val in (None, "")], "intended", [], "product_behavior", "unspecified", "", "", "", None, loop_card(None))
-    answers = json.loads(loop.capabilities_json or "{}")
-    return (loop.name, *[val for key in QUESTIONS for val in (answers.get(key, {}).get("answer"), answers.get(key, {}).get("explanation", ""))],
-            loop.status, json.loads(loop.change_scopes_json or "[]"), loop.recursion_scope, loop.release_approval,
-            loop.approval_boundary, loop.success_checks, loop.rollback, loop.revision, loop_card(loop))
-
-
-def loop_card(loop):
-    if loop is None:
-        return "### Name a specific improvement loop to classify it.\nCourse-specific classification—not a standardized benchmark."
-    answers = {key: value.get("answer") for key, value in json.loads(loop.capabilities_json or "{}").items()}
-    result = classify_loop(answers, loop.release_approval, loop.success_checks, loop.rollback, loop.approval_boundary)
-    possible = (f"; provisional potential: level {result['possible_level']} (unresolved prerequisites)" if result["provisional"] else "")
-    return (f"### Level {result['level']} — {result['name']}{possible}\n"
-            f"**Status:** {loop.status.title()} · **Scope:** {', '.join(json.loads(loop.change_scopes_json or '[]')) or 'Not specified'} "
-            f"· **Release approval:** {loop.release_approval.replace('_', ' ').title()}\n\n"
-            "Course-specific classification—not a standardized benchmark. Status is the team's claim, not certification.")
-
-
-def live_loop_card(*values):
-    name = (values[0] or "").strip()
-    if not name:
-        return loop_card(None)
-    answers = {key: (values[1 + i * 2] if (values[2 + i * 2] or "").strip() else "unknown") for i, key in enumerate(QUESTIONS)}
-    offset = 1 + 2 * len(QUESTIONS)
-    status, scopes, _recursion, release, boundary, checks, rollback = values[offset:offset + 7]
-    result = classify_loop(answers, release or "unspecified", checks or "", rollback or "", boundary or "")
-    possible = f" · Provisional potential: level {result['possible_level']} (unresolved prerequisites)" if result["provisional"] else ""
-    return (f"### Level {result['level']} — {result['name']}{possible}\n"
-            f"**Status:** {(status or 'intended').title()} · **Scope:** {', '.join(scopes or []) or 'Not specified'} "
-            f"· **Release approval:** {(release or 'unspecified').replace('_', ' ').title()}\n\n"
-            "Course-specific classification—not a standardized benchmark. Status is the team's claim, not certification.")
-
-
-def save_primary_loop_ui(token, project_id, loop_id, revision, *values, request: gr.Request | None = None):
-    if not project_id:
-        return "Select a product first.", loop_id, revision, loop_card(None)
-    name = values[0]
-    answers = {key: {"answer": values[1 + i * 2], "explanation": values[2 + i * 2]} for i, key in enumerate(QUESTIONS)}
-    offset = 1 + len(QUESTIONS) * 2
-    status, scopes, recursion, release, boundary, checks, rollback = values[offset:offset + 7]
-    data = {"name": name, "answers": answers, "status": status, "scopes": scopes or [], "recursion_scope": recursion,
-            "release_approval": release, "approval_boundary": boundary or "", "success_checks": checks or "", "rollback": rollback or ""}
-    with SessionLocal() as db:
-        try:
-            actor = get_authenticated_user(db, _resolve_token(token, request))
-            loop = save_loop(db, actor, UUID(project_id), UUID(loop_id) if loop_id else None, revision, data)
-            return "Improvement loop saved.", str(loop.id), loop.revision, loop_card(loop)
-        except (AuthenticationError, AuthorizationError, RevisionConflict, ValueError) as exc:
-            return str(exc), loop_id, revision, "Save failed. Review your answers and retry."
-
-
 def load_primary_loop_ui(token, project_id, request: gr.Request | None = None):
+    empty = (None, "", *[value for _ in list(QUESTIONS.values())[:5] for value in (None, "")], None)
     if not project_id:
-        return None, *_loop_fields(None)
+        return empty
     with SessionLocal() as db:
         try:
             actor = get_authenticated_user(db, _resolve_token(token, request))
             loops = list_loops(db, actor, UUID(project_id))
             first = loops[0] if loops else None
-            return str(first.id) if first else None, *_loop_fields(first)
+            if first is None:
+                return empty
+            saved = json.loads(first.capabilities_json or "{}")
+            return (str(first.id), first.name,
+                    *[value for key in list(QUESTIONS)[:5] for value in (saved.get(key, {}).get("answer"), saved.get(key, {}).get("explanation", ""))],
+                    first.revision)
         except (AuthenticationError, AuthorizationError, ValueError):
-            return None, *_loop_fields(None)
+            return empty
+
+
+def save_primary_loop_ui(token, project_id, loop_id, revision, *values, request: gr.Request | None = None):
+    if not project_id:
+        return "Select a product first.", loop_id, revision
+    name = values[0]
+    data_answers = {key: {"answer": values[1 + i * 2], "explanation": values[2 + i * 2]} for i, key in enumerate(list(QUESTIONS)[:5])}
+    with SessionLocal() as db:
+        try:
+            actor = get_authenticated_user(db, _resolve_token(token, request))
+            existing = db.get(ImprovementLoop, UUID(loop_id)) if loop_id else None
+            old_answers = json.loads(existing.capabilities_json or "{}") if existing else {}
+            for key in list(QUESTIONS)[5:]:
+                data_answers[key] = old_answers.get(key, {"answer": "unknown", "explanation": ""})
+            data = {
+                "name": name,
+                "answers": data_answers,
+                "status": existing.status if existing else "intended",
+                "scopes": json.loads(existing.change_scopes_json or "[]") if existing else [],
+                "recursion_scope": existing.recursion_scope if existing else "product_behavior",
+                "release_approval": existing.release_approval if existing else "unspecified",
+                "approval_boundary": existing.approval_boundary if existing else "",
+                "success_checks": existing.success_checks if existing else "",
+                "rollback": existing.rollback if existing else "",
+            }
+            loop = save_loop(db, actor, UUID(project_id), UUID(loop_id) if loop_id else None, revision, data)
+            return "Learning loop saved.", str(loop.id), loop.revision
+        except (AuthenticationError, AuthorizationError, RevisionConflict, ValueError) as exc:
+            return str(exc), loop_id, revision

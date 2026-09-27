@@ -7,7 +7,7 @@ from sqlalchemy import select
 
 from aipm_toolkit.auth import AuthorizationError, RevisionConflict, hash_password
 from aipm_toolkit.experiment_services import save_reflection
-from aipm_toolkit.export_services import build_project_export
+from aipm_toolkit.export_services import build_project_export, export_project_markdown
 from aipm_toolkit.hypothesis_services import create_hypothesis
 from aipm_toolkit.improvement_services import QUESTIONS, classify_loop, list_loops, save_loop
 from aipm_toolkit.lifecycle_services import delete_project
@@ -164,6 +164,10 @@ def test_safety_question_develops_in_backlog_and_legacy_hypothesis_survives(db, 
     assert document["safety_hypothesis_links"][0]["checkpoint_key"] == "harms"
     assert document["notes"][0]["origin_section"] == "safety"
     assert document["reflections"][0]["content"] == "Legacy concern"
+    markdown = export_project_markdown(db, user, project.id)
+    assert "AI Safety (design coverage" not in markdown
+    assert "Self-Improvement (course-specific classification)" not in markdown
+    assert "Level 5" not in markdown
 
 
 def test_assessment_can_add_question_and_backlog_loads_it(db, monkeypatch):
@@ -190,13 +194,20 @@ def test_callbacks_reload_safety_and_loop_per_selected_project(db, monkeypatch):
     assert safety_callbacks.load_safety_ui("token", str(project.id))[-2] == revision
     assert safety_callbacks.load_safety_ui("token", str(second.id))[-2] is None
 
-    values = ["Review support chats", *[item for _ in QUESTIONS for item in ("unknown", "Not yet measured")],
-              "intended", ["prompts"], "product_behavior", "human", "Review every release", "Compare against baseline", "Restore prompt"]
-    status, selected_id, loop_revision, _card = safety_callbacks.save_primary_loop_ui("token", str(project.id), None, None, *values)
+    values = ["Review support chats", *[item for _ in range(5) for item in ("unknown", "Not yet measured")]]
+    status, selected_id, loop_revision = safety_callbacks.save_primary_loop_ui("token", str(project.id), None, None, *values)
     assert "saved" in status.lower() and loop_revision == 1
     assert safety_callbacks.load_primary_loop_ui("token", str(project.id))[0] == selected_id
     assert safety_callbacks.load_primary_loop_ui("token", str(second.id))[0] is None
     assert safety_callbacks.load_primary_loop_ui("token", str(project.id))[1] == "Review support chats"
+    loop = db.get(ImprovementLoop, UUID(selected_id))
+    loop.status = "implemented"
+    loop.approval_boundary = "A human approves release"
+    db.commit()
+    _, _, loop_revision = safety_callbacks.save_primary_loop_ui("token", str(project.id), selected_id, loop_revision, *values)
+    persisted_loop = db.get(ImprovementLoop, UUID(selected_id))
+    assert persisted_loop.status == "implemented"
+    assert persisted_loop.approval_boundary == "A human approves release"
     added, listed, _ = safety_callbacks.add_learning_note_ui("token", str(project.id), "self_improvement", None, "Assumption", "Summaries reveal repeat failures")
     assert "Backlog Creator" in added and "repeat failures" in listed
     monkeypatch.setattr(cb_mod, "SessionLocal", lambda: db)

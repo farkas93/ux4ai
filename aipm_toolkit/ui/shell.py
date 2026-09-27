@@ -36,7 +36,7 @@ from .callbacks import (
     summary_preview_from_ui,
     workspace,
 )
-from .safety_callbacks import learning_notes_ui, load_primary_loop_ui, load_safety_ui
+from .safety_callbacks import learning_notes_ui, load_primary_loop_ui
 
 LANGUAGE_CHOICES = [("English", "en"), ("Deutsch", "de")]
 
@@ -215,8 +215,7 @@ def build_app():
                     assessment["assessment_components"] + [assessment["assessment_revisions"]],
                 )
                 .then(lambda: False, outputs=assessment["assessment_dirty"])
-                .then(load_safety_ui, [token, product_dropdown], safety["inputs"] + [safety["revision"], safety["card"]])
-                .then(load_primary_loop_ui, [token, product_dropdown], [improvement["loop_id"], *improvement["fields"], improvement["card"]])
+                .then(load_primary_loop_ui, [token, product_dropdown], [improvement["loop_id"], *improvement["fields"]])
                 .then(learning_notes_ui, [token, product_dropdown, improvement["note_section"]], improvement["notes_list"])
                 .then(
                     load_comparator_choices,

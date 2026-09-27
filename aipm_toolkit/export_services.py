@@ -123,23 +123,6 @@ def export_project_markdown(db: Session, actor: User, project_id: UUID) -> str:
     lines = [f"# {project['product_name']}", "", f"> {WARNING}", "", "## Product and Value Hypothesis", f"- Short description: {project['short_description']}", f"- Target user: {project['target_user']}", f"- Job to be done: {project['job_to_be_done']}", f"- Current problem: {project['current_problem']}", f"- Main value hypothesis: {(main or {}).get('statement', '')}", "", "## Dimension Profile"]
     for assessment in document["dimension_assessments"]:
         lines.append(f"- {assessment['dimension_key']}: {assessment['status']}" + (f" ({assessment['score']}/5)" if assessment["score"] is not None else "") + f". {assessment['rationale']}")
-    lines.extend(["", "## AI Safety (design coverage, not product safety)"])
-    if document["safety_assessment"]:
-        safety = document["safety_assessment"]
-        result = safety["coverage_summary"]
-        lines.append(f"- Coverage: {result['score'] if result['score'] is not None else result['range']} / 5; incomplete: {result['incomplete']}; marked Tested: {result['tested']}/6 (team claim)")
-        lines.append(f"- Critical unresolved risk: {safety['critical_risk'] or 'Not specified'}")
-        for row in safety["checkpoints"]:
-            lines.append(f"- {row['checkpoint_key']}: {row['coverage'] or 'unassessed'} / {row['maturity'] or 'unassessed'} — {row['evidence']}")
-    else:
-        lines.append("- Not assessed.")
-    lines.extend(["", "## Self-Improvement (course-specific classification)"])
-    for loop in document["improvement_loops"]:
-        result = loop["classification"]
-        label = "Learning loop" if loop["learning_loop"] else "Earlier additional loop (retained)"
-        lines.append(f"- {label}: {loop['name']}: Level {result['level']} ({result['name']}); status: {loop['status']}; potential: {result['possible_level']} if unknowns resolve; scope: {', '.join(loop['change_scopes'])}; release approval: {loop['release_approval']}")
-    if not document["improvement_loops"]:
-        lines.append("- No improvement loops assessed.")
     lines.extend(["", "## Comparator and Provenance"])
     if document["comparison_snapshots"]:
         for snapshot in document["comparison_snapshots"]:
@@ -297,25 +280,6 @@ def export_project_pdf(db: Session, actor: User, project_id: UUID) -> bytes:
             pdf.multi_cell(0, 5, _pdf_text(f"[{note['note_type']}{source}] {note['text']}", unicode_font), new_x="LMARGIN", new_y="NEXT")
     for experiment in document["experiments"]:
         pdf.multi_cell(0, 5, _pdf_text(f"[experiment: {experiment['status']}] {experiment['title']} - criterion: {experiment['success_criterion']}", unicode_font), new_x="LMARGIN", new_y="NEXT")
-    pdf.add_page()
-    pdf.set_font(font, size=14)
-    pdf.cell(0, 8, "AI safety design coverage", new_x="LMARGIN", new_y="NEXT")
-    pdf.set_font(font, size=9)
-    safety = document["safety_assessment"]
-    if safety:
-        result = safety["coverage_summary"]
-        score_label = f"{result['score']}/5" if result["score"] is not None else f"{result['range'][0]}-{result['range'][1]}/5 possible ({result['incomplete']} incomplete)"
-        pdf.multi_cell(0, 5, _pdf_text(f"Coverage: {score_label}; {result['tested']}/6 marked Tested (team claim, not certification).", unicode_font), new_x="LMARGIN", new_y="NEXT")
-        pdf.multi_cell(0, 5, _pdf_text(f"Critical unresolved risk: {safety['critical_risk'] or 'Not specified'}", unicode_font), new_x="LMARGIN", new_y="NEXT")
-    else:
-        pdf.multi_cell(0, 5, "Not assessed.", new_x="LMARGIN", new_y="NEXT")
-    pdf.set_font(font, size=14)
-    pdf.cell(0, 8, "Self-improvement (course-specific)", new_x="LMARGIN", new_y="NEXT")
-    pdf.set_font(font, size=9)
-    for loop in document["improvement_loops"]:
-        result = loop["classification"]
-        label = "Learning loop" if loop["learning_loop"] else "Earlier additional loop"
-        pdf.multi_cell(0, 5, _pdf_text(f"{label}: {loop['name']}: level {result['level']} - {result['name']}; status: {loop['status']}", unicode_font), new_x="LMARGIN", new_y="NEXT")
     if document["project_history"]:
         pdf.add_page()
         pdf.set_font(font, size=14)
