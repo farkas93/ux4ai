@@ -1,12 +1,12 @@
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 
 from aipm_toolkit.app import _resolve_token
 from aipm_toolkit.auth import hash_password
 from aipm_toolkit.db import Base
 from aipm_toolkit.models import Role, User
-from aipm_toolkit.web import create_auth_app
+from aipm_toolkit.web import _migration_heads, create_auth_app
 
 
 def test_cookie_session_protects_app_and_supports_logout(tmp_path):
@@ -47,3 +47,15 @@ def test_gradio_callback_identity_prefers_request_cookie():
         request = Inner()
 
     assert _resolve_token("client-state-token", Request()) == "cookie-session"
+
+
+def test_readyz_waits_for_database_and_current_migrations(tmp_path):
+    engine = create_engine(f"sqlite:///{tmp_path / 'ready.db'}")
+    factory = sessionmaker(bind=engine)
+    client = TestClient(create_auth_app(factory))
+    assert client.get("/healthz").status_code == 200
+    assert client.get("/readyz").status_code == 503
+    with engine.begin() as connection:
+        connection.execute(text("CREATE TABLE alembic_version (version_num VARCHAR(32) NOT NULL)"))
+        connection.execute(text("INSERT INTO alembic_version (version_num) VALUES (:version)"), {"version": next(iter(_migration_heads()))})
+    assert client.get("/readyz").status_code == 200

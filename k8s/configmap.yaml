@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: aipm-config
+data:
+  AIPM_HOST: "0.0.0.0"
+  AIPM_PORT: "7860"
+  AIPM_RUN_MIGRATIONS: "false"
+  AIPM_COOKIE_SECURE: "false"
+  AIPM_COURSE_NAME: "AIPM Workshop"
+  POSTGRES_DB: "aipm"
+  POSTGRES_USER: "aipm"

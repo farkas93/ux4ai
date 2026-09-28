@@ -37,6 +37,11 @@ from .callbacks import (
     workspace,
 )
 from .safety_callbacks import learning_notes_ui, load_primary_loop_ui
+from .tunnel_callbacks import (
+    close_public_access_from_ui,
+    open_public_access_from_ui,
+    public_access_status_from_ui,
+)
 
 LANGUAGE_CHOICES = [("English", "en"), ("Deutsch", "de")]
 
@@ -89,6 +94,17 @@ def _build_instructor_panel(token, status, product_dropdown):
         refresh_overview_button = gr.Button("Refresh course overview")
         overview_display = gr.Textbox(label="Course progress", interactive=False, lines=8)
         refresh_overview_button.click(instructor_overview_from_ui, token, overview_display)
+        gr.Markdown("### Public access (Gradio share link)")
+        gr.Markdown("LAN NodePort access is always available. Opening a public link does not bypass team or instructor sign-in. The link closes when the app pod restarts.")
+        access_status = gr.Textbox(label="Access status", value="Public Gradio link is closed. LAN access remains available.", interactive=False)
+        public_url = gr.Textbox(label="Temporary public URL", interactive=False)
+        with gr.Row():
+            refresh_access = gr.Button("Refresh access status")
+            open_access = gr.Button("Open public link", variant="primary")
+            close_access = gr.Button("Close public link", variant="stop")
+        refresh_access.click(public_access_status_from_ui, token, [access_status, public_url])
+        open_access.click(open_public_access_from_ui, token, [access_status, public_url])
+        close_access.click(close_public_access_from_ui, token, [access_status, public_url])
         gr.Markdown("### Baseline import")
         import_files = gr.File(label="Legacy JSON files", file_count="multiple", file_types=[".json"], type="filepath")
         import_manifest = gr.File(label="Import manifest JSON", file_count="single", file_types=[".json"], type="filepath")

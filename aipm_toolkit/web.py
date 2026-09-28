@@ -1,7 +1,12 @@
+from functools import lru_cache
 from html import escape
 
-from fastapi import FastAPI, Request
+from alembic.config import Config
+from alembic.script import ScriptDirectory
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
+from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
 
 from .auth import AuthenticationError, authenticate, revoke_session
 from .config import get_settings
@@ -27,6 +32,11 @@ def _login_page(error: str = "", next_path: str = "/app") -> str:
 </form></main></body></html>"""
 
 
+@lru_cache(maxsize=1)
+def _migration_heads() -> set[str]:
+    return set(ScriptDirectory.from_config(Config("alembic.ini")).get_heads())
+
+
 def create_auth_app(session_factory=SessionLocal) -> FastAPI:
     app = FastAPI(title="AIPM Toolkit")
     settings = get_settings()
@@ -46,6 +56,18 @@ def create_auth_app(session_factory=SessionLocal) -> FastAPI:
     @app.get("/healthz")
     async def healthz():
         return {"status": "ok"}
+
+    @app.get("/readyz")
+    async def readyz():
+        try:
+            with session_factory() as db:
+                db.execute(text("SELECT 1"))
+                applied = set(db.scalars(text("SELECT version_num FROM alembic_version")))
+        except SQLAlchemyError as exc:
+            raise HTTPException(status_code=503, detail="Database unavailable") from exc
+        if applied != _migration_heads():
+            raise HTTPException(status_code=503, detail="Database migrations are not current")
+        return {"status": "ready"}
 
     @app.get("/", include_in_schema=False)
     async def root():
@@ -77,5 +99,9 @@ def create_auth_app(session_factory=SessionLocal) -> FastAPI:
         response = RedirectResponse("/auth/login", status_code=303)
         response.delete_cookie(settings.cookie_name, path="/")
         return response
+
+    from .tunnel_services import close_public_access
+
+    app.add_event_handler("shutdown", close_public_access)
 
     return app

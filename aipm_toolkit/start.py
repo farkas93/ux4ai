@@ -5,7 +5,9 @@ from .seed import bootstrap_instructor
 
 
 def main() -> None:
-    subprocess.run(["alembic", "upgrade", "head"], check=True)
+    run_migrations = os.getenv("AIPM_RUN_MIGRATIONS", "true").strip().lower() in {"1", "true", "yes"}
+    if run_migrations:
+        subprocess.run(["alembic", "upgrade", "head"], check=True)
     username = os.getenv("AIPM_INSTRUCTOR_USERNAME")
     password = os.getenv("AIPM_INSTRUCTOR_PASSWORD")
     if username or password:

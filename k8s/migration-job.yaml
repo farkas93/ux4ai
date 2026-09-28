@@ -1,0 +1,82 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  # Delete this completed Job before applying a migration Job for a later release.
+  name: aipm-migrate
+spec:
+  backoffLimit: 3
+  ttlSecondsAfterFinished: 86400
+  template:
+    metadata:
+      labels:
+        app: aipm-migrate
+    spec:
+      restartPolicy: Never
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+      initContainers:
+        - name: wait-for-postgres
+          image: postgres:16-alpine
+          command: ["sh", "-c", "until pg_isready -h aipm-postgres -U \"$POSTGRES_USER\" -d \"$POSTGRES_DB\"; do sleep 2; done"]
+          envFrom:
+            - configMapRef:
+                name: aipm-config
+          env:
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: aipm-secrets
+                  key: POSTGRES_PASSWORD
+      containers:
+        - name: migrate-and-bootstrap
+          image: ghcr.io/REPLACE_WITH_YOUR_ORG/aipm-toolkit:latest
+          imagePullPolicy: IfNotPresent
+          command: ["sh", "-c"]
+          args:
+            - >-
+              set -e;
+              alembic upgrade head;
+              python -c 'import os; from aipm_toolkit.seed import bootstrap_instructor; bootstrap_instructor(os.environ["AIPM_INSTRUCTOR_USERNAME"], os.environ["AIPM_INSTRUCTOR_PASSWORD"], os.getenv("AIPM_COURSE_NAME", "AIPM Workshop"))'
+          envFrom:
+            - configMapRef:
+                name: aipm-config
+          env:
+            - name: AIPM_DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: aipm-secrets
+                  key: AIPM_DATABASE_URL
+            - name: AIPM_INSTRUCTOR_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: aipm-secrets
+                  key: AIPM_INSTRUCTOR_USERNAME
+            - name: AIPM_INSTRUCTOR_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: aipm-secrets
+                  key: AIPM_INSTRUCTOR_PASSWORD
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              memory: 1Gi
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
