@@ -1,0 +1,141 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1320" height="800"
+     viewBox="0 0 1320 800" role="img"
+     aria-labelledby="title description">
+  <title id="title">AI Product Toolkit responsive workspace proposal</title>
+  <desc id="description">
+    Desktop layout with compact header, left section navigation and
+    two-column assessment. Mobile layout with section selector,
+    compact profile and stacked dimension editors.
+  </desc>
+
+  <style>
+    text { font-family: system-ui, sans-serif; fill: #243449 }
+    .heading { font-weight: 700 }
+    .muted { fill: #68788b; font-size: 13px }
+    .small { font-size: 13px }
+    .label { font-size: 14px; font-weight: 600 }
+    .surface { fill: white; stroke: #dce4ec }
+    .field { fill: #f8fafc; stroke: #dce4ec }
+    .accent { fill: #0f766e }
+    .line { stroke: #dce4ec; fill: none }
+  </style>
+
+  <rect width="1320" height="800" fill="#edf2f7"/>
+  <text x="28" y="30" class="muted">DESKTOP · 1024 px and wider</text>
+
+  <!-- Desktop workspace -->
+  <rect x="24" y="48" width="920" height="720" rx="12" class="surface"/>
+  <path d="M24 108H944" class="line"/>
+
+  <text x="44" y="84" font-size="17" class="heading">AI Product Toolkit</text>
+  <rect x="252" y="64" width="212" height="30" rx="6" class="field"/>
+  <text x="264" y="84" class="small">convincer.io</text>
+  <text x="444" y="84" class="small">⌄</text>
+  <text x="484" y="84" class="small">+ Product</text>
+  <text x="777" y="84" class="small">EN ⌄</text>
+  <text x="840" y="84" class="small">cais-26 ⌄</text>
+
+  <!-- Desktop navigation -->
+  <rect x="25" y="109" width="174" height="658" fill="#f8fafc"/>
+  <text x="43" y="143" class="muted">WORKSPACE</text>
+  <text x="43" y="181" class="small">Project Setup</text>
+  <rect x="34" y="198" width="154" height="36" rx="6" fill="#e0f2ee"/>
+  <text x="43" y="221" class="label">Assessment</text>
+  <text x="43" y="261" class="small">AI Safety</text>
+  <text x="43" y="301" class="small">Self-Improvement</text>
+  <text x="43" y="341" class="small">Backlog Creator</text>
+  <text x="43" y="381" class="small">Prioritization</text>
+  <path d="M43 410H180" class="line"/>
+  <text x="43" y="441" class="small">Summary &amp; Export</text>
+  <text x="43" y="481" class="small">Project History</text>
+
+  <!-- Desktop section -->
+  <text x="223" y="150" font-size="24" class="heading">Assessment</text>
+  <text x="223" y="175" class="muted">
+    Explore your product’s intended characteristics.
+  </text>
+
+  <!-- Dimension editor -->
+  <rect x="223" y="200" width="397" height="360" rx="10" class="surface"/>
+  <text x="241" y="230" class="label">Conversational interaction</text>
+  <text x="591" y="230" class="small">⌃</text>
+  <text x="241" y="260" class="muted">Guided → Open-ended</text>
+  <text x="241" y="303" class="label">Intended characteristic</text>
+  <text x="576" y="303" class="small">1.5</text>
+  <path d="M246 329H596" stroke="#dce4ec" stroke-width="6"/>
+  <path d="M246 329H351" stroke="#0f766e" stroke-width="6"/>
+  <circle cx="351" cy="329" r="8" fill="white" stroke="#0f766e"/>
+
+  <text x="241" y="365" class="label">Reasoning</text>
+  <rect x="241" y="377" width="360" height="62" rx="6" class="field"/>
+  <text x="253" y="401" class="muted">Why does this fit your product?</text>
+
+  <text x="241" y="469" class="label">Questions &amp; assumptions</text>
+  <rect x="241" y="483" width="360" height="54" rx="6" class="field"/>
+  <text x="253" y="505" class="muted">Question ⌄   What needs exploring?</text>
+  <text x="558" y="523" class="small">+ Add</text>
+
+  <rect x="223" y="572" width="397" height="44" rx="8" class="surface"/>
+  <text x="241" y="600" class="label">Specialization</text>
+  <text x="580" y="600" class="small">2.8 ⌄</text>
+  <rect x="223" y="628" width="397" height="44" rx="8" class="surface"/>
+  <text x="241" y="656" class="label">Autonomy</text>
+  <text x="580" y="656" class="small">3.0 ⌄</text>
+
+  <!-- Radar panel -->
+  <rect x="642" y="200" width="278" height="286" rx="10" class="surface"/>
+  <text x="660" y="230" class="label">Product profile</text>
+  <polygon points="780,260 872,327 837,435 723,435 688,327"
+           fill="#f3f6fa" stroke="#dce4ec"/>
+  <polygon points="780,290 842,337 809,407 742,409 724,339"
+           fill="#0f766e" fill-opacity=".14" stroke="#0f766e" stroke-width="2"/>
+  <text x="686" y="466" class="muted">Current product · 5 dimensions</text>
+
+  <rect x="642" y="502" width="278" height="112" rx="10" class="surface"/>
+  <text x="660" y="530" class="label">Compare a reference</text>
+  <rect x="660" y="545" width="242" height="34" rx="6" class="field"/>
+  <text x="672" y="567" class="muted">Choose a historical product ⌄</text>
+  <text x="660" y="599" class="muted">Optional classroom comparison</text>
+
+  <rect x="223" y="710" width="150" height="34" rx="6" class="accent"/>
+  <text x="237" y="732" font-size="13" style="fill:white">Save assessment</text>
+
+  <!-- Mobile workspace -->
+  <text x="976" y="30" class="muted">MOBILE · below 768 px</text>
+  <rect x="976" y="48" width="320" height="720" rx="16" class="surface"/>
+  <text x="994" y="82" font-size="16" class="heading">AI Product Toolkit</text>
+  <text x="1253" y="82" class="small">☰</text>
+  <path d="M976 100H1296" class="line"/>
+
+  <rect x="994" y="115" width="284" height="34" rx="6" class="field"/>
+  <text x="1006" y="137" class="small">convincer.io</text>
+  <text x="1255" y="137" class="small">⌄</text>
+  <rect x="994" y="159" width="284" height="34" rx="6" class="field"/>
+  <text x="1006" y="181" class="label">Assessment</text>
+  <text x="1255" y="181" class="small">⌄</text>
+
+  <text x="994" y="229" font-size="22" class="heading">Assessment</text>
+  <text x="994" y="253" class="muted">Explore your product’s characteristics.</text>
+
+  <rect x="994" y="271" width="284" height="70" rx="8" class="surface"/>
+  <text x="1010" y="299" class="label">Product profile</text>
+  <text x="1010" y="323" class="muted">View radar &amp; compare reference ⌄</text>
+
+  <rect x="994" y="355" width="284" height="282" rx="8" class="surface"/>
+  <text x="1010" y="383" class="label">Conversational interaction</text>
+  <text x="1010" y="409" class="muted">Guided → Open-ended · 1.5</text>
+  <path d="M1014 434H1258" stroke="#dce4ec" stroke-width="6"/>
+  <path d="M1014 434H1087" stroke="#0f766e" stroke-width="6"/>
+  <circle cx="1087" cy="434" r="8" fill="white" stroke="#0f766e"/>
+  <text x="1010" y="469" class="label">Reasoning</text>
+  <rect x="1010" y="481" width="252" height="50" rx="6" class="field"/>
+  <text x="1010" y="561" class="label">Questions &amp; assumptions</text>
+  <rect x="1010" y="575" width="252" height="44" rx="6" class="field"/>
+  <text x="1022" y="602" class="muted">Question ⌄   Add an item</text>
+
+  <rect x="994" y="650" width="284" height="40" rx="8" class="surface"/>
+  <text x="1010" y="676" class="label">Specialization</text>
+  <text x="1236" y="676" class="small">⌄</text>
+  <rect x="994" y="710" width="284" height="36" rx="6" class="accent"/>
+  <text x="1068" y="734" font-size="13" style="fill:white">Save assessment</text>
+</svg>
