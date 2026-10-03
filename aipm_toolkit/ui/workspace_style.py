@@ -9,11 +9,33 @@ footer { display: none !important; }
 #aipm-app-bar { align-items: center; padding: 12px 0 20px; border-bottom: 1px solid var(--border-color-primary); }
 #aipm-app-bar button { min-width: 80px; }
 #aipm-status-banner { padding: 6px 12px; color: var(--body-text-color-subdued); }
-#toolkit-sections { display: grid; grid-template-columns: 185px minmax(0, 1fr); gap: 24px; margin-top: 22px; }
-#toolkit-sections > .tab-nav { display: flex; flex-direction: column; align-items: stretch; border: 0; gap: 5px; position: sticky; top: 20px; align-self: start; }
-#toolkit-sections > .tab-nav button { text-align: left; border: 0; border-radius: 8px; padding: 12px; font-size: 14px; white-space: normal; }
-#toolkit-sections > .tab-nav button.selected { background: var(--background-fill-secondary); color: var(--color-accent); }
-#toolkit-sections > .tabitem { grid-column: 2; grid-row: 1; min-width: 0; border: 0; padding: 0 !important; }
+#toolkit-sections { margin: 0; border: 0; }
+#toolkit-sections > .tab-nav { display: none !important; }
+#toolkit-sections > .tabitem { min-width: 0; border: 0; padding: 0 !important; }
+#toolkit-workspace { gap: 28px; align-items: flex-start; margin-top: 20px; }
+#toolkit-sidebar { width: 180px; flex: 0 0 180px !important; position: sticky; top: 20px; }
+#toolkit-main { flex: 1 1 0 !important; min-width: 0 !important; }
+#toolkit-desktop-section .wrap { display: flex; flex-direction: column; gap: 6px; }
+#toolkit-desktop-section label { width: 100%; border: 0; border-radius: 8px; box-shadow: none;
+    padding: 11px 12px; background: transparent; font-size: 13px; }
+#toolkit-desktop-section label.selected { background: var(--background-fill-secondary); color: var(--color-accent); }
+#toolkit-desktop-section input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+#toolkit-desktop-section label:focus-within { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+#aipm-app-bar { display: grid !important; grid-template-columns: 200px minmax(180px, 320px) 110px 130px 150px;
+    justify-content: space-between; align-items: center; padding: 12px 0; gap: 14px; background: transparent; min-height: 0; }
+#aipm-app-bar > * { min-width: 0 !important; width: auto !important; flex: none !important; }
+#toolkit-brand { padding: 0; }
+.toolkit-wordmark { font-size: 18px; letter-spacing: -.025em; }
+#aipm-app-bar input { font-size: 14px; }
+#toolkit-product-admin { margin: 6px 0 12px; max-width: 240px; }
+#aipm-status-banner { font-size: 12px; padding: 4px 0; min-height: 0; }
+#aipm-status-banner p { margin: 0; font-size: 12px; }
+.gradio-container .prose h1 { font-size: 24px; }
+.gradio-container .prose h2 { font-size: 24px; margin: 0 0 8px; }
+.gradio-container .prose h3 { font-size: 18px; margin: 0 0 8px; }
+.gradio-container .prose h4 { font-size: 15px; margin: 0 0 8px; }
+.gradio-container .prose p { font-size: 14px; line-height: 1.6; margin: 0 0 10px; }
+.gradio-container input, .gradio-container textarea { font-size: 14px !important; line-height: 1.5 !important; }
 #toolkit-mobile-section { display: none; }
 .toolkit-form-card, .toolkit-card, .backlog-entry { border: 1px solid var(--border-color-primary); border-radius: 12px; padding: 20px !important; background: var(--block-background-fill); }
 .backlog-table-container { gap: 18px; }
@@ -33,8 +55,12 @@ footer { display: none !important; }
 label span { background: transparent !important; color: var(--body-text-color) !important; }
 @media (max-width: 1023px) {
   #toolkit-mobile-section { display: block; margin-top: 14px; }
-  #toolkit-sections { display: block; margin-top: 20px; }
-  #toolkit-sections > .tab-nav { display: none; }
+  #toolkit-sidebar { display: none !important; }
+  #toolkit-workspace { display: block; }
+  #aipm-app-bar { grid-template-columns: minmax(170px, 1fr) 130px; }
+  #toolkit-product { grid-column: 1; grid-row: 2; }
+  #toolkit-new-product { grid-column: 2; grid-row: 2; }
+  .toolkit-account { grid-column: 1 / -1; }
 }
 @media (max-width: 767px) {
   .gradio-container { padding: 12px !important; }

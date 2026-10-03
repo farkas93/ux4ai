@@ -11,7 +11,12 @@ def test_responsive_navigation_targets_sections_without_duplicating_forms():
     assert names == {"Project Setup", "Assessment", "AI Safety", "Self-Improvement", "Backlog creator", "Prioritization", "Summary & Export", "Project History"}
     mobile = next(item for item in components if item["props"].get("elem_id") == "toolkit-mobile-section")
     assert mobile["props"]["value"] == "Project Setup"
+    desktop = next(item for item in components if item["props"].get("elem_id") == "toolkit-desktop-section")
+    assert desktop["type"] == "radio"
+    assert desktop["props"]["value"] == "Project Setup"
     assert config["title"] == "AI Product Toolkit"
+    assert app.theme.to_dict()["theme"]["block_label_background_fill_dark"] == "transparent"
+    assert app.theme.to_dict()["theme"]["input_text_size"] == "14px"
 
 
 def test_backlog_uses_labeled_cards_and_keeps_deferred_controls_absent():

@@ -6,6 +6,8 @@ These are **review mockups only**, not app implementation. Each numbered SVG pla
 
 The approved shared layout is now implemented: compact workspace branding, desktop sidebar, tablet/mobile section selector, card-based backlog with stacked inputs, reorganized assessment profile, collapsible administration, and history cards. The SVGs remain the reference for further visual review. Decorative sample progress counts, filters, and one-click file preparation in the mockups are not substituted for existing backend state; the actual interface continues to use the existing checklist and export preparation actions. Browser screenshot verification still needs a machine with Playwright Chromium installed.
 
+The sidebar now uses explicit radio navigation instead of restyling Gradio's tab navigation: its tab overflow logic produced an unwanted menu in the initial implementation. Label colors, padding, and font sizes are set through Gradio theme tokens as well as scoped CSS. Browser verification currently requires the Chromium system libraries; downloading the Playwright browser alone was insufficient in the development container.
+
 ## Pages to review
 
 | File | Review focus |
