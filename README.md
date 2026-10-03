@@ -133,6 +133,8 @@ Dimension assessments also round-trip server revisions and use the same dirty-st
 
 ## Docker Accounts and Baseline Uploads
 
+Gitea-compatible image and Helm OCI publishing scripts are documented in [docs/GITEA_RELEASE.md](docs/GITEA_RELEASE.md).
+
 For a LAN-first Kubernetes installation with an always-on NodePort and an instructor-controlled, temporary authenticated Gradio link, see [docs/KUBERNETES.md](docs/KUBERNETES.md).
 
 The container startup applies migrations and creates the initial instructor account from environment variables. Configure `.env` from `.env.example` before starting: the password is never printed or committed.

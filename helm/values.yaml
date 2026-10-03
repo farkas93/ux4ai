@@ -1,0 +1,57 @@
+nameOverride: ""
+fullnameOverride: aipm
+
+replicaCount: 1
+
+image:
+  repository: gitea.example.org/your-user/aipm-toolkit
+  tag: ""
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+
+service:
+  type: NodePort
+  port: 7860
+  nodePort: 30786
+
+secrets:
+  existingSecret: aipm-secrets
+  databaseUrlKey: AIPM_DATABASE_URL
+  postgresPasswordKey: POSTGRES_PASSWORD
+  instructorUsernameKey: AIPM_INSTRUCTOR_USERNAME
+  instructorPasswordKey: AIPM_INSTRUCTOR_PASSWORD
+
+app:
+  host: 0.0.0.0
+  port: 7860
+  courseName: AIPM Workshop
+  cookieSecure: false
+  sessionTtlHours: 12
+
+postgres:
+  enabled: true
+  serviceName: aipm-postgres
+  database: aipm
+  username: aipm
+  image:
+    repository: postgres
+    tag: 16-alpine
+    pullPolicy: IfNotPresent
+  persistence:
+    enabled: true
+    storageClass: ""
+    size: 8Gi
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 1Gi
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    memory: 1Gi

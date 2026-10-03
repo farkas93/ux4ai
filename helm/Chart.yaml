@@ -1,0 +1,6 @@
+apiVersion: v2
+name: aipm-toolkit
+description: LAN-first AIPM workshop app with authenticated optional Gradio sharing
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

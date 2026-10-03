@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "aipm.fullname" . }}-config
+  labels:
+    {{- include "aipm.labels" . | nindent 4 }}
+data:
+  AIPM_HOST: {{ .Values.app.host | quote }}
+  AIPM_PORT: {{ .Values.app.port | quote }}
+  AIPM_RUN_MIGRATIONS: "false"
+  AIPM_COOKIE_SECURE: {{ .Values.app.cookieSecure | quote }}
+  AIPM_COURSE_NAME: {{ .Values.app.courseName | quote }}
+  AIPM_SESSION_TTL_HOURS: {{ .Values.app.sessionTtlHours | quote }}
+  POSTGRES_DB: {{ .Values.postgres.database | quote }}
+  POSTGRES_USER: {{ .Values.postgres.username | quote }}

@@ -1,0 +1,10 @@
+AIPM Toolkit is exposed through a LAN NodePort and requires sign-in in both
+LAN and public Gradio-tunnel modes.
+
+Before first use:
+  1. Ensure the aipm-secrets Secret exists with the keys configured in values.
+  2. Restrict node TCP {{ .Values.service.nodePort }} at the host/upstream firewall to your LAN CIDR.
+  3. Wait for the app Pod to become Ready; it runs migrations in its init container.
+  4. Sign in at http://<node-ip>:{{ .Values.service.nodePort }}/auth/login.
+
+The optional temporary public Gradio link is controlled from the instructor panel.
