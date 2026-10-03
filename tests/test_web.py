@@ -17,6 +17,13 @@ def test_cookie_session_protects_app_and_supports_logout(tmp_path):
         db.add(User(username="web-user", password_hash=hash_password("P" * 16), role=Role.INSTRUCTOR.value))
     client = TestClient(create_auth_app(factory))
 
+    page = client.get("/auth/login")
+    assert "AI Product Toolkit" in page.text
+    assert "backlog of testable hypotheses" in page.text
+    assert 'name="viewport"' in page.text
+    assert 'for="username"' in page.text
+    assert 'autocomplete="current-password"' in page.text
+
     root = client.get("/", follow_redirects=False)
     assert root.status_code == 303
     assert root.headers["location"] == "/auth/login"

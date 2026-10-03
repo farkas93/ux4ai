@@ -1,4 +1,4 @@
-# AIPM Toolkit
+# AI Product Toolkit
 
 The new application lives in `aipm_toolkit/`; the original workshop scripts remain available for legacy-data reference.
 

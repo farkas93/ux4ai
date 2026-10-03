@@ -11,6 +11,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from .auth import AuthenticationError, authenticate, revoke_session
 from .config import get_settings
 from .db import SessionLocal
+from .ui.login_style import LOGIN_CSS
 
 
 def _safe_next(value: str | None) -> str:
@@ -20,16 +21,33 @@ def _safe_next(value: str | None) -> str:
 
 
 def _login_page(error: str = "", next_path: str = "/app") -> str:
-    message = f'<p role="alert">{escape(error)}</p>' if error else ""
+    message = f'<p class="error" role="alert">{escape(error)}</p>' if error else ""
     return f"""<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><title>AIPM Toolkit sign in</title></head>
-<body><main><h1>AIPM Toolkit</h1>{message}
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI Product Toolkit · Sign in</title><style>{LOGIN_CSS}</style></head>
+<body><main>
+<div class="brand"><span class="brand-mark" aria-hidden="true">AI</span>AI Product Toolkit</div>
+<div class="layout"><section aria-labelledby="intro-title">
+<p class="eyebrow">A workspace for learning AI product management</p>
+<h1 id="intro-title">Turn an AI idea into a clear value hypothesis.</h1>
+<p class="intro">Explore who your product helps and why it matters. Capture questions and assumptions,
+then build a backlog of testable hypotheses with your team.</p>
+<ol class="steps">
+<li><span class="step" aria-hidden="true">1</span><div><strong>Find the value</strong><small>Define the user, their problem, and your product idea.</small></div></li>
+<li><span class="step" aria-hidden="true">2</span><div><strong>Explore the unknowns</strong><small>Discuss product dimensions, AI safety, and improvement.</small></div></li>
+<li><span class="step" aria-hidden="true">3</span><div><strong>Build your hypothesis backlog</strong><small>Turn assumptions into hypotheses and decide what to test next.</small></div></li>
+</ol></section><section class="card" aria-labelledby="signin-title">
+<h2 id="signin-title">Welcome to your workspace</h2>
+<p class="hint">Sign in with the team or instructor account provided for your course.</p>{message}
 <form method="post" action="/auth/login">
 <input type="hidden" name="next" value="{escape(next_path)}">
-<label>Username <input name="username" autocomplete="username" required></label>
-<label>Password <input name="password" type="password" autocomplete="current-password" required></label>
+<label for="username">Username</label><input id="username" name="username" autocomplete="username" placeholder="Your team alias or instructor username" required>
+<label for="password">Password</label><input id="password" name="password" type="password" autocomplete="current-password" required>
 <button type="submit">Sign in</button>
-</form></main></body></html>"""
+</form><p class="hint help">Need an account or help signing in? Ask your instructor.</p>
+</section></div><footer>A learning toolkit for ideas, assumptions, and experiments.</footer>
+</main></body></html>"""
 
 
 @lru_cache(maxsize=1)
@@ -38,7 +56,7 @@ def _migration_heads() -> set[str]:
 
 
 def create_auth_app(session_factory=SessionLocal) -> FastAPI:
-    app = FastAPI(title="AIPM Toolkit")
+    app = FastAPI(title="AI Product Toolkit")
     settings = get_settings()
 
     @app.middleware("http")

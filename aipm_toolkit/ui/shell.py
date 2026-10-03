@@ -71,6 +71,24 @@ BLOCKS_CSS = """
 footer {
     display: none !important;
 }
+.gradio-container { max-width: 1440px !important; margin: auto !important; }
+#toolkit-brand { padding: 24px 8px 12px; }
+#toolkit-brand h1 { font-size: 28px; letter-spacing: -.03em; margin-bottom: 6px; }
+#toolkit-brand p { color: var(--body-text-color-subdued); }
+#toolkit-login { max-width: 460px; margin: 32px auto; padding: 28px;
+    border: 1px solid var(--border-color-primary); border-radius: 16px; }
+#aipm-app-bar { padding: 16px; border-radius: 14px; margin: 8px 0 16px; }
+#aipm-status-banner { border-left: 3px solid var(--color-accent); padding: 8px 14px; }
+#aipm-status-banner:empty { display: none; }
+.tab-nav { gap: 4px; flex-wrap: wrap; padding-bottom: 8px; }
+.tab-nav button { border-radius: 8px; padding: 10px 14px; }
+.tabitem { padding-top: 20px !important; }
+.toolkit-form-card { border: 1px solid var(--border-color-primary); border-radius: 12px; padding: 20px; }
+@media (max-width: 760px) {
+    #toolkit-brand { padding: 16px 4px 8px; }
+    .tab-nav { flex-wrap: nowrap; overflow-x: auto; }
+    .tab-nav button { white-space: nowrap; flex-shrink: 0; }
+}
 .backlog-table-container {
     max-height: 560px;
     overflow-y: auto;
@@ -130,15 +148,21 @@ def _build_instructor_panel(token, status, product_dropdown):
 
 
 def build_app():
-    with gr.Blocks(title="AIPM Toolkit", js=BLOCKS_JS, css=BLOCKS_CSS) as app:
+    theme = gr.themes.Soft(primary_hue="teal", secondary_hue="slate", neutral_hue="slate",
+                           font=[gr.themes.Font("ui-sans-serif"), gr.themes.Font("system-ui"), gr.themes.Font("sans-serif")])
+    with gr.Blocks(title="AI Product Toolkit", theme=theme, js=BLOCKS_JS, css=BLOCKS_CSS) as app:
         token = gr.State(None)
         project_revision = gr.State(None)
         delete_confirm_state = gr.State(True)
 
-        with gr.Column(visible=True) as login_panel:
+        gr.Markdown("# AI Product Toolkit\nA learning workspace to explore value, question assumptions, and build a hypothesis backlog.", elem_id="toolkit-brand")
+        status = gr.Markdown(elem_id="aipm-status-banner")
+        with gr.Column(visible=True, elem_id="toolkit-login") as login_panel:
+            gr.Markdown("### Welcome to your workspace\nUse the team or instructor account provided for your course.")
             username = gr.Textbox(label="Team alias or instructor username")
             password = gr.Textbox(label="Password", type="password")
             submit = gr.Button("Sign in", variant="primary")
+            gr.Markdown("Need help signing in? Ask your instructor.")
         with gr.Column(visible=False) as workspace_panel:
             workspace_text = gr.Markdown()
         with gr.Column(visible=False) as team_panel:
@@ -149,9 +173,6 @@ def build_app():
                     delete_product_btn = gr.Button("Delete product", scale=1, variant="stop")
                 with gr.Column(scale=1, min_width=120):
                     language_selector = gr.Dropdown(label="Language / Sprache", choices=LANGUAGE_CHOICES, value="en", scale=0)
-
-            # Prominent status feedback banner directly under the top bar
-            status = gr.Markdown(elem_id="aipm-status-banner")
 
             with gr.Row(visible=False, variant="panel") as new_product_panel:
                 new_product_input = gr.Textbox(label="New product name", placeholder="e.g. HealthAI Assistant", scale=3)
