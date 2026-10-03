@@ -177,6 +177,7 @@ def build_app():
             workspace_text = gr.Markdown(elem_id="toolkit-workspace-note")
         with gr.Column(visible=False) as team_panel:
             with gr.Row(elem_id="aipm-app-bar"):
+                menu_button = gr.Button("☰ Menu", size="sm", elem_id="toolkit-menu")
                 gr.HTML('<strong class="toolkit-wordmark">AI Product Toolkit</strong>', elem_id="toolkit-brand")
                 product_dropdown = gr.Dropdown(label="Product", show_label=False, choices=[], interactive=True, container=False, elem_id="toolkit-product")
                 new_product_btn = gr.Button("+ Product", variant="secondary", elem_id="toolkit-new-product")
@@ -195,7 +196,7 @@ def build_app():
 
             section_names = ["Project Setup", "Assessment", "AI Safety", "Self-Improvement", "Backlog creator", "Prioritization", "Summary & Export", "Project History"]
             with gr.Row(elem_id="toolkit-workspace"):
-                with gr.Column(scale=0, min_width=180, elem_id="toolkit-sidebar"):
+                with gr.Sidebar(label="Workspace navigation", open=False, width=240, elem_id="toolkit-sidebar") as sidebar:
                     desktop_section = gr.Radio(label="Workspace", choices=section_names, value="Project Setup", container=False, elem_id="toolkit-desktop-section")
                     with gr.Accordion("Product administration", open=False, elem_id="toolkit-product-admin"):
                         delete_product_btn = gr.Button("Delete product", variant="stop", size="sm")
@@ -213,7 +214,14 @@ def build_app():
             def select_section(name):
                 return [gr.update(visible=label == name) for label in section_names]
 
-            desktop_section.input(select_section, desktop_section, [page["tab"] for page in pages])
+            menu_button.click(lambda: gr.update(open=True), outputs=sidebar)
+            small_screen = gr.State(False)
+            desktop_section.input(select_section, desktop_section, [page["tab"] for page in pages]).then(
+                lambda small: gr.update(open=False) if small else gr.update(),
+                small_screen,
+                sidebar,
+                js="() => [window.matchMedia('(max-width: 1023px)').matches]",
+            )
 
         instructor_panel = _build_instructor_panel(token, status, product_dropdown)
         dimension_note_outputs = assessment["dimension_note_lists"]

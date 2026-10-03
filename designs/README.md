@@ -10,6 +10,8 @@ The sidebar now uses explicit radio navigation instead of restyling Gradio's tab
 
 Following visual feedback, section pages are now plain visibility-controlled containers: Gradio Tabs are not instantiated at all. Sidebar-only navigation is retained at every breakpoint, with a narrower sidebar on small screens. Product administration sits beneath navigation instead of occupying space above the exercise. Compact question/assumption type dropdowns reduce the height of learning-note forms.
 
+Mobile correction: navigation now uses Gradio's native collapsible `Sidebar`, initially closed. A mobile Menu button opens it; choosing a section closes it on small screens. There is no fixed sidebar consuming the phone's form width. The mobile header uses a compact grid, and text inputs use 16px text to avoid iOS focus zoom. Native drawer behavior and actual device appearance still require browser verification with the host libraries installed.
+
 ## Pages to review
 
 | File | Review focus |

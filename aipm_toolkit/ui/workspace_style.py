@@ -13,7 +13,8 @@ footer { display: none !important; }
 #toolkit-sections > .tab-nav { display: none !important; }
 #toolkit-sections > .tabitem { min-width: 0; border: 0; padding: 0 !important; }
 #toolkit-workspace { gap: 22px; align-items: flex-start; margin-top: 12px; }
-#toolkit-sidebar { width: 180px; flex: 0 0 180px !important; position: sticky; top: 20px; }
+#toolkit-sidebar { padding: 16px; }
+#toolkit-menu { display: none; }
 #toolkit-main { flex: 1 1 0 !important; min-width: 0 !important; }
 #toolkit-desktop-section .wrap { display: flex; flex-direction: column; gap: 2px; }
 #toolkit-desktop-section label { width: 100%; border: 0; border-radius: 8px; box-shadow: none;
@@ -57,11 +58,15 @@ footer { display: none !important; }
 label span { background: transparent !important; color: var(--body-text-color) !important; }
 @media (max-width: 1023px) {
   #toolkit-mobile-section { display: block; margin-top: 14px; }
-  #toolkit-sidebar { width: 150px; flex-basis: 150px !important; min-width: 150px !important; }
-  #aipm-app-bar { grid-template-columns: minmax(170px, 1fr) 130px; }
-  #toolkit-product { grid-column: 1; grid-row: 2; }
-  #toolkit-new-product { grid-column: 2; grid-row: 2; }
-  .toolkit-account { grid-column: 1 / -1; }
+  #toolkit-menu { display: block; grid-column: 1; grid-row: 1; }
+  #aipm-app-bar { grid-template-columns: 76px minmax(0, 1fr) 88px; gap: 8px; padding: 6px 0 12px; }
+  #toolkit-brand { grid-column: 2 / -1; grid-row: 1; }
+  .toolkit-wordmark { font-size: 16px; }
+  #toolkit-product { grid-column: 1 / 3; grid-row: 2; }
+  #toolkit-new-product { grid-column: 3; grid-row: 2; }
+  #toolkit-language { grid-column: 1; grid-row: 3; }
+  .toolkit-account { grid-column: 2 / -1; grid-row: 3; }
+  #toolkit-main { width: 100%; min-width: 0 !important; }
 }
 @media (max-width: 767px) {
   .gradio-container { padding: 12px !important; }
@@ -70,9 +75,10 @@ label span { background: transparent !important; color: var(--body-text-color) !
   .backlog-fields > *, .toolkit-two-column > * { width: 100%; min-width: 0 !important; }
   #toolkit-assessment-row { flex-direction: column-reverse !important; }
   .backlog-actions button { max-width: none; width: 100%; }
-  #toolkit-workspace { flex-wrap: nowrap; gap: 12px; }
-  #toolkit-sidebar { width: 120px; flex-basis: 120px !important; min-width: 120px !important; }
+  #toolkit-workspace { display: block; margin-top: 12px; }
   #toolkit-desktop-section label { padding: 8px 6px; font-size: 12px; }
   .toolkit-note-composer { flex-direction: column; align-items: stretch; }
+  .gradio-container input, .gradio-container textarea { font-size: 16px !important; }
+  .toolkit-form-card { min-width: 0 !important; }
 }
 """
