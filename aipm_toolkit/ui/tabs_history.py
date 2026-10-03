@@ -6,7 +6,7 @@ from .callbacks import project_history_from_ui
 
 
 def build_history_tab(token, product_dropdown):
-    with gr.Tab("Project History", id="Project History") as tab:
+    with gr.Column(visible=False, elem_id="page-project-history") as tab:
         gr.Markdown("## Project History\nSee how your thinking has changed.", elem_classes=["toolkit-page-heading"])
         gr.Markdown(
             "Changes to assessments and backlog entries are recorded here. "

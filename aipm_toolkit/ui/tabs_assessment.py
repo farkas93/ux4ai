@@ -12,7 +12,7 @@ from .callbacks import (
 
 
 def build_assessment_tab(token, product_dropdown, status):
-    with gr.Tab("Assessment", id="Assessment") as tab:
+    with gr.Column(visible=False, elem_id="page-assessment") as tab:
         frozen_state = gr.State({})
         unsaved_note = gr.Markdown()
 

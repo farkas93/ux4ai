@@ -6,7 +6,7 @@ from .callbacks import delete_product_from_ui, export_project_from_ui, summary_p
 
 
 def build_summary_tab(token, product_dropdown, status):
-    with gr.Tab("Summary & Export", id="Summary & Export") as tab:
+    with gr.Column(visible=False, elem_id="page-summary-export") as tab:
         gr.Markdown("## Summary & Export\nBring your idea and learning together.", elem_classes=["toolkit-page-heading"])
         with gr.Row(elem_classes=["toolkit-two-column"]):
             with gr.Column(scale=3, elem_classes=["toolkit-card"]):

@@ -8,6 +8,8 @@ The approved shared layout is now implemented: compact workspace branding, deskt
 
 The sidebar now uses explicit radio navigation instead of restyling Gradio's tab navigation: its tab overflow logic produced an unwanted menu in the initial implementation. Label colors, padding, and font sizes are set through Gradio theme tokens as well as scoped CSS. Browser verification currently requires the Chromium system libraries; downloading the Playwright browser alone was insufficient in the development container.
 
+Following visual feedback, section pages are now plain visibility-controlled containers: Gradio Tabs are not instantiated at all. Sidebar-only navigation is retained at every breakpoint, with a narrower sidebar on small screens. Product administration sits beneath navigation instead of occupying space above the exercise. Compact question/assumption type dropdowns reduce the height of learning-note forms.
+
 ## Pages to review
 
 | File | Review focus |

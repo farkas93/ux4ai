@@ -9,7 +9,7 @@ from .callbacks import (
 
 
 def build_setup_tab(token, product_dropdown, project_revision, status):
-    with gr.Tab("Project Setup", id="Project Setup") as tab:
+    with gr.Column(visible=True, elem_id="page-project-setup") as tab:
         gr.Markdown("### Start with the value\nWho are you helping, and what should improve for them? Define the idea before exploring its assumptions.")
         with gr.Row():
             with gr.Column(elem_classes=["toolkit-form-card"]):

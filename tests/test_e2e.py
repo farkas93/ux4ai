@@ -19,14 +19,13 @@ def test_authenticated_workspace_smoke(page):
     page.get_by_role("button", name="Sign in").click()
     page.wait_for_url("**/app**")
     for tab in ("Project Setup", "Assessment", "AI Safety", "Self-Improvement", "Backlog creator", "Prioritization", "Summary & Export", "Project History"):
-        assert page.get_by_role("tab", name=tab).count() == 1
-    page.get_by_role("tab", name="Assessment").click()
-    assert page.get_by_text("Live dimension profile", exact=False).count() > 0
-    assert page.get_by_text("Comparator (optional)", exact=False).count() > 0
-    page.get_by_role("tab", name="Backlog creator").click()
-    assert page.get_by_text("Assumptions", exact=True).count() > 0
-    assert page.get_by_text("Questions", exact=True).count() > 0
-    page.get_by_role("tab", name="Prioritization").click()
+        assert page.locator("#toolkit-desktop-section").get_by_text(tab, exact=True).count() == 1
+    assert page.get_by_role("tab").count() == 0
+    page.locator("#toolkit-desktop-section").get_by_text("Assessment", exact=True).click()
+    assert page.get_by_text("Product profile & comparison", exact=True).count() > 0
+    page.locator("#toolkit-desktop-section").get_by_text("Backlog creator", exact=True).click()
+    assert page.get_by_role("button", name="+ Add entry").count() > 0
+    page.locator("#toolkit-desktop-section").get_by_text("Prioritization", exact=True).click()
     assert page.get_by_text("Backlog ranking", exact=True).count() > 0
-    page.get_by_role("tab", name="Summary & Export").click()
+    page.locator("#toolkit-desktop-section").get_by_text("Summary & Export", exact=True).click()
     assert page.get_by_text("PDF export", exact=False).count() > 0

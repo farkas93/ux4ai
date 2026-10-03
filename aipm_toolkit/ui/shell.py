@@ -182,8 +182,6 @@ def build_app():
                 new_product_btn = gr.Button("+ Product", variant="secondary", elem_id="toolkit-new-product")
                 language_selector = gr.Dropdown(label="Language / Sprache", show_label=False, choices=LANGUAGE_CHOICES, value="en", container=False, elem_id="toolkit-language")
                 gr.HTML('<details><summary>Account &amp; actions</summary><a href="/auth/logout">Sign out</a></details>', elem_classes=["toolkit-account"])
-            with gr.Accordion("Product administration", open=False, elem_id="toolkit-product-admin"):
-                delete_product_btn = gr.Button("Delete product", variant="stop", size="sm")
 
             with gr.Row(visible=False, variant="panel") as new_product_panel:
                 new_product_input = gr.Textbox(label="New product name", placeholder="e.g. HealthAI Assistant", scale=3)
@@ -196,11 +194,12 @@ def build_app():
                 cancel_delete_btn = gr.Button("Cancel", variant="secondary", scale=1)
 
             section_names = ["Project Setup", "Assessment", "AI Safety", "Self-Improvement", "Backlog creator", "Prioritization", "Summary & Export", "Project History"]
-            mobile_section = gr.Dropdown(label="Section", choices=section_names, value="Project Setup", elem_id="toolkit-mobile-section", container=False)
             with gr.Row(elem_id="toolkit-workspace"):
                 with gr.Column(scale=0, min_width=180, elem_id="toolkit-sidebar"):
                     desktop_section = gr.Radio(label="Workspace", choices=section_names, value="Project Setup", container=False, elem_id="toolkit-desktop-section")
-                with gr.Column(scale=1, min_width=0, elem_id="toolkit-main"), gr.Tabs(elem_id="toolkit-sections", selected="Project Setup") as sections:
+                    with gr.Accordion("Product administration", open=False, elem_id="toolkit-product-admin"):
+                        delete_product_btn = gr.Button("Delete product", variant="stop", size="sm")
+                with gr.Column(scale=1, min_width=0, elem_id="toolkit-main"):
                     setup = tabs_setup.build_setup_tab(token, product_dropdown, project_revision, status)
                     assessment = tabs_assessment.build_assessment_tab(token, product_dropdown, status)
                     safety = tabs_safety.build_safety_tab(token, product_dropdown, status)
@@ -209,10 +208,12 @@ def build_app():
                     priority = tabs_priority.build_priority_tab(token, product_dropdown, status)
                     summary = tabs_summary.build_summary_tab(token, product_dropdown, status)
                     history = tabs_history.build_history_tab(token, product_dropdown)
-            mobile_section.input(lambda name: gr.update(selected=name), mobile_section, sections)
-            desktop_section.input(lambda name: gr.update(selected=name), desktop_section, sections)
-            for page, name in zip([setup, assessment, safety, improvement, backlog, priority, summary, history], section_names):
-                page["tab"].select(lambda name=name: (name, name), outputs=[mobile_section, desktop_section])
+            pages = [setup, assessment, safety, improvement, backlog, priority, summary, history]
+
+            def select_section(name):
+                return [gr.update(visible=label == name) for label in section_names]
+
+            desktop_section.input(select_section, desktop_section, [page["tab"] for page in pages])
 
         instructor_panel = _build_instructor_panel(token, status, product_dropdown)
         dimension_note_outputs = assessment["dimension_note_lists"]

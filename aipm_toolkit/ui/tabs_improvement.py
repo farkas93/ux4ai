@@ -7,7 +7,7 @@ from .safety_callbacks import add_learning_note_ui, save_primary_loop_ui
 
 
 def build_improvement_tab(token, product_dropdown, status):
-    with gr.Tab("Self-Improvement", id="Self-Improvement") as tab:
+    with gr.Column(visible=False, elem_id="page-self-improvement") as tab:
         gr.Markdown(
             "## Recursive Self-Improvement\n"
             "Imagine one way your product might learn from its use. Write questions and assumptions first, "
@@ -21,10 +21,10 @@ def build_improvement_tab(token, product_dropdown, status):
         )
 
         notes_list = gr.Textbox(label="Current questions and assumptions", interactive=False, lines=3)
-        with gr.Row():
-            note_type = gr.Radio(choices=["Question", "Assumption"], value="Question", label="Add")
+        with gr.Row(elem_classes=["toolkit-note-composer"]):
+            note_type = gr.Dropdown(choices=["Question", "Assumption"], value="Question", label="Type", scale=0, min_width=140)
             note_text = gr.Textbox(label="What needs exploring?", scale=3)
-            add_button = gr.Button("Add", scale=1)
+            add_button = gr.Button("Add", scale=0, min_width=80, size="sm")
         section, origin_key = gr.State("self_improvement"), gr.State(None)
         note_event = add_button.click(
             add_learning_note_ui,

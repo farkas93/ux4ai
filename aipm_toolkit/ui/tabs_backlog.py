@@ -10,7 +10,7 @@ from .callbacks import (
 
 
 def build_backlog_tab(token, product_dropdown, status):
-    with gr.Tab("Backlog creator", id="Backlog creator") as tab:
+    with gr.Column(visible=False, elem_id="page-backlog-creator") as tab:
         gr.Markdown(
             "## Backlog Creator\n"
             "Rows are auto-populated from Assessment, AI Safety, and Self-Improvement. "
