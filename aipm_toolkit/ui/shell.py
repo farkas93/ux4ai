@@ -180,9 +180,7 @@ def build_app():
                 menu_button = gr.Button("☰ Menu", size="sm", elem_id="toolkit-menu")
                 gr.HTML('<strong class="toolkit-wordmark">AI Product Toolkit</strong>', elem_id="toolkit-brand")
                 product_dropdown = gr.Dropdown(label="Product", show_label=False, choices=[], interactive=True, container=False, elem_id="toolkit-product")
-                new_product_btn = gr.Button("+ Product", variant="secondary", elem_id="toolkit-new-product")
-                language_selector = gr.Dropdown(label="Language / Sprache", show_label=False, choices=LANGUAGE_CHOICES, value="en", container=False, elem_id="toolkit-language")
-                gr.HTML('<details><summary>Account &amp; actions</summary><a href="/auth/logout">Sign out</a></details>', elem_classes=["toolkit-account"])
+                new_product_btn = gr.Button("+ New", size="sm", variant="secondary", elem_id="toolkit-new-product")
 
             with gr.Row(visible=False, variant="panel") as new_product_panel:
                 new_product_input = gr.Textbox(label="New product name", placeholder="e.g. HealthAI Assistant", scale=3)
@@ -198,6 +196,8 @@ def build_app():
             with gr.Row(elem_id="toolkit-workspace"):
                 with gr.Sidebar(label="Workspace navigation", open=False, width=240, elem_id="toolkit-sidebar") as sidebar:
                     desktop_section = gr.Radio(label="Workspace", choices=section_names, value="Project Setup", container=False, elem_id="toolkit-desktop-section")
+                    language_selector = gr.Dropdown(label="Language / Sprache", choices=LANGUAGE_CHOICES, value="en", container=False, elem_id="toolkit-language")
+                    gr.HTML('<a href="/auth/logout">Sign out</a>', elem_classes=["toolkit-account"])
                     with gr.Accordion("Product administration", open=False, elem_id="toolkit-product-admin"):
                         delete_product_btn = gr.Button("Delete product", variant="stop", size="sm")
                 with gr.Column(scale=1, min_width=0, elem_id="toolkit-main"):

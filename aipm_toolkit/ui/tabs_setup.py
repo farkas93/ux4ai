@@ -11,13 +11,13 @@ from .callbacks import (
 def build_setup_tab(token, product_dropdown, project_revision, status):
     with gr.Column(visible=True, elem_id="page-project-setup") as tab:
         gr.Markdown("### Start with the value\nWho are you helping, and what should improve for them? Define the idea before exploring its assumptions.")
-        with gr.Row():
-            with gr.Column(elem_classes=["toolkit-form-card"]):
+        with gr.Row(elem_id="toolkit-setup-cards", elem_classes=["toolkit-two-column"]):
+            with gr.Column(min_width=0, elem_classes=["toolkit-form-card"]):
                 gr.Markdown("#### 1 · Your product idea")
                 product_type = gr.Dropdown(label="AI product type", choices=["Feature", "Plugin", "Native", "Mixed/Undecided"], value=None)
                 description = gr.Textbox(label="Short description", lines=3, placeholder="What does your product help someone do?")
                 figma_url = gr.Textbox(label="Figma prototype URL (optional)")
-            with gr.Column(elem_classes=["toolkit-form-card"]):
+            with gr.Column(min_width=0, elem_classes=["toolkit-form-card"]):
                 gr.Markdown("#### 2 · The user and their problem")
                 target_user = gr.Textbox(label="Target user", placeholder="Who would benefit from this idea?")
                 job = gr.Textbox(label="Job to be done", lines=2)

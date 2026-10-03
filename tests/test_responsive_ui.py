@@ -34,3 +34,12 @@ def test_backlog_uses_labeled_cards_and_keeps_deferred_controls_absent():
     assert "Hypothesis" in labels and "Assumption" in labels and "Question" in labels
     assert "Maturity (team claim)" not in labels
     assert "Release approval" not in labels
+
+
+def test_setup_has_explicit_stacking_layout_and_header_moves_settings_to_drawer():
+    components = build_app().get_config_file()["components"]
+    setup_row = next(item for item in components if item["props"].get("elem_id") == "toolkit-setup-cards")
+    assert "toolkit-two-column" in setup_row["props"]["elem_classes"]
+    add = next(item for item in components if item["props"].get("elem_id") == "toolkit-new-product")
+    assert add["props"]["value"] == "+ New"
+    assert add["props"]["size"] == "sm"
