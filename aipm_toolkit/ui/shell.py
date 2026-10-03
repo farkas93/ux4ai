@@ -42,6 +42,7 @@ from .tunnel_callbacks import (
     open_public_access_from_ui,
     public_access_status_from_ui,
 )
+from .workspace_style import WORKSPACE_CSS
 
 LANGUAGE_CHOICES = [("English", "en"), ("Deutsch", "de")]
 
@@ -108,7 +109,7 @@ footer {
 
 def _build_instructor_panel(token, status, product_dropdown):
     with gr.Column(visible=False) as instructor_panel:
-        gr.Markdown("## Instructor area")
+        gr.Markdown("## Instructor\nManage the workshop and team access.", elem_classes=["toolkit-page-heading"])
         refresh_overview_button = gr.Button("Refresh course overview")
         overview_display = gr.Textbox(label="Course progress", interactive=False, lines=8)
         refresh_overview_button.click(instructor_overview_from_ui, token, overview_display)
@@ -123,13 +124,14 @@ def _build_instructor_panel(token, status, product_dropdown):
         refresh_access.click(public_access_status_from_ui, token, [access_status, public_url])
         open_access.click(open_public_access_from_ui, token, [access_status, public_url])
         close_access.click(close_public_access_from_ui, token, [access_status, public_url])
-        gr.Markdown("### Baseline import")
-        import_files = gr.File(label="Legacy JSON files", file_count="multiple", file_types=[".json"], type="filepath")
-        import_manifest = gr.File(label="Import manifest JSON", file_count="single", file_types=[".json"], type="filepath")
-        preview_button = gr.Button("Preview import")
-        publish_button = gr.Button("Publish preview", variant="primary")
-        import_batch_id = gr.State(None)
-        import_report = gr.Textbox(label="Import report", interactive=False, lines=8)
+        with gr.Accordion("Historical reference import", open=False):
+            import_files = gr.File(label="Legacy JSON files", file_count="multiple", file_types=[".json"], type="filepath")
+            import_manifest = gr.File(label="Import manifest JSON", file_count="single", file_types=[".json"], type="filepath")
+            with gr.Row():
+                preview_button = gr.Button("Preview import")
+                publish_button = gr.Button("Publish preview", variant="primary")
+            import_batch_id = gr.State(None)
+            import_report = gr.Textbox(label="Import report", interactive=False, lines=8)
         preview_button.click(preview_upload_from_ui, [token, import_files, import_manifest], [status, import_report, import_batch_id])
         publish_button.click(publish_upload_from_ui, [token, import_batch_id], [status, import_report])
         gr.Markdown("### Create team account")
@@ -138,11 +140,11 @@ def _build_instructor_panel(token, status, product_dropdown):
         team_password = gr.Textbox(label="Initial team password", type="password")
         create_team_button = gr.Button("Create team account")
         create_team_button.click(provision_team_from_ui, [token, team_course, team_alias, team_password], status)
-        gr.Markdown("### Delete product")
-        gr.Markdown("Deletion is manual and permanent. There is no automatic retention or deletion in this application.")
-        delete_product_id = gr.Textbox(label="Product UUID to delete")
-        confirm_delete = gr.Checkbox(label="I understand this permanently deletes the product", value=False)
-        delete_product_button = gr.Button("Delete product", variant="stop")
+        with gr.Accordion("Product administration", open=False):
+            gr.Markdown("Deletion is manual and permanent.")
+            delete_product_id = gr.Textbox(label="Product UUID to delete")
+            confirm_delete = gr.Checkbox(label="I understand this permanently deletes the product", value=False)
+            delete_product_button = gr.Button("Delete product", variant="stop")
         delete_product_button.click(delete_product_from_ui, [token, delete_product_id, confirm_delete], [status, product_dropdown])
     return instructor_panel
 
@@ -150,29 +152,32 @@ def _build_instructor_panel(token, status, product_dropdown):
 def build_app():
     theme = gr.themes.Soft(primary_hue="teal", secondary_hue="slate", neutral_hue="slate",
                            font=[gr.themes.Font("ui-sans-serif"), gr.themes.Font("system-ui"), gr.themes.Font("sans-serif")])
-    with gr.Blocks(title="AI Product Toolkit", theme=theme, js=BLOCKS_JS, css=BLOCKS_CSS) as app:
+    with gr.Blocks(title="AI Product Toolkit", theme=theme, js=BLOCKS_JS, css=WORKSPACE_CSS) as app:
         token = gr.State(None)
         project_revision = gr.State(None)
         delete_confirm_state = gr.State(True)
 
-        gr.Markdown("# AI Product Toolkit\nA learning workspace to explore value, question assumptions, and build a hypothesis backlog.", elem_id="toolkit-brand")
+        gr.Markdown("# AI Product Toolkit", elem_id="toolkit-brand")
         status = gr.Markdown(elem_id="aipm-status-banner")
+        session_notice = gr.Markdown(elem_id="toolkit-session-note")
         with gr.Column(visible=True, elem_id="toolkit-login") as login_panel:
-            gr.Markdown("### Welcome to your workspace\nUse the team or instructor account provided for your course.")
+            gr.Markdown("### Welcome to your workspace\nExplore value, question assumptions, and build a hypothesis backlog. Use the account provided for your course.")
             username = gr.Textbox(label="Team alias or instructor username")
             password = gr.Textbox(label="Password", type="password")
             submit = gr.Button("Sign in", variant="primary")
             gr.Markdown("Need help signing in? Ask your instructor.")
         with gr.Column(visible=False) as workspace_panel:
-            workspace_text = gr.Markdown()
+            workspace_text = gr.Markdown(elem_id="toolkit-workspace-note")
         with gr.Column(visible=False) as team_panel:
             with gr.Row(elem_id="aipm-app-bar", variant="panel"):
                 with gr.Column(scale=4), gr.Row():
-                    product_dropdown = gr.Dropdown(label="Product", choices=[], interactive=True, scale=3)
-                    new_product_btn = gr.Button("+ New Product", scale=1, variant="secondary")
-                    delete_product_btn = gr.Button("Delete product", scale=1, variant="stop")
+                    product_dropdown = gr.Dropdown(label="Product", choices=[], interactive=True, scale=3, container=False)
+                    new_product_btn = gr.Button("+ Product", scale=1, variant="secondary")
+                    with gr.Accordion("Product actions", open=False):
+                        delete_product_btn = gr.Button("Delete product", variant="stop")
                 with gr.Column(scale=1, min_width=120):
-                    language_selector = gr.Dropdown(label="Language / Sprache", choices=LANGUAGE_CHOICES, value="en", scale=0)
+                    language_selector = gr.Dropdown(label="Language / Sprache", choices=LANGUAGE_CHOICES, value="en", scale=0, container=False)
+                    gr.HTML('<a href="/auth/logout">Sign out</a>', elem_classes=["toolkit-account"])
 
             with gr.Row(visible=False, variant="panel") as new_product_panel:
                 new_product_input = gr.Textbox(label="New product name", placeholder="e.g. HealthAI Assistant", scale=3)
@@ -184,7 +189,9 @@ def build_app():
                 confirm_delete_btn = gr.Button("Yes, delete permanently", variant="stop", scale=1)
                 cancel_delete_btn = gr.Button("Cancel", variant="secondary", scale=1)
 
-            with gr.Tabs():
+            section_names = ["Project Setup", "Assessment", "AI Safety", "Self-Improvement", "Backlog creator", "Prioritization", "Summary & Export", "Project History"]
+            mobile_section = gr.Dropdown(label="Section", choices=section_names, value="Project Setup", elem_id="toolkit-mobile-section", container=False)
+            with gr.Tabs(elem_id="toolkit-sections", selected="Project Setup") as sections:
                 setup = tabs_setup.build_setup_tab(token, product_dropdown, project_revision, status)
                 assessment = tabs_assessment.build_assessment_tab(token, product_dropdown, status)
                 safety = tabs_safety.build_safety_tab(token, product_dropdown, status)
@@ -193,6 +200,9 @@ def build_app():
                 priority = tabs_priority.build_priority_tab(token, product_dropdown, status)
                 summary = tabs_summary.build_summary_tab(token, product_dropdown, status)
                 history = tabs_history.build_history_tab(token, product_dropdown)
+            mobile_section.input(lambda name: gr.update(selected=name), mobile_section, sections)
+            for page, name in zip([setup, assessment, safety, improvement, backlog, priority, summary, history], section_names):
+                page["tab"].select(lambda name=name: name, outputs=mobile_section)
 
         instructor_panel = _build_instructor_panel(token, status, product_dropdown)
         dimension_note_outputs = assessment["dimension_note_lists"]
@@ -346,7 +356,7 @@ def build_app():
         )
         _wire_product_load(login_event)
 
-        load_event = app.load(auto_login, outputs=[status, token, login_panel, workspace_panel]).then(
+        load_event = app.load(auto_login, outputs=[session_notice, token, login_panel, workspace_panel]).then(
             workspace, token, [workspace_text, login_panel, instructor_panel, team_panel, product_dropdown]
         )
         _wire_product_load(load_event)

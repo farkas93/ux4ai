@@ -10,62 +10,45 @@ from .callbacks import (
 
 
 def build_backlog_tab(token, product_dropdown, status):
-    with gr.Tab("Backlog creator") as tab:
+    with gr.Tab("Backlog creator", id="Backlog creator") as tab:
         gr.Markdown(
-            "### Backlog Table\n"
+            "## Backlog Creator\n"
             "Rows are auto-populated from Assessment, AI Safety, and Self-Improvement. "
             "Their source is preserved. A product dimension is optional for safety and improvement questions. "
-            "Add or edit the assumption, question, and testable hypothesis, then save. Removed entries remain in Project History."
+            "Turn a question or assumption into a testable hypothesis. Save each entry when you finish.",
+            elem_classes=["toolkit-page-heading"],
         )
 
-        # Header row
-        with gr.Row(elem_classes=["backlog-table-header"]):
-            with gr.Column(scale=2, min_width=120):
-                gr.Markdown("**From**")
-            with gr.Column(scale=2, min_width=120):
-                gr.Markdown("**Product dimension**")
-            with gr.Column(scale=3):
-                gr.Markdown("**Assumption**")
-            with gr.Column(scale=3):
-                gr.Markdown("**Question**")
-            with gr.Column(scale=4):
-                gr.Markdown("**Hypothesis**")
-            with gr.Column(scale=1, min_width=80):
-                gr.Markdown("**Action**")
-
-        # Scrollable container for rows (scrollview active if > 10 rows)
+        # Cards keep fields labeled and stack naturally on narrow screens.
         row_components = []
         with gr.Column(elem_classes=["backlog-table-container"]):
             for i in range(MAX_BACKLOG_ROWS):
-                with gr.Row(visible=False, variant="panel") as row_box:
-                    source = gr.Textbox(value="Backlog Creator", show_label=False, interactive=False, scale=2)
-                    dim_dropdown = gr.Dropdown(
-                        choices=[(d["title"], d["key"]) for d in DEFAULT_DIMENSIONS],
-                        value=None,
-                        show_label=False,
-                        scale=2,
-                    )
-                    assumption_box = gr.Textbox(
-                        show_label=False,
-                        placeholder="Assumption (from Assessment or enter new)...",
-                        lines=2,
-                        scale=3,
-                    )
-                    question_box = gr.Textbox(
-                        show_label=False,
-                        placeholder="Question (from Assessment or enter new)...",
-                        lines=2,
-                        scale=3,
-                    )
-                    hypothesis_box = gr.Textbox(
-                        show_label=False,
-                        placeholder="Testable hypothesis extending this...",
-                        lines=2,
-                        scale=4,
-                    )
-                    save_btn = gr.Button("Save", variant="primary", scale=1)
-                    remove_btn = gr.Button("Remove", variant="stop", scale=1, visible=False)
-                    cancel_btn = gr.Button("Cancel", scale=1, visible=False)
+                with gr.Column(visible=False, elem_classes=["backlog-entry"]) as row_box:
+                    source = gr.Textbox(value="Backlog Creator", label="From", interactive=False, container=False)
+                    with gr.Row(elem_classes=["backlog-fields"]):
+                        assumption_box = gr.Textbox(
+                            label="Assumption",
+                            placeholder="What do you believe to be true?",
+                            lines=2,
+                            scale=3,
+                        )
+                        question_box = gr.Textbox(
+                            label="Question",
+                            placeholder="What needs exploring?",
+                            lines=2,
+                            scale=3,
+                        )
+                        hypothesis_box = gr.Textbox(
+                            label="Hypothesis",
+                            placeholder="If we change …, we expect … because …",
+                            lines=2,
+                            scale=4,
+                        )
+                    with gr.Row(elem_classes=["backlog-actions"]):
+                        dim_dropdown = gr.Dropdown(choices=[(d["title"], d["key"]) for d in DEFAULT_DIMENSIONS], value=None, label="Product dimension (optional for Safety / Self-Improvement)", scale=4)
+                        remove_btn = gr.Button("Remove", variant="secondary", scale=1, visible=False)
+                        cancel_btn = gr.Button("Cancel", scale=1, visible=False)
+                        save_btn = gr.Button("Save entry", variant="primary", scale=1)
                     note_id_state = gr.State(None)
                     hyp_id_state = gr.State(None)
                     hyp_rev_state = gr.State(None)
@@ -86,7 +69,7 @@ def build_backlog_tab(token, product_dropdown, status):
                 })
 
         with gr.Row():
-            add_row_btn = gr.Button("+ Add Row", variant="secondary")
+            add_row_btn = gr.Button("+ Add entry", variant="secondary")
             visible_rows_count = gr.State(0)
 
         # Event: add row reveals next hidden slot

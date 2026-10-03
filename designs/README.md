@@ -2,6 +2,10 @@
 
 These are **review mockups only**, not app implementation. Each numbered SVG places a desktop proposal on the left and a mobile proposal on the right. Open `index.html` locally for a gallery, or view individual SVG files in a browser. The existing `app-bar.svg` is preserved as the earlier direction.
 
+## Implementation status
+
+The approved shared layout is now implemented: compact workspace branding, desktop sidebar, tablet/mobile section selector, card-based backlog with stacked inputs, reorganized assessment profile, collapsible administration, and history cards. The SVGs remain the reference for further visual review. Decorative sample progress counts, filters, and one-click file preparation in the mockups are not substituted for existing backend state; the actual interface continues to use the existing checklist and export preparation actions. Browser screenshot verification still needs a machine with Playwright Chromium installed.
+
 ## Pages to review
 
 | File | Review focus |

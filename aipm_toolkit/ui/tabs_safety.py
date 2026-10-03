@@ -7,7 +7,8 @@ from .safety_callbacks import add_learning_note_ui
 
 
 def build_safety_tab(token, product_dropdown, status):
-    with gr.Tab("AI Safety") as tab:
+    with gr.Tab("AI Safety", id="AI Safety") as tab:
+        gr.Markdown("## AI Safety", elem_classes=["toolkit-page-heading"])
         gr.Markdown(
             "Discuss where the idea might cause harm or need safeguards. Add questions and assumptions here, "
             "then turn them into hypotheses in **Backlog Creator**."

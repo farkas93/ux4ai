@@ -12,16 +12,15 @@ from .callbacks import (
 
 
 def build_assessment_tab(token, product_dropdown, status):
-    with gr.Tab("Assessment") as tab:
+    with gr.Tab("Assessment", id="Assessment") as tab:
         frozen_state = gr.State({})
         unsaved_note = gr.Markdown()
 
-        with gr.Row():
+        gr.Markdown("## Assessment\nExplore the intended characteristics of your product.", elem_classes=["toolkit-page-heading"])
+        with gr.Row(elem_id="toolkit-assessment-row", elem_classes=["toolkit-two-column"]):
             # LEFT COLUMN: 5 Dimensions with Sliders, Notes, and Inline Questions/Assumptions
             with gr.Column(scale=3):
-                gr.Markdown("### Product Dimensions")
-                gr.Markdown("Set your product's intended characteristic (0.0 to 5.0) and record key reasoning.")
-                gr.Markdown("Add questions and assumptions here; edit, move or remove them in **Backlog Creator**.")
+                gr.Markdown("Add questions and assumptions here; develop them in **Backlog Creator**.")
 
                 sliders = []
                 reasoning_fields = []
@@ -35,7 +34,7 @@ def build_assessment_tab(token, product_dropdown, status):
                         gr.Markdown(
                             f"**0.0:** {definition['low_anchor']}  |  **5.0:** {definition['high_anchor']}\n\n"
                             f"*{definition['explanation']}*"
-                        )
+                         )
                         slider = gr.Slider(
                             label=f"{definition['title']} score",
                             minimum=0.0,
@@ -74,22 +73,13 @@ def build_assessment_tab(token, product_dropdown, status):
                 save_assessments_button = gr.Button("Save dimension assessments", variant="primary")
 
             # RIGHT COLUMN: Comparator Selector, Live Spider Chart, and Comparison Table
-            with gr.Column(scale=2):
-                gr.Markdown("### Benchmark & Comparison")
+            with gr.Column(scale=2), gr.Accordion("Product profile & comparison", open=True):
+                live_chart = gr.Plot(label="Product profile", show_label=False)
                 comparator_dropdown = gr.Dropdown(
-                    label="Compare with another product (optional)",
-                    choices=[],
-                    value=None,
+                    label="Historical comparison (optional)", choices=[], value=None,
                 )
-
-                live_chart = gr.Plot(label="Dimension Radar")
-
-                with gr.Accordion("Comparison Details & Differences", open=False):
-                    comparison_table = gr.Textbox(
-                        show_label=False,
-                        interactive=False,
-                        lines=7,
-                    )
+                with gr.Accordion("Comparison details", open=False):
+                    comparison_table = gr.Textbox(show_label=False, interactive=False, lines=7)
 
         # Purely event-driven live spider chart updates:
         for slider in sliders:

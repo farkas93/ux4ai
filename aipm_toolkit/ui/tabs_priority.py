@@ -10,21 +10,21 @@ from .callbacks import (
 
 
 def build_priority_tab(token, product_dropdown, status):
-    with gr.Tab("Prioritization") as tab:
+    with gr.Tab("Prioritization", id="Prioritization") as tab:
+        gr.Markdown("## Prioritization\nWhich hypothesis is most important to test next?", elem_classes=["toolkit-page-heading"])
         gr.Markdown(
-            "Left: open a hypothesis and set risk and evidence (0-10; every hypothesis starts at 0/0). "
-            "Right: the ranked backlog updates in real time - risk 10 with evidence 0 ranks first, "
-            "evidence 10 with risk 0 ranks last."
+            "Open a hypothesis and discuss risk if it is wrong and the evidence you have. "
+            "The suggested test order updates as you change the sliders."
         )
-        with gr.Row():
+        with gr.Row(elem_classes=["toolkit-two-column"]):
             with gr.Column():
                 gr.Markdown("### Hypotheses")
                 slot_components = []
                 for index in range(PLACEMENT_SLOTS):
                     with gr.Accordion(f"H{index + 1}", open=False, visible=False) as accordion:
                         statement_display = gr.Markdown("")
-                        risk_slider = gr.Slider(label="Risk to project", minimum=0, maximum=10, step=0.5, value=0)
-                        evidence_slider = gr.Slider(label="Evidence provided", minimum=0, maximum=10, step=0.5, value=0)
+                        risk_slider = gr.Slider(label="Risk if wrong", minimum=0, maximum=10, step=0.5, value=0)
+                        evidence_slider = gr.Slider(label="Evidence available", minimum=0, maximum=10, step=0.5, value=0)
                     slot_components.append({
                         "accordion": accordion,
                         "statement": statement_display,
@@ -34,7 +34,7 @@ def build_priority_tab(token, product_dropdown, status):
                         "revision": gr.State(None),
                     })
             with gr.Column():
-                gr.Markdown("### Backlog ranking")
+                gr.Markdown("### Suggested test order")
                 ranking_display = gr.Textbox(label="Backlog ranking", interactive=False, lines=10)
                 matrix_fig = gr.Plot(label="Risk versus evidence matrix")
 

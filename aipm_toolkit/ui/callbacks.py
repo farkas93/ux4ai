@@ -6,6 +6,7 @@ services.
 """
 
 import json
+from html import escape
 from uuid import UUID
 
 import gradio as gr
@@ -396,7 +397,8 @@ def live_profile_from_ui(frozen_state: dict | None, *values):
         else:
             ours.append(2.5)
     fig = go.Figure()
-    theta = labels + [labels[0]]
+    titles = [definition["title"] for definition in DEFAULT_DIMENSIONS]
+    theta = titles + [titles[0]]
     fig.add_trace(
         go.Scatterpolar(
             r=[v for v in ours] + [ours[0]],
@@ -425,9 +427,12 @@ def live_profile_from_ui(frozen_state: dict | None, *values):
     fig.update_layout(
         polar={"radialaxis": {"visible": True, "range": [0, 5], "tickvals": [0, 1, 2, 3, 4, 5]}},
         showlegend=True,
-        title="Live Dimension Profile (0–5)",
-        margin={"l": 40, "r": 40, "t": 40, "b": 40},
-        height=380,
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        font={"color": "#718096", "size": 11},
+        legend={"orientation": "h", "y": -0.18},
+        margin={"l": 70, "r": 70, "t": 30, "b": 55},
+        height=340,
     )
     return fig
 
@@ -513,9 +518,9 @@ def project_history_from_ui(token: str | None, project_id: str | None, request: 
             before, after = details["before"], details["after"]
             if isinstance(before, dict) and isinstance(after, dict):
                 changed = [key.replace("_", " ") for key in after if before.get(key) != after.get(key)]
-        detail_line = f"\n_Changed: {', '.join(changed)}_" if changed else ""
-        lines.append(f"**{stamp} · {actor_label}**  \n{event.summary}{detail_line}")
-    return "\n\n---\n\n".join(lines)
+        detail_line = f"<p>Changed: {escape(', '.join(changed))}</p>" if changed else ""
+        lines.append(f'<article class="toolkit-history-card"><small>{escape(stamp)} · {escape(actor_label)}</small><h3>{escape(event.summary)}</h3>{detail_line}</article>')
+    return "".join(lines)
 
 
 def add_dimension_note_from_ui(token: str | None, project_id: str | None, dimension_key: str, note_type: str, text: str, request: gr.Request | None = None):

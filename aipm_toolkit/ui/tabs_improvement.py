@@ -7,7 +7,7 @@ from .safety_callbacks import add_learning_note_ui, save_primary_loop_ui
 
 
 def build_improvement_tab(token, product_dropdown, status):
-    with gr.Tab("Self-Improvement") as tab:
+    with gr.Tab("Self-Improvement", id="Self-Improvement") as tab:
         gr.Markdown(
             "## Recursive Self-Improvement\n"
             "Imagine one way your product might learn from its use. Write questions and assumptions first, "
