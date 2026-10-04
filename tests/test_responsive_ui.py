@@ -15,8 +15,9 @@ def test_responsive_navigation_targets_sections_without_duplicating_forms():
     assert desktop["props"]["value"] == "Project Setup"
     drawer = next(item for item in components if item["props"].get("elem_id") == "toolkit-sidebar")
     assert drawer["type"] == "sidebar"
-    assert drawer["props"]["open"] is False
+    assert drawer["props"]["open"] is True
     assert drawer["props"]["width"] == 240
+    assert not any(item["props"].get("elem_id") == "toolkit-menu" for item in components)
     switch = next(fn for fn in app.fns.values() if fn.fn and fn.fn.__name__ == "select_section")
     updates = switch.fn("AI Safety")
     assert [item["visible"] for item in updates] == [False, False, True, False, False, False, False, False]

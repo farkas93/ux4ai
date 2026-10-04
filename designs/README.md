@@ -14,6 +14,8 @@ Mobile correction: navigation now uses Gradio's native collapsible `Sidebar`, in
 
 Mobile header/Setup refinement: language and sign-out now live in the drawer. The header has only brand/menu plus product selection and a short “+ New” action. Project Setup's idea and user/problem cards explicitly stack below 768px; desktop retains two columns.
 
+Drawer/default-space refinement: desktop opens the native sidebar on initial load; mobile closes it, and crossing the 1023px breakpoint adjusts the drawer accordingly. Its native handle is now a 48px hamburger control, replacing the separate Menu button. Workspace width caps and centered wrapper margins are removed so the app bar sits near the top and the exercise can fill the available content area.
+
 ## Pages to review
 
 | File | Review focus |

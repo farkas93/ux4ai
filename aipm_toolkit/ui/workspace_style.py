@@ -2,7 +2,9 @@
 
 WORKSPACE_CSS = """
 footer { display: none !important; }
-.gradio-container { max-width: 1530px !important; margin: auto !important; padding: 20px !important; }
+.gradio-container { max-width: none !important; width: 100% !important; margin: 0 !important; padding: 12px 20px !important; }
+.gradio-container > .main, .gradio-container .main > .wrap { max-width: none !important; width: 100% !important; margin: 0 !important; }
+.gradio-container .sidebar-parent { box-sizing: border-box; padding-top: 0 !important; }
 #toolkit-brand h1 { font-size: 20px; letter-spacing: -.025em; margin: 0; }
 #toolkit-brand { padding: 8px 0; }
 #toolkit-login { max-width: 460px; margin: 40px auto; padding: 28px; border: 1px solid var(--border-color-primary); border-radius: 16px; }
@@ -13,7 +15,12 @@ footer { display: none !important; }
 #toolkit-sections > .tab-nav { display: none !important; }
 #toolkit-sections > .tabitem { min-width: 0; border: 0; padding: 0 !important; }
 #toolkit-workspace { gap: 22px; align-items: flex-start; margin-top: 12px; }
-#toolkit-sidebar { padding: 16px; }
+#toolkit-sidebar { padding: 0; }
+.gradio-container .sidebar-content { padding: 64px 16px 20px !important; }
+.gradio-container .sidebar .toggle-button { width: 48px !important; height: 48px !important; top: 8px !important; border-radius: 8px !important; }
+.gradio-container .sidebar .toggle-button .chevron { display: none; }
+.gradio-container .sidebar .toggle-button::after { content: ''; width: 21px; height: 2px; background: var(--body-text-color); box-shadow: 0 -7px 0 var(--body-text-color), 0 7px 0 var(--body-text-color); }
+.gradio-container .sidebar.open .toggle-button { transform: none !important; }
 #toolkit-menu { display: none; }
 #toolkit-main { flex: 1 1 0 !important; min-width: 0 !important; }
 #toolkit-desktop-section .wrap { display: flex; flex-direction: column; gap: 2px; }
@@ -58,12 +65,11 @@ footer { display: none !important; }
 label span { background: transparent !important; color: var(--body-text-color) !important; }
 @media (max-width: 1023px) {
   #toolkit-mobile-section { display: block; margin-top: 14px; }
-  #toolkit-menu { display: block; grid-column: 1; grid-row: 1; }
-  #aipm-app-bar { grid-template-columns: 76px minmax(0, 1fr) 72px; gap: 8px; padding: 6px 0 12px; }
-  #toolkit-brand { grid-column: 2 / -1; grid-row: 1; }
+  #aipm-app-bar { grid-template-columns: minmax(0, 1fr) 72px; gap: 8px; padding: 0 0 12px; }
+  #toolkit-brand { grid-column: 1 / -1; grid-row: 1; min-height: 48px; display: flex; align-items: center; padding-left: 44px; }
   .toolkit-wordmark { font-size: 16px; }
-  #toolkit-product { grid-column: 1 / 3; grid-row: 2; }
-  #toolkit-new-product { grid-column: 3; grid-row: 2; }
+  #toolkit-product { grid-column: 1; grid-row: 2; }
+  #toolkit-new-product { grid-column: 2; grid-row: 2; }
   #toolkit-new-product { white-space: nowrap; min-height: 40px; padding: 8px; }
   #toolkit-main { width: 100%; min-width: 0 !important; }
 }

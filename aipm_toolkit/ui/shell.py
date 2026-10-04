@@ -47,6 +47,25 @@ from .workspace_style import WORKSPACE_CSS
 LANGUAGE_CHOICES = [("English", "en"), ("Deutsch", "de")]
 
 BLOCKS_JS = """() => {
+    // Use the native drawer's button so its state and accessibility stay in sync.
+    const viewport = window.matchMedia('(max-width: 1023px)');
+    const syncDrawer = () => {
+        const drawer = document.querySelector('.gradio-container .sidebar');
+        const handle = drawer?.querySelector('button.toggle-button');
+        if (!drawer || !handle) return false;
+        const shouldOpen = !viewport.matches;
+        if (drawer.classList.contains('open') !== shouldOpen) handle.click();
+        return true;
+    };
+    // Sidebar applies its initial open state after mounting.
+    setTimeout(() => {
+        if (syncDrawer()) return;
+        const drawerObserver = new MutationObserver(() => {
+            if (syncDrawer()) drawerObserver.disconnect();
+        });
+        drawerObserver.observe(document.body, {childList: true, subtree: true});
+    }, 500);
+    viewport.addEventListener('change', syncDrawer);
     window.aipmDirty = false;
     document.addEventListener('input', () => { window.aipmDirty = true; }, true);
     window.addEventListener('beforeunload', (event) => {
@@ -177,7 +196,6 @@ def build_app():
             workspace_text = gr.Markdown(elem_id="toolkit-workspace-note")
         with gr.Column(visible=False) as team_panel:
             with gr.Row(elem_id="aipm-app-bar"):
-                menu_button = gr.Button("☰ Menu", size="sm", elem_id="toolkit-menu")
                 gr.HTML('<strong class="toolkit-wordmark">AI Product Toolkit</strong>', elem_id="toolkit-brand")
                 product_dropdown = gr.Dropdown(label="Product", show_label=False, choices=[], interactive=True, container=False, elem_id="toolkit-product")
                 new_product_btn = gr.Button("+ New", size="sm", variant="secondary", elem_id="toolkit-new-product")
@@ -194,7 +212,7 @@ def build_app():
 
             section_names = ["Project Setup", "Assessment", "AI Safety", "Self-Improvement", "Backlog creator", "Prioritization", "Summary & Export", "Project History"]
             with gr.Row(elem_id="toolkit-workspace"):
-                with gr.Sidebar(label="Workspace navigation", open=False, width=240, elem_id="toolkit-sidebar") as sidebar:
+                with gr.Sidebar(label="Workspace navigation", open=True, width=240, elem_id="toolkit-sidebar") as sidebar:
                     desktop_section = gr.Radio(label="Workspace", choices=section_names, value="Project Setup", container=False, elem_id="toolkit-desktop-section")
                     language_selector = gr.Dropdown(label="Language / Sprache", choices=LANGUAGE_CHOICES, value="en", container=False, elem_id="toolkit-language")
                     gr.HTML('<a href="/auth/logout">Sign out</a>', elem_classes=["toolkit-account"])
@@ -214,7 +232,6 @@ def build_app():
             def select_section(name):
                 return [gr.update(visible=label == name) for label in section_names]
 
-            menu_button.click(lambda: gr.update(open=True), outputs=sidebar)
             small_screen = gr.State(False)
             desktop_section.input(select_section, desktop_section, [page["tab"] for page in pages]).then(
                 lambda small: gr.update(open=False) if small else gr.update(),
