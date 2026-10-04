@@ -13,6 +13,8 @@ def test_responsive_navigation_targets_sections_without_duplicating_forms():
     desktop = next(item for item in components if item["props"].get("elem_id") == "toolkit-desktop-section")
     assert desktop["type"] == "radio"
     assert desktop["props"]["value"] == "Project Setup"
+    indicator = next(item for item in components if item["props"].get("elem_id") == "toolkit-current-section")
+    assert indicator["props"]["value"] == "Project Setup"
     drawer = next(item for item in components if item["props"].get("elem_id") == "toolkit-sidebar")
     assert drawer["type"] == "sidebar"
     assert drawer["props"]["open"] is True

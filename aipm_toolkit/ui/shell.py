@@ -219,6 +219,7 @@ def build_app():
                     with gr.Accordion("Product administration", open=False, elem_id="toolkit-product-admin"):
                         delete_product_btn = gr.Button("Delete product", variant="stop", size="sm")
                 with gr.Column(scale=1, min_width=0, elem_id="toolkit-main"):
+                    current_section = gr.Markdown("Project Setup", elem_id="toolkit-current-section")
                     setup = tabs_setup.build_setup_tab(token, product_dropdown, project_revision, status)
                     assessment = tabs_assessment.build_assessment_tab(token, product_dropdown, status)
                     safety = tabs_safety.build_safety_tab(token, product_dropdown, status)
@@ -232,6 +233,7 @@ def build_app():
             def select_section(name):
                 return [gr.update(visible=label == name) for label in section_names]
 
+            desktop_section.change(lambda name: name, desktop_section, current_section)
             small_screen = gr.State(False)
             desktop_section.input(select_section, desktop_section, [page["tab"] for page in pages]).then(
                 lambda small: gr.update(open=False) if small else gr.update(),

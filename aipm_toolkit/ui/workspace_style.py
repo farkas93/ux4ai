@@ -27,6 +27,15 @@ footer { display: none !important; }
 #toolkit-desktop-section label { width: 100%; border: 0; border-radius: 8px; box-shadow: none;
     padding: 8px 10px; background: transparent; font-size: 13px; }
 #toolkit-desktop-section label.selected { background: var(--background-fill-secondary); color: var(--color-accent); }
+#toolkit-desktop-section label:has(input:checked) {
+    background: rgba(15, 118, 110, .18) !important;
+    box-shadow: inset 3px 0 0 #14b8a6 !important;
+    font-weight: 700 !important;
+}
+#toolkit-desktop-section label:has(input:checked) span { color: #14b8a6 !important; }
+#toolkit-current-section { padding: 0; margin: 0 0 4px; }
+#toolkit-current-section p { color: var(--body-text-color-subdued); font-size: 12px;
+    font-weight: 650; margin: 0; }
 #toolkit-desktop-section input { position: absolute; opacity: 0; width: 1px; height: 1px; }
 #toolkit-desktop-section label:focus-within { outline: 2px solid var(--color-accent); outline-offset: 2px; }
 #aipm-app-bar { display: grid !important; grid-template-columns: 200px minmax(180px, 320px) 90px;
