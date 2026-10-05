@@ -51,6 +51,9 @@ def open_public_access(port: int = 7860) -> str:
             _public_url = parsed.geturl()
             return _public_url
         except Exception:
+            # Gradio wraps API, TLS and certificate-write failures in one message.
+            # Log the chained exception so deployment logs retain the real cause.
+            _logger.exception("Unable to establish the public Gradio tunnel")
             for tunnel in [item for item in CURRENT_TUNNELS if id(item) not in before]:
                 try:
                     tunnel.kill()

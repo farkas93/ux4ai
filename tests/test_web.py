@@ -61,6 +61,11 @@ def test_readyz_waits_for_database_and_current_migrations(tmp_path):
     factory = sessionmaker(bind=engine)
     client = TestClient(create_auth_app(factory))
     assert client.get("/healthz").status_code == 200
+    manifest = client.get("/manifest.json")
+    assert manifest.status_code == 200
+    assert manifest.headers["content-type"].startswith("application/manifest+json")
+    assert manifest.json()["name"] == "AI Product Toolkit"
+    assert manifest.json()["start_url"] == "/app/"
     assert client.get("/readyz").status_code == 503
     with engine.begin() as connection:
         connection.execute(text("CREATE TABLE alembic_version (version_num VARCHAR(32) NOT NULL)"))

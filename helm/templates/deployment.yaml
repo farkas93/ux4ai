@@ -126,6 +126,8 @@ spec:
               mountPath: /tmp
             - name: gradio-cache
               mountPath: /home/appuser/.cache
+            - name: gradio-certificate
+              mountPath: /app/.gradio
       volumes:
         - name: tmp
           emptyDir:
@@ -133,3 +135,6 @@ spec:
         - name: gradio-cache
           emptyDir:
             sizeLimit: 256Mi
+        - name: gradio-certificate
+          emptyDir:
+            sizeLimit: 1Mi
