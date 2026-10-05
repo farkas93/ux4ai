@@ -4,7 +4,7 @@ from html import escape
 from alembic.config import Config
 from alembic.script import ScriptDirectory
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -74,6 +74,23 @@ def create_auth_app(session_factory=SessionLocal) -> FastAPI:
     @app.get("/healthz")
     async def healthz():
         return {"status": "ok"}
+
+    @app.get("/manifest.json", include_in_schema=False)
+    async def manifest():
+        # Gradio's HTML references this root URL even when mounted at /app.
+        return JSONResponse(
+            {
+                "name": "AI Product Toolkit",
+                "short_name": "AI Toolkit",
+                "description": "Explore product value and build a hypothesis backlog.",
+                "start_url": "/app/",
+                "scope": "/",
+                "display": "standalone",
+                "background_color": "#f3f6fa",
+                "theme_color": "#0f766e",
+            },
+            media_type="application/manifest+json",
+        )
 
     @app.get("/readyz")
     async def readyz():

@@ -54,4 +54,12 @@ Opening the public link requires outbound internet access from the app pod to Gr
 
 The tunnel manager uses Gradio's version-pinned FRP client integration. Re-test open/close and authentication whenever the pinned Gradio version changes. The link is temporary, not a stable course hostname.
 
+The app mounts writable temporary storage at `/app/.gradio`: Gradio 5.44.1 saves
+its share-server TLS certificate there. Keep this mount when using a read-only
+root filesystem. The certificate and tunnel cache are regenerated after pod
+replacement. If opening a link fails, inspect the `aipm` container logs: the
+chained exception distinguishes certificate permissions from DNS, TLS, and API
+errors. The proxy should forward `/manifest.json` to the app as well as `/app/`
+and `/auth/`; FastAPI serves the root manifest referenced by Gradio's page.
+
 `/healthz` checks process liveness. `/readyz` checks PostgreSQL connectivity and that Alembic is at the current image's migration head. The standalone app container does not need Kubernetes API credentials; the instructor panel only starts or stops its own Gradio tunnel.
