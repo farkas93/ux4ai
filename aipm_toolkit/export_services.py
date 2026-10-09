@@ -10,6 +10,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from .improvement_services import classify_loop
+from .learning_report import markdown_report, pdf_report
 from .models import (
     BaselineDataset,
     ComparisonSnapshot,
@@ -18,6 +19,7 @@ from .models import (
     Hypothesis,
     HypothesisDimension,
     HypothesisRelation,
+    HypothesisSource,
     ImprovementLoop,
     Note,
     NoteDimension,
@@ -51,7 +53,7 @@ def _record(model, item):
 
 def build_project_export(db: Session, actor: User, project_id: UUID) -> dict:
     project = get_project(db, actor, project_id)
-    hypotheses = list(db.scalars(select(Hypothesis).where(Hypothesis.project_id == project_id).order_by(Hypothesis.created_at)))
+    hypotheses = list(db.scalars(select(Hypothesis).where(Hypothesis.project_id == project_id).order_by(Hypothesis.created_at, Hypothesis.id)))
     hypothesis_ids = [item.id for item in hypotheses]
     dimensions = {item.id: [] for item in hypotheses}
     for link in db.scalars(select(HypothesisDimension).where(HypothesisDimension.hypothesis_id.in_(hypothesis_ids))) if hypothesis_ids else []:
@@ -72,7 +74,8 @@ def build_project_export(db: Session, actor: User, project_id: UUID) -> dict:
     reflections = list(db.scalars(select(ProjectReflection).where(ProjectReflection.project_id == project_id)))
     safety = db.scalar(select(SafetyAssessment).where(SafetyAssessment.project_id == project_id))
     safety_checkpoints = list(db.scalars(select(SafetyCheckpoint).where(SafetyCheckpoint.assessment_id == safety.id))) if safety else []
-    loops = list(db.scalars(select(ImprovementLoop).where(ImprovementLoop.project_id == project_id).order_by(ImprovementLoop.created_at)))
+    loops = list(db.scalars(select(ImprovementLoop).where(ImprovementLoop.project_id == project_id).order_by(ImprovementLoop.created_at, ImprovementLoop.id)))
+    sources = list(db.scalars(select(HypothesisSource).where(HypothesisSource.hypothesis_id.in_(hypothesis_ids)))) if hypothesis_ids else []
     safety_links = list(db.scalars(select(SafetyHypothesisLink).where(SafetyHypothesisLink.hypothesis_id.in_(hypothesis_ids)))) if hypothesis_ids else []
     relations = list(db.scalars(select(HypothesisRelation).where(HypothesisRelation.project_id == project_id)))
     history = db.execute(
@@ -91,6 +94,7 @@ def build_project_export(db: Session, actor: User, project_id: UUID) -> dict:
         "notes": [{**_record(Note, note), "dimensions": note_dimensions.get(note.id, [])} for note in notes],
         "hypotheses": [{**_record(Hypothesis, item), "dimensions": dimensions[item.id]} for item in hypotheses],
         "hypothesis_relationships": [_record(HypothesisRelation, item) for item in relations],
+        "hypothesis_sources": [_record(HypothesisSource, item) for item in sources],
         "experiments": [_record(Experiment, item) for item in experiments],
         "reflections": [_record(ProjectReflection, item) for item in reflections],
         "safety_assessment": {**_record(SafetyAssessment, safety), "checkpoints": [_record(SafetyCheckpoint, item) for item in safety_checkpoints], "coverage_summary": safety_result([{"key": item.checkpoint_key, "coverage": item.coverage, "maturity": item.maturity} for item in safety_checkpoints], safety.critical_risk)} if safety else None,
@@ -117,54 +121,7 @@ def export_project_json(db: Session, actor: User, project_id: UUID) -> str:
 
 
 def export_project_markdown(db: Session, actor: User, project_id: UUID) -> str:
-    document = build_project_export(db, actor, project_id)
-    project = document["project"]
-    main = next((item for item in document["hypotheses"] if item["kind"] == "main" and item["archived_at"] is None), None)
-    lines = [f"# {project['product_name']}", "", f"> {WARNING}", "", "## Product and Value Hypothesis", f"- Short description: {project['short_description']}", f"- Target user: {project['target_user']}", f"- Job to be done: {project['job_to_be_done']}", f"- Current problem: {project['current_problem']}", f"- Main value hypothesis: {(main or {}).get('statement', '')}", "", "## Dimension Profile"]
-    for assessment in document["dimension_assessments"]:
-        lines.append(f"- {assessment['dimension_key']}: {assessment['status']}" + (f" ({assessment['score']}/5)" if assessment["score"] is not None else "") + f". {assessment['rationale']}")
-    lines.extend(["", "## Comparator and Provenance"])
-    if document["comparison_snapshots"]:
-        for snapshot in document["comparison_snapshots"]:
-            lines.append(f"- {snapshot['product']} ({snapshot['purpose']}): {snapshot['dataset']['provenance_notes']}")
-    else:
-        lines.append("- No comparator selected.")
-    lines.extend(["", "## Main Observations"])
-    for note in document["notes"]:
-        if note["archived_at"] is None:
-            source = f" ({note['origin_section'].replace('_', ' ')}{': ' + note['origin_key'] if note['origin_key'] else ''})" if note['origin_section'] else ""
-            lines.append(f"- **{note['note_type']}**{source}: {note['text']}")
-    lines.extend(["", "## Hypothesis Backlog"])
-    for hypothesis in document["hypotheses"]:
-        if hypothesis["archived_at"] is None:
-            lines.append(f"- **{hypothesis['kind']}**: {hypothesis['statement']} (risk: {hypothesis['priority_risk']}/10, evidence: {hypothesis['priority_evidence']}/10)")
-    lines.extend(["", "## Relationships"])
-    for relation in document["hypothesis_relationships"]:
-        lines.append(f"- {relation['relation_type']}: {relation['from_hypothesis_id']} -> {relation['to_hypothesis_id']}")
-    lines.extend(["", "## Prioritized Experiment"])
-    planned = [item for item in document["experiments"] if item["status"] == "planned"]
-    for experiment in planned[:1]:
-        lines.extend([f"- **{experiment['title']}** ({experiment['method']})", f"  - Metric: {experiment['metric']}", f"  - Success criterion: {experiment['success_criterion']}", f"  - Guardrail: {experiment['guardrail']}"])
-    if not planned:
-        lines.append("- No planned experiment.")
-    lines.extend(["", "## Open Questions"])
-    for note in document["notes"]:
-        if note["archived_at"] is None and note["note_type"] == "question":
-            lines.append(f"- {note['text']}")
-    lines.extend(["", "## Project History"])
-    if document["project_history"]:
-        for event in document["project_history"]:
-            lines.append(f"- {event['created_at']} · {event['actor']}: {event['summary']}")
-    else:
-        lines.append("- No changes recorded yet.")
-    return "\n".join(lines) + "\n"
-
-
-def _pdf_font(pdf: FPDF) -> str:
-    if FONT_PATH.exists():
-        pdf.add_font("DejaVu", fname=str(FONT_PATH))
-        return "DejaVu"
-    return "Helvetica"
+    return markdown_report(build_project_export(db, actor, project_id))
 
 
 def _pdf_text(value: object, unicode_font: bool) -> str:
@@ -197,7 +154,7 @@ def _draw_radar(pdf: FPDF, document: dict, x: float, y: float, size: float, font
         baseline_points.append(None if base is None else (cx + radius * base / 5 * math.cos(angle), cy + radius * base / 5 * math.sin(angle)))
         pdf.set_xy(ax - 12, ay - 3)
         pdf.set_font(font, size=7)
-        pdf.cell(24, 4, _pdf_text(label, font == "DejaVu"), align="C")
+        pdf.cell(24, 4, _pdf_text(label.title(), font == "Report"), align="C")
     for ring in range(1, 6):
         ring_points = []
         for index in range(len(labels)):
@@ -214,14 +171,30 @@ def _draw_radar(pdf: FPDF, document: dict, x: float, y: float, size: float, font
 
 
 def _draw_priority_matrix(pdf: FPDF, document: dict, x: float, y: float, width: float, height: float, font: str) -> None:
+    pdf.set_fill_color(234, 244, 241)
+    pdf.rect(x, y, width / 2, height / 2, style="F")
     pdf.set_draw_color(60, 60, 60)
     pdf.rect(x, y, width, height)
+    pdf.set_draw_color(200, 215, 219)
+    pdf.line(x + width / 2, y, x + width / 2, y + height)
+    pdf.line(x, y + height / 2, x + width, y + height / 2)
     pdf.set_font(font, size=8)
+    pdf.set_text_color(11, 118, 108)
+    pdf.set_xy(x + 3, y + 2)
+    pdf.cell(width / 2 - 6, 4, "TEST FIRST")
+    pdf.set_xy(x + 3, y + 7)
+    pdf.cell(width / 2 - 6, 4, "Risk 5-10 / Evidence 0-5")
+    pdf.set_text_color(25, 44, 57)
     pdf.set_xy(x, y + height + 1)
     pdf.cell(width, 4, "Evidence provided (0-10)", align="C")
     pdf.set_xy(x, y - 5)
     pdf.cell(width, 4, "Risk to product (0-10)", align="C")
     supporting = [item for item in document["hypotheses"] if item["kind"] == "supporting" and item["archived_at"] is None]
+    for value in (0, 5, 10):
+        pdf.set_xy(x + value / 10 * width - 3, y + height + 5)
+        pdf.cell(6, 4, str(value), align="C")
+        pdf.set_xy(x - 9, y + height - value / 10 * height - 2)
+        pdf.cell(7, 4, str(value), align="R")
     for index, hypothesis in enumerate(supporting, start=1):
         evidence = min(10, max(0, float(hypothesis.get("priority_evidence", 0))))
         risk = min(10, max(0, float(hypothesis.get("priority_risk", 0))))
@@ -234,61 +207,7 @@ def _draw_priority_matrix(pdf: FPDF, document: dict, x: float, y: float, width: 
 
 
 def export_project_pdf(db: Session, actor: User, project_id: UUID) -> bytes:
-    document = build_project_export(db, actor, project_id)
-    project = document["project"]
-    main = next((item for item in document["hypotheses"] if item["kind"] == "main" and item["archived_at"] is None), None)
-    pdf = FPDF()
-    pdf.set_auto_page_break(auto=True, margin=14)
-    pdf.add_page()
-    font = _pdf_font(pdf)
-    unicode_font = font == "DejaVu"
-    pdf.set_font(font, size=18)
-    pdf.multi_cell(0, 9, _pdf_text(project["product_name"], unicode_font), new_x="LMARGIN", new_y="NEXT")
-    pdf.set_font(font, size=9)
-    pdf.multi_cell(0, 5, _pdf_text(WARNING, unicode_font), new_x="LMARGIN", new_y="NEXT")
-    pdf.ln(2)
-    pdf.set_font(font, size=12)
-    pdf.cell(0, 7, "Product setup", new_x="LMARGIN", new_y="NEXT")
-    pdf.set_font(font, size=9)
-    for label, value in (("Description", project["short_description"]), ("Target user", project["target_user"]), ("Job to be done", project["job_to_be_done"]), ("Current problem", project["current_problem"]), ("Main value hypothesis", (main or {}).get("statement", ""))):
-        pdf.multi_cell(0, 5, _pdf_text(f"{label}: {value}", unicode_font), new_x="LMARGIN", new_y="NEXT")
-    pdf.add_page()
-    pdf.set_font(font, size=14)
-    pdf.cell(0, 8, "Dimension profile", new_x="LMARGIN", new_y="NEXT")
-    _draw_radar(pdf, document, 20, 30, 170, font)
-    pdf.set_y(205)
-    pdf.set_font(font, size=8)
-    pdf.multi_cell(0, 4, "Blue: current product profile. Red: historical comparator median. Gaps mean unknown or incompatible.", new_x="LMARGIN", new_y="NEXT")
-    pdf.add_page()
-    pdf.set_font(font, size=14)
-    pdf.cell(0, 8, "Risk and evidence matrix", new_x="LMARGIN", new_y="NEXT")
-    _draw_priority_matrix(pdf, document, 25, 35, 155, 110, font)
-    pdf.set_y(155)
-    pdf.set_font(font, size=9)
-    supporting = [item for item in document["hypotheses"] if item["kind"] == "supporting" and item["archived_at"] is None]
-    ranked = sorted(supporting, key=lambda item: (-(float(item.get("priority_risk", 0)) + (10 - float(item.get("priority_evidence", 0)))), item["created_at"]))
-    for rank, hypothesis in enumerate(ranked, start=1):
-        line = f"{rank}. H{supporting.index(hypothesis) + 1}: risk {hypothesis['priority_risk']}/10, evidence {hypothesis['priority_evidence']}/10 - {hypothesis['statement']}"
-        pdf.multi_cell(0, 5, _pdf_text(line, unicode_font), new_x="LMARGIN", new_y="NEXT")
-    pdf.add_page()
-    pdf.set_font(font, size=14)
-    pdf.cell(0, 8, "Questions, assumptions, and experiments", new_x="LMARGIN", new_y="NEXT")
-    pdf.set_font(font, size=9)
-    for note in document["notes"]:
-        if note["archived_at"] is None:
-            source = f" / {note['origin_section'].replace('_', ' ')}: {note['origin_key']}" if note['origin_section'] and note['origin_key'] else f" / {note['origin_section'].replace('_', ' ')}" if note['origin_section'] else ""
-            pdf.multi_cell(0, 5, _pdf_text(f"[{note['note_type']}{source}] {note['text']}", unicode_font), new_x="LMARGIN", new_y="NEXT")
-    for experiment in document["experiments"]:
-        pdf.multi_cell(0, 5, _pdf_text(f"[experiment: {experiment['status']}] {experiment['title']} - criterion: {experiment['success_criterion']}", unicode_font), new_x="LMARGIN", new_y="NEXT")
-    if document["project_history"]:
-        pdf.add_page()
-        pdf.set_font(font, size=14)
-        pdf.cell(0, 8, "Project history", new_x="LMARGIN", new_y="NEXT")
-        pdf.set_font(font, size=9)
-        for event in document["project_history"]:
-            line = f"{event['created_at']} · {event['actor']}: {event['summary']}"
-            pdf.multi_cell(0, 5, _pdf_text(line, unicode_font), new_x="LMARGIN", new_y="NEXT")
-    return bytes(pdf.output())
+    return pdf_report(build_project_export(db, actor, project_id), _draw_radar, _draw_priority_matrix)
 
 
 def write_export_files(db: Session, actor: User, project_id: UUID) -> tuple[str, str, str]:

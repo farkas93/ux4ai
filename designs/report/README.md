@@ -2,6 +2,11 @@
 
 Open `index.html` locally to review the seven SVG pages. These are A4 portrait design boards, not a replacement report generator. All text, values, charts, and H-links are illustrative sample content.
 
+Implementation: PDF/Markdown now follow this content structure with full comments,
+source links, empty states and continuation pages. The PDF and Plotly matrix
+highlight risk 5–10 / evidence 0–5 as **Test first**. Document length is driven by
+actual saved content rather than the seven illustrative boards.
+
 ## Editorial direction
 
 The report should communicate **what students believe, why they believe it, and what remains uncertain**. It should read as a coherent product argument rather than a dump of database fields.

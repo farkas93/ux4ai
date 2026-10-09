@@ -1301,10 +1301,10 @@ def ranked_backlog_from_ui(*args, sources=None):
     risks = args[slot_count * 2:slot_count * 3]
     evidences = args[slot_count * 3:slot_count * 4]
     items = _ranking_items(ids, statements, risks, evidences)
-    if not items:
-        return "No supporting hypotheses to rank yet.", go.Figure()
     lines = [('<p>Suggested test priority = risk if wrong + (10 − evidence available). '
               'Higher scores come first; equal scores are tied. This is discussion guidance, not a product-quality score.</p>')]
+    if not items:
+        lines.append("<p>No supporting hypotheses to rank yet.</p>")
     last_score, position = None, 0
     for index, item in enumerate(items):
         if item["priority"] != last_score:
@@ -1322,6 +1322,8 @@ def ranked_backlog_from_ui(*args, sources=None):
     fig = go.Figure()
     fig.add_trace(go.Scatter(x=[item["evidence"] for item in items], y=[item["risk"] for item in items], mode="markers+text", text=[f"H{item['index'] + 1}" for item in items], textposition="top center", customdata=[item["statement"] for item in items], hovertemplate="%{text}: %{customdata}<br>risk %{y:.1f} | evidence %{x:.1f}<extra></extra>", marker={"size": 12, "color": "#1f77b4"}))
     fig.update_layout(xaxis={"title": "Evidence provided", "range": [0, 10]}, yaxis={"title": "Risk to project", "range": [0, 10]}, title="Risk versus evidence matrix")
+    fig.add_shape(type="rect", x0=0, x1=5, y0=5, y1=10, fillcolor="rgba(20,184,166,0.12)", line={"width": 0}, layer="below")
+    fig.add_annotation(x=0.2, y=9.8, xanchor="left", yanchor="top", text="<b>Test first</b><br>Risk 5–10 · Evidence 0–5", showarrow=False, font={"size": 12, "color": "#0f766e"})
     return "".join(lines), fig
 
 
