@@ -66,7 +66,13 @@ from ..models import (
     Role,
     SafetyHypothesisLink,
 )
-from ..priority_rules import RANKING_RULE, priority_group_score, priority_score, test_first
+from ..priority_rules import (
+    RANKING_RULE,
+    hypothesis_header,
+    priority_group_score,
+    priority_score,
+    test_first,
+)
 from ..project_history_services import list_project_events, record_project_event
 from ..services import (
     create_project,
@@ -1310,22 +1316,20 @@ def ranked_backlog_from_ui(*args, sources=None):
         group_score = priority_group_score(item["risk"], item["evidence"])
         if group_score != last_score:
             position = index + 1
-        tied = sum(priority_group_score(other["risk"], other["evidence"]) == group_score for other in items) > 1
         last_score = group_score
         source = sources[item["index"]] if sources and item["index"] < len(sources) else ""
+        reason = "High risk with limited evidence." if item["test_first"] else "Outside the Test first area; consider after higher-risk uncertainties."
         lines.append(
-            f'<article class="toolkit-history-card"><small>Test order {position}{" · tied" if tied else ""}</small>'
+            f'<article class="toolkit-history-card"><small>TEST ORDER {position}</small>'
             f'<h3>H{item["index"] + 1} · {escape(item["statement"])}</h3>'
             f'<p><strong>Source question / assumption:</strong> {escape(source or "No linked question or assumption.")}</p>'
-            f'<p>{"Test first quadrant" if item["test_first"] else "Outside Test first quadrant"}</p>'
-            f'<p><strong>Priority {item["priority"]:.1f}/100</strong> = risk {item["risk"]:.1f} × '
-            f'uncertainty {10 - item["evidence"]:.1f} (10 − evidence {item["evidence"]:.1f}).</p></article>'
+            f'<p>Risk if wrong: {item["risk"]:.1f}/10 · Evidence available: {item["evidence"]:.1f}/10</p>'
+            f'<p>{reason}</p></article>'
         )
     fig = go.Figure()
     fig.add_trace(go.Scatter(x=[item["evidence"] for item in items], y=[item["risk"] for item in items], mode="markers+text", text=[f"H{item['index'] + 1}" for item in items], textposition="top center", customdata=[item["statement"] for item in items], hovertemplate="%{text}: %{customdata}<br>risk %{y:.1f} | evidence %{x:.1f}<extra></extra>", marker={"size": 12, "color": "#1f77b4"}))
     fig.update_layout(xaxis={"title": "Evidence provided", "range": [0, 10]}, yaxis={"title": "Risk to project", "range": [0, 10]}, title="Risk versus evidence matrix")
     fig.add_shape(type="rect", x0=0, x1=5, y0=5, y1=10, fillcolor="rgba(20,184,166,0.12)", line={"width": 0}, layer="below")
-    fig.add_annotation(x=0.2, y=9.8, xanchor="left", yanchor="top", text="<b>Test first</b><br>Risk 5–10 · Evidence 0–5", showarrow=False, font={"size": 12, "color": "#0f766e"})
     return "".join(lines), fig
 
 
@@ -1368,7 +1372,7 @@ def load_placements_from_ui(token: str | None, project_id: str | None, request: 
         if index < len(hypotheses):
             hypothesis = hypotheses[index]
             outputs.extend([
-                gr.update(visible=True, label=f"H{index + 1} · {hypothesis.statement[:70]}", open=False),
+                gr.update(visible=True, label=hypothesis_header(index + 1, hypothesis.statement), open=False),
                 hypothesis.statement,
                 hypothesis.priority_risk,
                 hypothesis.priority_evidence,

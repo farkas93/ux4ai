@@ -36,6 +36,7 @@ def build_priority_tab(token, product_dropdown, status):
                         "source": source_display,
                     })
             with gr.Column():
+                gr.Markdown("**Test first** · High risk with limited evidence", elem_id="test-first-key")
                 matrix_fig = gr.Plot(label="Risk versus evidence matrix")
                 gr.Markdown("### Suggested test order")
                 ranking_display = gr.HTML()

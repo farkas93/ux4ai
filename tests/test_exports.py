@@ -71,8 +71,10 @@ def test_learning_report_preserves_comments_provenance_and_excludes_history(db):
         "approval_boundary": "", "success_checks": "", "rollback": "",
     })
     report = export_project_markdown(db, user, project.id)
-    for content in (rationale, assessment.text, safety.text, "Do summaries reveal recurring problems?", "Review rejected edits", "Capability explanation for observe", "H1", "Priority 72/100", "Risk 5–10 and evidence 0–5"):
+    for content in (rationale, assessment.text, safety.text, "Do summaries reveal recurring problems?", "Review rejected edits", "Capability explanation for observe", "H1", "Test first", "Risk and evidence"):
         assert content in report
+    assert "Risk 5–10" not in report and "Priority 72/100" not in report
+    assert "risk 9 × uncertainty" not in report
     assert "## Project History" not in report
     assert "Created product:" not in report
     payload = build_project_export(db, user, project.id)
@@ -96,6 +98,6 @@ def test_test_first_quadrant_has_exact_bounds():
     _, figure = ranked_backlog_from_ui("id", "A claim", 9, 2)
     quadrant = figure.layout.shapes[0]
     assert (quadrant.x0, quadrant.x1, quadrant.y0, quadrant.y1) == (0, 5, 5, 10)
-    assert "Test first" in figure.layout.annotations[0].text
+    assert not any("Test first" in annotation.text for annotation in figure.layout.annotations)
     _, empty = ranked_backlog_from_ui()
     assert (empty.layout.shapes[0].x0, empty.layout.shapes[0].y0) == (0, 5)
