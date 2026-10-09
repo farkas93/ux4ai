@@ -1,6 +1,6 @@
 [project]
 name = "ai-product-toolkit"
-version = "0.2.4"
+version = "0.2.5"
 description = "AIPM Toolkit workshop workspace"
 requires-python = ">=3.11,<3.14"
 dependencies = [
