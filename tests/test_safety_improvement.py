@@ -2,10 +2,20 @@ import json
 from datetime import timedelta
 from uuid import UUID
 
+import gradio as gr
 import pytest
+from gradio.helpers import special_args
 from sqlalchemy import select
+from sqlalchemy.orm import sessionmaker
+from starlette.requests import Request
 
-from aipm_toolkit.auth import AuthorizationError, RevisionConflict, hash_password
+from aipm_toolkit.auth import (
+    AuthorizationError,
+    RevisionConflict,
+    authenticate,
+    hash_password,
+    revoke_session,
+)
 from aipm_toolkit.experiment_services import save_reflection
 from aipm_toolkit.export_services import build_project_export, export_project_markdown
 from aipm_toolkit.hypothesis_services import create_hypothesis
@@ -228,3 +238,39 @@ def test_product_deletion_cleans_up_safety_and_loops(db):
     assert db.scalar(select(SafetyAssessment).where(SafetyAssessment.project_id == project.id)) is None
     assert db.scalar(select(SafetyCheckpoint)) is None
     assert db.scalar(select(ImprovementLoop).where(ImprovementLoop.project_id == project.id)) is None
+
+
+def test_loop_save_uses_gradio_injected_cookie_without_client_token(db, monkeypatch):
+    user, project = project_for(db, "cookie-loop-save")
+    token, _ = authenticate(db, user.username, "P" * 16)
+    factory = sessionmaker(bind=db.get_bind(), expire_on_commit=False)
+    monkeypatch.setattr(safety_callbacks, "SessionLocal", factory)
+    request = gr.Request(Request({
+        "type": "http", "headers": [(b"cookie", f"aipm_session={token}".encode())],
+    }))
+    values = ["Review failed support chats", *[value for _ in range(5) for value in ("yes", "Team-reviewed evidence")]]
+
+    def save(loop_id, revision, cookie_request):
+        inputs, _, _ = special_args(
+            safety_callbacks.save_primary_loop_ui,
+            [None, str(project.id), loop_id, revision, *values],
+            request=cookie_request,
+        )
+        return safety_callbacks.save_primary_loop_ui(*inputs)
+
+    status, loop_id, revision = save(None, None, request)
+    assert status == "Learning loop saved."
+    loop = db.get(ImprovementLoop, UUID(loop_id))
+    assert loop.name == values[0]
+    assert json.loads(loop.capabilities_json)["observe"]["answer"] == "yes"
+    values[0] = "Review and improve failed support chats"
+    status, _, updated_revision = save(loop_id, revision, request)
+    assert status == "Learning loop saved."
+    assert updated_revision == revision + 1
+    db.expire_all()
+    assert db.get(ImprovementLoop, UUID(loop_id)).name == values[0]
+
+    revoke_session(db, token)
+    status, _, unchanged_revision = save(loop_id, updated_revision, request)
+    assert status == "Authentication required"
+    assert unchanged_revision == updated_revision

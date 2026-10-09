@@ -105,11 +105,20 @@ def load_primary_loop_ui(token, project_id, request: gr.Request | None = None):
             return empty
 
 
-def save_primary_loop_ui(token, project_id, loop_id, revision, *values, request: gr.Request | None = None):
+def save_primary_loop_ui(
+    token, project_id, loop_id, revision,
+    name, observe, observe_explanation, diagnose, diagnose_explanation,
+    propose, propose_explanation, evaluate, evaluate_explanation,
+    apply_monitor, apply_monitor_explanation,
+    request: gr.Request | None = None,
+):
     if not project_id:
         return "Select a product first.", loop_id, revision
-    name = values[0]
-    data_answers = {key: {"answer": values[1 + i * 2], "explanation": values[2 + i * 2]} for i, key in enumerate(list(QUESTIONS)[:5])}
+    # Gradio only injects Request into positional parameters (not after *args).
+    values = [observe, observe_explanation, diagnose, diagnose_explanation,
+              propose, propose_explanation, evaluate, evaluate_explanation,
+              apply_monitor, apply_monitor_explanation]
+    data_answers = {key: {"answer": values[i * 2], "explanation": values[1 + i * 2]} for i, key in enumerate(list(QUESTIONS)[:5])}
     with SessionLocal() as db:
         try:
             actor = get_authenticated_user(db, _resolve_token(token, request))
