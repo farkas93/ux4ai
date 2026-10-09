@@ -1294,7 +1294,7 @@ def _ranking_items(ids, statements, risks, evidences):
     return items
 
 
-def ranked_backlog_from_ui(*args):
+def ranked_backlog_from_ui(*args, sources=None):
     slot_count = len(args) // 4
     ids = args[0:slot_count]
     statements = args[slot_count:slot_count * 2]
@@ -1303,13 +1303,26 @@ def ranked_backlog_from_ui(*args):
     items = _ranking_items(ids, statements, risks, evidences)
     if not items:
         return "No supporting hypotheses to rank yet.", go.Figure()
-    lines = ["Backlog ranking (risk + (10 - evidence); ties keep creation order)"]
-    for rank, item in enumerate(items, start=1):
-        lines.append(f"{rank}. [risk {item['risk']:.1f} | evidence {item['evidence']:.1f}] {item['statement']}")
+    lines = [('<p>Suggested test priority = risk if wrong + (10 − evidence available). '
+              'Higher scores come first; equal scores are tied. This is discussion guidance, not a product-quality score.</p>')]
+    last_score, position = None, 0
+    for index, item in enumerate(items):
+        if item["priority"] != last_score:
+            position = index + 1
+        tied = sum(other["priority"] == item["priority"] for other in items) > 1
+        last_score = item["priority"]
+        source = sources[item["index"]] if sources and item["index"] < len(sources) else ""
+        lines.append(
+            f'<article class="toolkit-history-card"><small>Test order {position}{" · tied" if tied else ""}</small>'
+            f'<h3>H{item["index"] + 1} · {escape(item["statement"])}</h3>'
+            f'<p><strong>Source question / assumption:</strong> {escape(source or "No linked question or assumption.")}</p>'
+            f'<p><strong>Priority {item["priority"]:.1f}/20</strong> = risk {item["risk"]:.1f} + '
+            f'uncertainty {10 - item["evidence"]:.1f} (10 − evidence {item["evidence"]:.1f}).</p></article>'
+        )
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=[item["evidence"] for item in items], y=[item["risk"] for item in items], mode="markers+text", text=[f"H{rank}" for rank, _ in enumerate(items, start=1)], textposition="top center", customdata=[item["statement"] for item in items], hovertemplate="%{customdata}<br>risk %{y:.1f} | evidence %{x:.1f}<extra></extra>", marker={"size": 12, "color": "#1f77b4"}))
+    fig.add_trace(go.Scatter(x=[item["evidence"] for item in items], y=[item["risk"] for item in items], mode="markers+text", text=[f"H{item['index'] + 1}" for item in items], textposition="top center", customdata=[item["statement"] for item in items], hovertemplate="%{text}: %{customdata}<br>risk %{y:.1f} | evidence %{x:.1f}<extra></extra>", marker={"size": 12, "color": "#1f77b4"}))
     fig.update_layout(xaxis={"title": "Evidence provided", "range": [0, 10]}, yaxis={"title": "Risk to project", "range": [0, 10]}, title="Risk versus evidence matrix")
-    return "\n".join(lines), fig
+    return "".join(lines), fig
 
 
 def save_placement_from_ui(token: str | None, hypothesis_id: str | None, revision: int | None, risk, evidence, request: gr.Request | None = None):
@@ -1328,12 +1341,22 @@ def save_placement_from_ui(token: str | None, hypothesis_id: str | None, revisio
 def load_placements_from_ui(token: str | None, project_id: str | None, request: gr.Request | None = None):
     token = _resolve_token(token, request)
     hypotheses = []
+    sources = {}
     if project_id:
         with SessionLocal() as db:
             try:
                 user = get_authenticated_user(db, token)
                 get_project(db, user, UUID(project_id))
-                hypotheses = list(db.scalars(select(Hypothesis).where(Hypothesis.project_id == UUID(project_id), Hypothesis.kind == "supporting", Hypothesis.archived_at.is_(None)).order_by(Hypothesis.created_at)))[:PLACEMENT_SLOTS]
+                hypotheses = list(db.scalars(select(Hypothesis).where(Hypothesis.project_id == UUID(project_id), Hypothesis.kind == "supporting", Hypothesis.archived_at.is_(None)).order_by(Hypothesis.created_at, Hypothesis.id)))[:PLACEMENT_SLOTS]
+                if hypotheses:
+                    linked = db.execute(
+                        select(HypothesisSource.hypothesis_id, Note.note_type, Note.text, Note.archived_at)
+                        .join(Note, Note.id == HypothesisSource.note_id)
+                        .where(HypothesisSource.hypothesis_id.in_([item.id for item in hypotheses]), Note.project_id == UUID(project_id))
+                        .order_by(Note.created_at, Note.id)
+                    ).all()
+                    for hyp_id, note_type, note_text, archived in linked:
+                        sources.setdefault(hyp_id, []).append(f"{note_type.title()}{' (archived)' if archived else ''}: {note_text}")
             except (AuthenticationError, ValueError, AuthorizationError):
                 hypotheses = []
     outputs = []
@@ -1341,20 +1364,21 @@ def load_placements_from_ui(token: str | None, project_id: str | None, request: 
         if index < len(hypotheses):
             hypothesis = hypotheses[index]
             outputs.extend([
-                gr.update(visible=True, label=f"H{index + 1}", open=False),
+                gr.update(visible=True, label=f"H{index + 1} · {hypothesis.statement[:70]}", open=False),
                 hypothesis.statement,
                 hypothesis.priority_risk,
                 hypothesis.priority_evidence,
                 str(hypothesis.id),
                 hypothesis.revision,
+                "\n".join(sources.get(hypothesis.id, [])),
             ])
         else:
-            outputs.extend([gr.update(visible=False, label=f"H{index + 1}", open=False), "", 0.0, 0.0, None, None])
+            outputs.extend([gr.update(visible=False, label=f"H{index + 1}", open=False), "", 0.0, 0.0, None, None, ""])
     slot_ids = [str(hypotheses[i].id) if i < len(hypotheses) else None for i in range(PLACEMENT_SLOTS)]
     slot_statements = [hypotheses[i].statement if i < len(hypotheses) else "" for i in range(PLACEMENT_SLOTS)]
     slot_risks = [float(hypotheses[i].priority_risk) if i < len(hypotheses) else 0.0 for i in range(PLACEMENT_SLOTS)]
     slot_evidences = [float(hypotheses[i].priority_evidence) if i < len(hypotheses) else 0.0 for i in range(PLACEMENT_SLOTS)]
-    ranking, fig = ranked_backlog_from_ui(*(slot_ids + slot_statements + slot_risks + slot_evidences))
+    ranking, fig = ranked_backlog_from_ui(*(slot_ids + slot_statements + slot_risks + slot_evidences), sources=["\n".join(sources.get(item.id, [])) for item in hypotheses])
     return (*outputs, ranking, fig)
 
 

@@ -23,6 +23,7 @@ def build_priority_tab(token, product_dropdown, status):
                 for index in range(PLACEMENT_SLOTS):
                     with gr.Accordion(f"H{index + 1}", open=False, visible=False) as accordion:
                         statement_display = gr.Markdown("")
+                        source_display = gr.Textbox(label="Source question / assumption", interactive=False, lines=2)
                         risk_slider = gr.Slider(label="Risk if wrong", minimum=0, maximum=10, step=0.5, value=0)
                         evidence_slider = gr.Slider(label="Evidence available", minimum=0, maximum=10, step=0.5, value=0)
                     slot_components.append({
@@ -32,11 +33,12 @@ def build_priority_tab(token, product_dropdown, status):
                         "evidence": evidence_slider,
                         "id": gr.State(None),
                         "revision": gr.State(None),
+                        "source": source_display,
                     })
             with gr.Column():
-                gr.Markdown("### Suggested test order")
-                ranking_display = gr.Textbox(label="Backlog ranking", interactive=False, lines=10)
                 matrix_fig = gr.Plot(label="Risk versus evidence matrix")
+                gr.Markdown("### Suggested test order")
+                ranking_display = gr.HTML()
 
         ranking_inputs = []
         for slot in slot_components:
@@ -48,8 +50,10 @@ def build_priority_tab(token, product_dropdown, status):
         for slot in slot_components:
             ranking_inputs.append(slot["evidence"])
 
+        source_inputs = [slot["source"] for slot in slot_components]
+
         def refresh_ranking(*args):
-            return ranked_backlog_from_ui(*args)
+            return ranked_backlog_from_ui(*args[:PLACEMENT_SLOTS * 4], sources=args[PLACEMENT_SLOTS * 4:])
 
         for slot in slot_components:
             for slider in (slot["risk"], slot["evidence"]):
@@ -57,11 +61,11 @@ def build_priority_tab(token, product_dropdown, status):
                     save_placement_from_ui,
                     [token, slot["id"], slot["revision"], slot["risk"], slot["evidence"]],
                     [status, slot["revision"]],
-                ).then(refresh_ranking, ranking_inputs, [ranking_display, matrix_fig])
+                ).then(refresh_ranking, ranking_inputs + source_inputs, [ranking_display, matrix_fig])
 
     placement_outputs = []
     for slot in slot_components:
-        placement_outputs.extend([slot["accordion"], slot["statement"], slot["risk"], slot["evidence"], slot["id"], slot["revision"]])
+        placement_outputs.extend([slot["accordion"], slot["statement"], slot["risk"], slot["evidence"], slot["id"], slot["revision"], slot["source"]])
 
     return {
         "tab": tab,
