@@ -18,6 +18,11 @@ deterministic tie breaker), not rank. Priority arithmetic and equal-score ties
 are explained. The report includes all active hypotheses, even beyond the UI's
 current ten-slot prioritization limit.
 
+Test-order guidance is quadrant-first: risk ≥5 / evidence ≤5 entries come first,
+then each group is ordered by risk × (10 − evidence), descending. This prevents
+uncertainty alone from giving a zero-risk entry priority. Scores range from 0 to
+100; ties are defined within a group. UI, Markdown and PDF share the same rule.
+
 Top-level fields:
 
 - `schema_version`

@@ -71,7 +71,7 @@ def test_learning_report_preserves_comments_provenance_and_excludes_history(db):
         "approval_boundary": "", "success_checks": "", "rollback": "",
     })
     report = export_project_markdown(db, user, project.id)
-    for content in (rationale, assessment.text, safety.text, "Do summaries reveal recurring problems?", "Review rejected edits", "Capability explanation for observe", "H1", "Priority 17/20", "Risk 5–10 and evidence 0–5"):
+    for content in (rationale, assessment.text, safety.text, "Do summaries reveal recurring problems?", "Review rejected edits", "Capability explanation for observe", "H1", "Priority 72/100", "Risk 5–10 and evidence 0–5"):
         assert content in report
     assert "## Project History" not in report
     assert "Created product:" not in report

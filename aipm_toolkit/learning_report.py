@@ -6,6 +6,7 @@ from fpdf import FPDF
 
 from .dimensions import DEFAULT_DIMENSIONS
 from .improvement_services import QUESTIONS
+from .priority_rules import RANKING_RULE, priority_group_score, priority_score
 from .safety_services import CHECKPOINTS
 
 INK = (25, 44, 57)
@@ -100,18 +101,20 @@ def report_sections(document):
             blocks.append(("Relationships", "\n".join(relations)))
         sections.append((f"{identifiers[hypothesis['id']]} · Hypothesis backlog", blocks))
     priority = [("Test first corner", "Risk 5–10 and evidence 0–5: high consequence if wrong, with little supporting evidence."),
-                ("Ranking rule", "Risk if wrong + (10 − evidence available). Higher scores come first; equal scores are tied. This is discussion guidance, not a calibrated risk or readiness score.")]
-    ranked = sorted(hypotheses, key=lambda h: -(float(h["priority_risk"]) + 10 - float(h["priority_evidence"])))
+                ("Ranking rule", RANKING_RULE)]
+    ranked = sorted(hypotheses, key=lambda h: tuple(-value for value in priority_group_score(float(h["priority_risk"]), float(h["priority_evidence"]))))
     last_score, position = None, 0
     for index, hypothesis in enumerate(ranked):
         risk, evidence = float(hypothesis["priority_risk"]), float(hypothesis["priority_evidence"])
-        score = risk + 10 - evidence
-        if score != last_score:
+        score = priority_score(risk, evidence)
+        group_score = priority_group_score(risk, evidence)
+        if group_score != last_score:
             position = index + 1
-        tied = sum(float(h["priority_risk"]) + 10 - float(h["priority_evidence"]) == score for h in ranked) > 1
-        last_score = score
+        tied = sum(priority_group_score(float(h["priority_risk"]), float(h["priority_evidence"])) == group_score for h in ranked) > 1
+        last_score = group_score
         priority.append((f"Test order {position}{' (tied)' if tied else ''} · {identifiers[hypothesis['id']]}", hypothesis["statement"]))
-        priority.append(("Why this position", f"Priority {score:g}/20 = risk {risk:g} + uncertainty {10 - evidence:g} (10 − evidence {evidence:g})."))
+        group = "Test first quadrant" if group_score[0] else "Outside Test first quadrant"
+        priority.append(("Why this position", f"{group}. Priority {score:g}/100 = risk {risk:g} × uncertainty {10 - evidence:g} (10 − evidence {evidence:g})."))
     if not ranked:
         priority.append(("Hypotheses", "No supporting hypotheses recorded."))
     sections.append(("Priorities and next test", priority))
