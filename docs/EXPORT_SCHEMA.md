@@ -12,16 +12,17 @@ archived notes/hypotheses are excluded from these current-work reports; archival
 JSON retains them. Deferred numeric Safety and self-improvement ratings are not
 presented in the reports.
 
-The matrix highlights **Test first** at evidence 0–5 and risk 5–10, matching the
-Plotly UI. H-identifiers follow active hypothesis creation order (with UUID as a
-deterministic tie breaker), not rank. Priority arithmetic and equal-score ties
-are explained. The report includes all active hypotheses, even beyond the UI's
-current ten-slot prioritization limit.
+The shaded matrix area and the separate **Test first** label indicate where the
+team should focus discussion. The label deliberately avoids repeating numeric
+axis bounds. H-identifiers follow active hypothesis creation order (with UUID
+as a deterministic tie breaker), not rank. The report includes all active
+hypotheses, even beyond the UI's current ten-slot prioritization limit.
 
-Test-order guidance is quadrant-first: risk ≥5 / evidence ≤5 entries come first,
-then each group is ordered by risk × (10 − evidence), descending. This prevents
-uncertainty alone from giving a zero-risk entry priority. Scores range from 0 to
-100; ties are defined within a group. UI, Markdown and PDF share the same rule.
+Test-order guidance is quadrant-first: high-risk entries with limited evidence
+are discussed first. Within each group, uncertainty amplifies risk, so low
+evidence alone cannot elevate a zero-risk claim. The UI and report show each
+hypothesis's risk, evidence, source and a short explanation without exposing an
+extra score, formula or tie notation.
 
 Top-level fields:
 

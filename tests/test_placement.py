@@ -51,11 +51,12 @@ def test_ranking_puts_high_risk_low_evidence_first(db):
     evidences = [first.priority_evidence, second.priority_evidence]
     ranking, _ = ranked_backlog_from_ui(*(ids + statements + risks + evidences))
     assert ranking.index("H1 · Urgent uncertain claim") < ranking.index("H2 · Well-evidenced claim")
-    assert "Priority 100.0/100" in ranking
-    assert "Priority 0.0/100" in ranking
+    assert "Risk if wrong: 10.0/10 · Evidence available: 0.0/10" in ranking
+    assert "Risk if wrong: 0.0/10 · Evidence available: 10.0/10" in ranking
+    assert "Priority 100" not in ranking
 
 
-def test_matrix_ids_match_editors_when_ranking_reorders_and_explains_ties():
+def test_matrix_ids_match_editors_and_ranking_shows_concise_reasons():
     ranking, figure = ranked_backlog_from_ui(
         "first", "second", "third",
         "Lower priority", "Urgent claim", "Equal priority",
@@ -65,9 +66,12 @@ def test_matrix_ids_match_editors_when_ranking_reorders_and_explains_ties():
     )
     assert list(figure.data[0].text) == ["H2", "H3", "H1"]
     assert ranking.index("H2 · Urgent claim") < ranking.index("H1 · Lower priority")
-    assert ranking.count("Test order 1 · tied") == 2
+    assert ranking.count("TEST ORDER 1") == 2
     assert "Assumption: Retrieval is private" in ranking
-    assert "risk 9.0 × uncertainty 9.0 (10 − evidence 1.0)" in ranking
+    assert "Risk if wrong: 9.0/10 · Evidence available: 1.0/10" in ranking
+    assert "Priority" not in ranking
+    assert "TEST ORDER 1 · tied" not in ranking
+    assert "Test first area" in ranking
 
 
 def test_ranking_html_escapes_student_content():
@@ -75,6 +79,22 @@ def test_ranking_html_escapes_student_content():
     assert "<script>" not in ranking
     assert "&lt;script&gt;" in ranking
     assert "&lt;img src=x&gt;" in ranking
+
+
+def test_test_first_label_is_external_to_plot_and_headers_are_evenly_truncated():
+    from aipm_toolkit.priority_rules import hypothesis_header
+    from aipm_toolkit.ui.shell import build_app
+
+    _ranking, figure = ranked_backlog_from_ui("id", "Long hypothesis claim", 9, 2)
+    assert not any("Test first" in annotation.text or "Evidence 0" in annotation.text for annotation in figure.layout.annotations)
+    components = build_app().get_config_file()["components"]
+    plot_index = next(i for i, item in enumerate(components) if item["type"] == "plot" and item["props"].get("label") == "Risk versus evidence matrix")
+    test_first_label = next(i for i, item in enumerate(components) if item["type"] == "markdown" and "Test first" in (item["props"].get("value") or ""))
+    assert test_first_label < plot_index
+    short = hypothesis_header(1, "Short")
+    long = hypothesis_header(12, "A very long hypothesis " * 10)
+    assert len(short) < len(long) <= 52
+    assert long.startswith("H12 · ") and long.endswith("…")
 
 
 def test_load_placements_and_estimates_unpack_proper_component_counts(db, monkeypatch):
