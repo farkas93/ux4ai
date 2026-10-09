@@ -1,7 +1,7 @@
 import pytest
 
 from aipm_toolkit.auth import RevisionConflict, hash_password
-from aipm_toolkit.hypothesis_services import create_hypothesis, set_placement
+from aipm_toolkit.hypothesis_services import create_hypothesis, create_note, set_placement
 from aipm_toolkit.models import Course, Role, Team, User
 from aipm_toolkit.services import create_project
 from aipm_toolkit.ui.callbacks import (
@@ -50,9 +50,31 @@ def test_ranking_puts_high_risk_low_evidence_first(db):
     risks = [first.priority_risk, second.priority_risk]
     evidences = [first.priority_evidence, second.priority_evidence]
     ranking, _ = ranked_backlog_from_ui(*(ids + statements + risks + evidences))
-    lines = ranking.splitlines()
-    assert lines[1].startswith("1. [risk 10.0 | evidence 0.0] Urgent uncertain claim")
-    assert lines[2].startswith("2. [risk 0.0 | evidence 10.0] Well-evidenced claim")
+    assert ranking.index("H1 · Urgent uncertain claim") < ranking.index("H2 · Well-evidenced claim")
+    assert "Priority 20.0/20" in ranking
+    assert "Priority 0.0/20" in ranking
+
+
+def test_matrix_ids_match_editors_when_ranking_reorders_and_explains_ties():
+    ranking, figure = ranked_backlog_from_ui(
+        "first", "second", "third",
+        "Lower priority", "Urgent claim", "Equal priority",
+        1, 9, 9,
+        8, 1, 1,
+        sources=["Question: Can users understand?", "Assumption: Retrieval is private", "Question: What fails?"],
+    )
+    assert list(figure.data[0].text) == ["H2", "H3", "H1"]
+    assert ranking.index("H2 · Urgent claim") < ranking.index("H1 · Lower priority")
+    assert ranking.count("Test order 1 · tied") == 2
+    assert "Assumption: Retrieval is private" in ranking
+    assert "risk 9.0 + uncertainty 9.0 (10 − evidence 1.0)" in ranking
+
+
+def test_ranking_html_escapes_student_content():
+    ranking, _ = ranked_backlog_from_ui("id", "<script>alert(1)</script>", 8, 2, sources=["<img src=x>"])
+    assert "<script>" not in ranking
+    assert "&lt;script&gt;" in ranking
+    assert "&lt;img src=x&gt;" in ranking
 
 
 def test_load_placements_and_estimates_unpack_proper_component_counts(db, monkeypatch):
@@ -60,9 +82,9 @@ def test_load_placements_and_estimates_unpack_proper_component_counts(db, monkey
     from aipm_toolkit.ui import callbacks as cb_mod
     monkeypatch.setattr(cb_mod, "SessionLocal", lambda: db)
 
-    # load_placements_from_ui must return exactly 62 flat items: 60 for 10 slots + ranking string + figure
+    # Seven components per slot, plus ranking and figure.
     placement_results = load_placements_from_ui("token", str(project.id))
-    assert len(placement_results) == 62
+    assert len(placement_results) == 72
     assert not isinstance(placement_results[0], list)
 
     # load_estimates_from_ui must return exactly 11 flat items: 10 for 5 dimensions (score, reasoning) + list of revisions
@@ -88,7 +110,7 @@ def test_load_placements_with_populated_hypotheses_does_not_fail_on_str_float(db
 
     # Must execute without TypeError: can only concatenate str (not "float") to str
     placement_results = load_placements_from_ui("token", str(project.id))
-    assert len(placement_results) == 62
+    assert len(placement_results) == 72
     ranking_text = placement_results[-2]
     assert "First supporting claim" in ranking_text
 
@@ -106,3 +128,18 @@ def test_load_experiment_edit_returns_exact_18_outputs(db, monkeypatch):
     # When experiment_id does not exist / error, must return exactly 18 values
     error_results = load_experiment_edit_from_ui("token", "00000000-0000-0000-0000-000000000000")
     assert len(error_results) == 18
+
+
+def test_placement_load_connects_source_question_to_ranked_hypothesis(db, monkeypatch):
+    user, project = user_project(db, "priority-provenance")
+    note = create_note(db, user, project.id, "question", "Will users understand the clarification?", ["conversational"])
+    hypothesis = create_hypothesis(db, user, project.id, "Clarification reduces hand-offs", note_id=note.id)
+    from aipm_toolkit.ui import callbacks as cb_mod
+    monkeypatch.setattr(cb_mod, "SessionLocal", lambda: db)
+    monkeypatch.setattr(cb_mod, "get_authenticated_user", lambda _db, _token: user)
+    result = load_placements_from_ui("token", str(project.id))
+    assert result[0]["label"].startswith("H1 · Clarification")
+    assert result[6] == "Question: Will users understand the clarification?"
+    assert "Will users understand the clarification?" in result[-2]
+    assert list(result[-1].data[0].text) == ["H1"]
+    assert hypothesis.statement in result[-2]
