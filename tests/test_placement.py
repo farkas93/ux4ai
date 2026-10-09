@@ -51,8 +51,8 @@ def test_ranking_puts_high_risk_low_evidence_first(db):
     evidences = [first.priority_evidence, second.priority_evidence]
     ranking, _ = ranked_backlog_from_ui(*(ids + statements + risks + evidences))
     assert ranking.index("H1 · Urgent uncertain claim") < ranking.index("H2 · Well-evidenced claim")
-    assert "Priority 20.0/20" in ranking
-    assert "Priority 0.0/20" in ranking
+    assert "Priority 100.0/100" in ranking
+    assert "Priority 0.0/100" in ranking
 
 
 def test_matrix_ids_match_editors_when_ranking_reorders_and_explains_ties():
@@ -67,7 +67,7 @@ def test_matrix_ids_match_editors_when_ranking_reorders_and_explains_ties():
     assert ranking.index("H2 · Urgent claim") < ranking.index("H1 · Lower priority")
     assert ranking.count("Test order 1 · tied") == 2
     assert "Assumption: Retrieval is private" in ranking
-    assert "risk 9.0 + uncertainty 9.0 (10 − evidence 1.0)" in ranking
+    assert "risk 9.0 × uncertainty 9.0 (10 − evidence 1.0)" in ranking
 
 
 def test_ranking_html_escapes_student_content():
