@@ -43,6 +43,8 @@ def test_setup_has_explicit_stacking_layout_and_header_moves_settings_to_drawer(
     components = build_app().get_config_file()["components"]
     setup_row = next(item for item in components if item["props"].get("elem_id") == "toolkit-setup-cards")
     assert "toolkit-two-column" in setup_row["props"]["elem_classes"]
+    setup_headings = [item["props"].get("value", "") for item in components if item["type"] == "markdown" and ("The user and their problem" in item["props"].get("value", "") or "Role of AI in the Product" in item["props"].get("value", ""))]
+    assert setup_headings == ["#### 1 · The user and their problem", "#### 2 · Role of AI in the Product"]
     add = next(item for item in components if item["props"].get("elem_id") == "toolkit-new-product")
     assert add["props"]["value"] == "+ New"
     assert add["props"]["size"] == "sm"
