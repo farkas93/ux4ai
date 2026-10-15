@@ -1,3 +1,7 @@
+from pathlib import Path
+
+import gradio as gr
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
@@ -18,6 +22,7 @@ def test_cookie_session_protects_app_and_supports_logout(tmp_path):
     client = TestClient(create_auth_app(factory))
 
     page = client.get("/auth/login")
+    assert page.headers["cache-control"] == "no-store"
     assert "AI Product Toolkit" in page.text
     assert "backlog of testable hypotheses" in page.text
     assert 'name="viewport"' in page.text
@@ -31,17 +36,21 @@ def test_cookie_session_protects_app_and_supports_logout(tmp_path):
     protected = client.get("/app", follow_redirects=False)
     assert protected.status_code == 303
     assert protected.headers["location"].startswith("/auth/login")
+    assert protected.headers["cache-control"] == "no-store"
 
     invalid = client.post("/auth/login", data={"username": "web-user", "password": "wrong", "next": "/app"}, follow_redirects=False)
     assert invalid.status_code == 401
+    assert invalid.headers["cache-control"] == "no-store"
     login = client.post("/auth/login", data={"username": "web-user", "password": "P" * 16, "next": "/app"}, follow_redirects=False)
     assert login.status_code == 303
+    assert login.headers["cache-control"] == "no-store"
     assert "aipm_session" in login.headers["set-cookie"]
     assert "HttpOnly" in login.headers["set-cookie"]
     assert client.get("/app", follow_redirects=False).status_code != 303
 
     logout = client.get("/auth/logout", follow_redirects=False)
     assert logout.status_code == 303
+    assert logout.headers["cache-control"] == "no-store"
     assert client.get("/app", follow_redirects=False).status_code == 303
 
 
@@ -71,3 +80,35 @@ def test_readyz_waits_for_database_and_current_migrations(tmp_path):
         connection.execute(text("CREATE TABLE alembic_version (version_num VARCHAR(32) NOT NULL)"))
         connection.execute(text("INSERT INTO alembic_version (version_num) VALUES (:version)"), {"version": next(iter(_migration_heads()))})
     assert client.get("/readyz").status_code == 200
+
+
+def test_gradio_module_loads_without_session_and_authenticated_html_is_not_cached(tmp_path):
+    engine = create_engine(f"sqlite:///{tmp_path / 'asset-web.db'}", connect_args={"check_same_thread": False})
+    Base.metadata.create_all(engine)
+    factory = sessionmaker(bind=engine, expire_on_commit=False)
+    with factory.begin() as db:
+        db.add(User(username="asset-user", password_hash=hash_password("P" * 16), role=Role.TEAM.value))
+    with gr.Blocks() as blocks:
+        gr.Textbox()
+    app = gr.mount_gradio_app(create_auth_app(factory), blocks, path="/app")
+    module = next((Path(gr.__file__).parent / "templates/frontend/assets").glob("Blocks-*.js"))
+    client = TestClient(app)
+    asset = client.get(f"/app/assets/{module.name}", follow_redirects=False)
+    assert asset.status_code == 200
+    assert "javascript" in asset.headers["content-type"]
+    assert "location" not in asset.headers
+    assert client.get("/app/assets/nonexistent-module.js", follow_redirects=False).headers["cache-control"] == "no-store"
+    login = client.post("/auth/login", data={"username": "asset-user", "password": "P" * 16}, follow_redirects=False)
+    assert login.status_code == 303
+    page = client.get("/app/")
+    assert page.status_code == 200
+    assert page.headers["cache-control"] == "no-store"
+    assert client.get(f"/app/assets/{module.name}").status_code == 200
+
+
+@pytest.mark.parametrize("path", ["/app/", "/app/config", "/app/gradio_api/queue/join", "/app/file=/tmp/private.json", "/app/assets-private/file.json"])
+def test_asset_exemption_does_not_open_private_gradio_routes(path):
+    client = TestClient(create_auth_app())
+    response = client.get(path, follow_redirects=False)
+    assert response.status_code == 303
+    assert response.headers["cache-control"] == "no-store"
