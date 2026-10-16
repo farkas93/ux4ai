@@ -54,6 +54,22 @@ Opening the public link requires outbound internet access from the app pod to Gr
 
 The tunnel manager uses Gradio's version-pinned FRP client integration. Re-test open/close and authentication whenever the pinned Gradio version changes. The link is temporary, not a stable course hostname.
 
+## Reverse proxy caching
+
+In Nginx Proxy Manager, leave **Cache Assets** disabled for the application host.
+The app marks authentication responses, redirects and protected app responses
+`Cache-Control: no-store`; the proxy must respect these headers rather than add
+`expires` or override them. Only Gradio's packaged `/app/assets/` and
+`/app/static/` frontend routes are public. Application config, APIs and file
+downloads still require a session. Failed asset responses also use `no-store`.
+
+If the browser remains at “Loading…” after login, inspect the JavaScript module
+request. A cached 303 to `/auth/login` means a previous proxy rule cached an
+authentication redirect. Disable caching, purge any proxy cache, and clear the
+browser cache (or use a fresh private window). Deploying a fixed image cannot
+invalidate redirects already stored in a browser. JavaScript assets should
+return 200 with a JavaScript content type, not HTML or a login redirect.
+
 The app mounts writable temporary storage at `/app/.gradio`: Gradio 5.44.1 saves
 its share-server TLS certificate there. Keep this mount when using a read-only
 root filesystem. The certificate and tunnel cache are regenerated after pod

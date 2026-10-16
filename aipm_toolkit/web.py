@@ -62,14 +62,28 @@ def create_auth_app(session_factory=SessionLocal) -> FastAPI:
     @app.middleware("http")
     async def require_session(request: Request, call_next):
         path = request.url.path
-        if path.startswith("/app"):
+        app_path = path == "/app" or path.startswith("/app/")
+        # These routes contain Gradio's packaged frontend, never project files.
+        # Do not exempt /file=, /gradio_api/, uploads, downloads, or app config.
+        public_asset = path.startswith(("/app/assets/", "/app/static/"))
+        if app_path and not public_asset:
             with session_factory() as db:
                 try:
                     from .auth import get_authenticated_user
                     get_authenticated_user(db, request.cookies.get(settings.cookie_name))
                 except AuthenticationError:
-                    return RedirectResponse(f"/auth/login?next={path}", status_code=303)
-        return await call_next(request)
+                    return RedirectResponse(
+                        f"/auth/login?next={path}", status_code=303,
+                        headers={"Cache-Control": "no-store", "Pragma": "no-cache", "Expires": "0"},
+                    )
+        response = await call_next(request)
+        if path == "/" or path.startswith("/auth/") or (app_path and not public_asset) or (public_asset and response.status_code >= 300):
+            # Prevent nginx/browser caches from reusing redirects or session data.
+            # Successful packaged assets may retain their normal cache policy.
+            response.headers["Cache-Control"] = "no-store"
+            response.headers["Pragma"] = "no-cache"
+            response.headers["Expires"] = "0"
+        return response
 
     @app.get("/healthz")
     async def healthz():
