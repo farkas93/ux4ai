@@ -6,10 +6,8 @@ from ..i18n import load_catalog
 from . import (
     tabs_assessment,
     tabs_backlog,
-    tabs_history,
     tabs_improvement,
     tabs_priority,
-    tabs_safety,
     tabs_setup,
     tabs_summary,
 )
@@ -29,7 +27,6 @@ from .callbacks import (
     load_project_from_ui,
     login,
     preview_upload_from_ui,
-    project_history_from_ui,
     provision_team_from_ui,
     publish_upload_from_ui,
     save_backlog_row_from_ui,
@@ -210,7 +207,7 @@ def build_app():
                 confirm_delete_btn = gr.Button("Yes, delete permanently", variant="stop", scale=1)
                 cancel_delete_btn = gr.Button("Cancel", variant="secondary", scale=1)
 
-            section_names = ["Project Setup", "Assessment", "AI Safety", "Self-Improvement", "Backlog creator", "Prioritization", "Summary & Export", "Project History"]
+            section_names = ["Project Setup", "Assessment", "Backlog Creator", "Prioritization", "Self-Improvement", "Summary & Export"]
             with gr.Row(elem_id="toolkit-workspace"):
                 with gr.Sidebar(label="Workspace navigation", open=True, width=240, elem_id="toolkit-sidebar") as sidebar:
                     desktop_section = gr.Radio(label="Workspace", choices=section_names, value="Project Setup", container=False, elem_id="toolkit-desktop-section")
@@ -222,13 +219,11 @@ def build_app():
                     current_section = gr.Markdown("Project Setup", elem_id="toolkit-current-section")
                     setup = tabs_setup.build_setup_tab(token, product_dropdown, project_revision, status)
                     assessment = tabs_assessment.build_assessment_tab(token, product_dropdown, status)
-                    safety = tabs_safety.build_safety_tab(token, product_dropdown, status)
-                    improvement = tabs_improvement.build_improvement_tab(token, product_dropdown, status)
                     backlog = tabs_backlog.build_backlog_tab(token, product_dropdown, status)
                     priority = tabs_priority.build_priority_tab(token, product_dropdown, status)
+                    improvement = tabs_improvement.build_improvement_tab(token, product_dropdown, status)
                     summary = tabs_summary.build_summary_tab(token, product_dropdown, status)
-                    history = tabs_history.build_history_tab(token, product_dropdown)
-            pages = [setup, assessment, safety, improvement, backlog, priority, summary, history]
+            pages = [setup, assessment, backlog, priority, improvement, summary]
 
             def select_section(name):
                 return [gr.update(visible=label == name) for label in section_names]
@@ -244,8 +239,6 @@ def build_app():
 
         instructor_panel = _build_instructor_panel(token, status, product_dropdown)
         dimension_note_outputs = assessment["dimension_note_lists"]
-        status.change(project_history_from_ui, [token, product_dropdown], history["history"])
-
         label_bindings = [
             (language_selector, "language", "Language / Sprache"),
             (product_dropdown, "projects", "Product"),
@@ -336,12 +329,6 @@ def build_app():
                     [token, product_dropdown, assessment["dimension_note_states"][4]],
                     dimension_note_outputs[4],
                 )
-                .then(learning_notes_ui, [token, product_dropdown, safety["note_section"], safety["checkpoint_states"][0]], safety["note_lists"][0])
-                .then(learning_notes_ui, [token, product_dropdown, safety["note_section"], safety["checkpoint_states"][1]], safety["note_lists"][1])
-                .then(learning_notes_ui, [token, product_dropdown, safety["note_section"], safety["checkpoint_states"][2]], safety["note_lists"][2])
-                .then(learning_notes_ui, [token, product_dropdown, safety["note_section"], safety["checkpoint_states"][3]], safety["note_lists"][3])
-                .then(learning_notes_ui, [token, product_dropdown, safety["note_section"], safety["checkpoint_states"][4]], safety["note_lists"][4])
-                .then(learning_notes_ui, [token, product_dropdown, safety["note_section"], safety["checkpoint_states"][5]], safety["note_lists"][5])
                 .then(
                     load_backlog_table_from_ui,
                     [token, product_dropdown],
@@ -361,11 +348,6 @@ def build_app():
                     summary_preview_from_ui,
                     [token, product_dropdown],
                     summary["summary_preview"],
-                )
-                .then(
-                    project_history_from_ui,
-                    [token, product_dropdown],
-                    history["history"],
                 )
             )
 
@@ -407,8 +389,6 @@ def build_app():
             )
             for note_state, note_output in zip(assessment["dimension_note_states"], dimension_note_outputs):
                 event = event.then(dimension_notes_from_ui, [token, product_dropdown, note_state], note_output)
-            for state, output in zip(safety["checkpoint_states"], safety["note_lists"]):
-                event = event.then(learning_notes_ui, [token, product_dropdown, safety["note_section"], state], output)
             event = event.then(learning_notes_ui, [token, product_dropdown, improvement["note_section"]], improvement["notes_list"])
             return (
                 event.then(
@@ -417,7 +397,6 @@ def build_app():
                     priority["placement_outputs"] + [priority["ranking_display"], priority["matrix_fig"]],
                 )
                 .then(checklist_text, [token, product_dropdown], summary["checklist_display"])
-                .then(project_history_from_ui, [token, product_dropdown], history["history"])
             )
 
         for r in backlog["row_components"]:
@@ -437,7 +416,7 @@ def build_app():
                 load_backlog_table_from_ui, [token, product_dropdown], backlog["table_flat_outputs"] + [backlog["visible_rows_count"]],
             )
 
-        for event in [*assessment["note_events"], *safety["note_events"], improvement["note_event"]]:
+        for event in [*assessment["note_events"], improvement["note_event"]]:
             event.then(load_backlog_table_from_ui, [token, product_dropdown], backlog["table_flat_outputs"] + [backlog["visible_rows_count"]])
 
     return app

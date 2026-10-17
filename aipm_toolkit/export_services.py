@@ -36,7 +36,7 @@ from .models import (
 from .safety_services import safety_result
 from .services import get_project
 
-EXPORT_SCHEMA_VERSION = "1.0"
+EXPORT_SCHEMA_VERSION = "1.1"
 WARNING = "Prototype profiles represent intended or observed prototype behavior, not established production quality or business impact."
 FONT_PATH = Path("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf")
 
@@ -116,12 +116,44 @@ def build_project_export(db: Session, actor: User, project_id: UUID) -> dict:
     }
 
 
+def _build_user_export(db: Session, actor: User, project_id: UUID) -> dict:
+    """Build the user-facing export without the retired safety exercise."""
+    document = build_project_export(db, actor, project_id)
+    safety_note_ids = {note["id"] for note in document["notes"] if note.get("origin_section") == "safety"}
+    safety_hypothesis_ids = {
+        source["hypothesis_id"]
+        for source in document["hypothesis_sources"]
+        if source["note_id"] in safety_note_ids
+    }
+    document["notes"] = [note for note in document["notes"] if note["id"] not in safety_note_ids]
+    document["hypothesis_sources"] = [
+        source for source in document["hypothesis_sources"] if source["note_id"] not in safety_note_ids
+    ]
+    document["reflections"] = [
+        reflection for reflection in document["reflections"] if reflection["reflection_type"] != "adversarial_risk"
+    ]
+    document["project_history"] = [
+        event
+        for event in document["project_history"]
+        if event["event_type"] != "safety.updated"
+        and event["entity_type"] != "safety_assessment"
+        and event["entity_id"] not in safety_note_ids
+        and event["entity_id"] not in safety_hypothesis_ids
+        and event["details"].get("origin_section") != "safety"
+    ]
+    for event in document["project_history"]:
+        event["summary"] = event["summary"].replace("AI Safety", "Backlog Creator").replace("AI safety", "Backlog Creator")
+    document.pop("safety_assessment", None)
+    document.pop("safety_hypothesis_links", None)
+    return document
+
+
 def export_project_json(db: Session, actor: User, project_id: UUID) -> str:
-    return json.dumps(build_project_export(db, actor, project_id), ensure_ascii=False, indent=2)
+    return json.dumps(_build_user_export(db, actor, project_id), ensure_ascii=False, indent=2)
 
 
 def export_project_markdown(db: Session, actor: User, project_id: UUID) -> str:
-    return markdown_report(build_project_export(db, actor, project_id))
+    return markdown_report(_build_user_export(db, actor, project_id))
 
 
 def _pdf_text(value: object, unicode_font: bool) -> str:
@@ -202,7 +234,7 @@ def _draw_priority_matrix(pdf: FPDF, document: dict, x: float, y: float, width: 
 
 
 def export_project_pdf(db: Session, actor: User, project_id: UUID) -> bytes:
-    return pdf_report(build_project_export(db, actor, project_id), _draw_radar, _draw_priority_matrix)
+    return pdf_report(_build_user_export(db, actor, project_id), _draw_radar, _draw_priority_matrix)
 
 
 def write_export_files(db: Session, actor: User, project_id: UUID) -> tuple[str, str, str]:

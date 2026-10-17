@@ -778,9 +778,8 @@ def save_backlog_row_from_ui(
                     saved_hyp_rev = new_hyp.revision
 
             area_label = clean_dim.replace("_", " ") if clean_dim else (
-                f"AI Safety · {primary_note.origin_key}" if primary_note and primary_note.origin_section == "safety" else
                 "Self-Improvement" if primary_note and primary_note.origin_section == "self_improvement" else
-                "AI Safety" if legacy_safety else "Backlog Creator"
+                "Backlog Creator"
             )
             if before["dimension"] and before["dimension"] != clean_dim:
                 event_summary = f"Moved backlog entry from {before['dimension'].replace('_', ' ')} to {area_label}"
@@ -896,7 +895,6 @@ def load_backlog_table_from_ui(
             )) if hypotheses else []
             note_to_hyp = {hs.note_id: hs.hypothesis_id for hs in hyp_sources if hs.note_id}
             hyp_by_id = {h.id: h for h in hypotheses}
-            legacy_safety_links = {link.hypothesis_id: link.checkpoint_key for link in db.scalars(select(SafetyHypothesisLink).where(SafetyHypothesisLink.hypothesis_id.in_([h.id for h in hypotheses])))} if hypotheses else {}
 
             rows = []
             used_hyp_ids = set()
@@ -904,7 +902,7 @@ def load_backlog_table_from_ui(
             for note in notes:
                 dim = note_dims.get(note.id)
                 if note.origin_section == "safety":
-                    source = f"AI Safety · {note.origin_key.title()}"
+                    source = "Backlog Creator"
                 elif note.origin_section == "self_improvement":
                     source = "Self-Improvement"
                 else:
@@ -940,7 +938,7 @@ def load_backlog_table_from_ui(
                 if hyp.id not in used_hyp_ids:
                     dim = hyp_dims.get(hyp.id)
                     rows.append({
-                        "source": f"AI Safety · {legacy_safety_links[hyp.id].title()}" if hyp.id in legacy_safety_links else "Backlog Creator",
+                        "source": "Backlog Creator",
                         "dim": dim,
                         "assumption": "",
                         "question": "",
@@ -1260,7 +1258,11 @@ def checklist_text(token: str | None, project_id: str | None, request: gr.Reques
     with SessionLocal() as db:
         try:
             user = get_authenticated_user(db, token)
-            checklist = completion_checklist(db, user, UUID(project_id))
+            checklist = {
+                label: complete
+                for label, complete in completion_checklist(db, user, UUID(project_id)).items()
+                if "safety" not in label.lower()
+            }
         except AuthenticationError:
             return "Session expired."
     return "\n".join(f"{'[x]' if complete else '[ ]'} {label}" for label, complete in checklist.items())

@@ -100,7 +100,7 @@ Legacy reference imports preserve per-dimension scale metadata. The historical a
 
 Published baseline datasets are immutable. Re-importing a source file after publication skips it and reports that a replacement dataset version is required. Instructors can create an unpublished replacement version with an explicit reason, review it, and publish it separately.
 
-The workspace also includes structured Notes and a Hypothesis Backlog. Backlog entries have one current dimension assignment; moving an entry in Backlog Creator updates the current questions-and-assumptions list in Assessment. Assessment presents the current rubric and assignments, while Project History records subsequent assessment, backlog, hypothesis, experiment, reflection, and project-setup changes. Removing a backlog entry archives it from active views while preserving its history and existing experiment references. Notes can be used as provenance when creating supporting hypotheses. Hypothesis relationships are project-scoped; self-links and dependency cycles are rejected.
+The workspace also includes structured Notes and a Hypothesis Backlog. Backlog entries have one current dimension assignment; moving an entry in Backlog Creator updates the current questions-and-assumptions list in Assessment. Assessment presents the current rubric and assignments. Project activity continues to be recorded by the backend, but a Project History page is not part of the current student workflow. Removing a backlog entry archives it from active views while preserving its history and existing experiment references. Notes can be used as provenance when creating supporting hypotheses. Hypothesis relationships are project-scoped; self-links and dependency cycles are rejected.
 
 Saved notes and hypotheses can be reopened from the workspace, edited, and saved with revision checks. Stale edits are rejected instead of silently overwriting newer content.
 
@@ -112,7 +112,7 @@ Saved experiments can be reopened from the experiment selector, edited, and save
 
 Experiment planning and results now use dirty-state tracking and the two-second autosave timer. Failed or conflicting experiment saves remain dirty and report the failure for recovery.
 
-Summary & Export provides authorized PDF, JSON, and Markdown downloads. The PDF includes the dimension radar and risk/evidence matrix. Exports include comparator provenance, notes, hypotheses, relationships, experiments, reflections, and the required prototype-profile warning; credentials, passwords, and historical identities are excluded.
+Summary & Export provides authorized PDF, JSON, and Markdown downloads. The PDF includes the dimension radar and risk/evidence matrix. User-facing exports include comparator provenance, notes, hypotheses, relationships, experiments, reflections, and the required prototype-profile warning; AI Safety exercise data, credentials, passwords, and historical identities are excluded.
 
 Instructor accounts now have a course overview with per-project checklist progress and an instructor-only baseline import/publish panel. Team accounts cannot access either operation.
 
@@ -120,9 +120,9 @@ Instructors can also create course/team accounts from the instructor area. Passw
 
 Assessment focuses on the five product dimensions, current rubric questions and assumptions, and the radar comparison. You can add questions and assumptions within each dimension and edit or move them in Backlog Creator. Saved backlog rows can be removed, while new rows are shown only after clicking **+ Add Row** (with **Cancel** for unsaved rows).
 
-**AI Safety** and **Self-Improvement** are currently question-first learning exercises. Students can add questions and assumptions under Safety checkpoints or to one named improvement loop, then develop them into hypotheses in Backlog Creator. The optional Safety coverage score, maturity/evidence rating and risk card, plus advanced Self-Improvement automation questions, implementation fields and numerical classifications, are deliberately hidden for this academic year pending pedagogical review. Their persistence and JSON-export support remain for previously saved work and future reconsideration; they are omitted from student-facing Markdown/PDF summaries. Additional improvement loops from earlier versions are retained in the JSON export, while only the first-created loop is editable in the UI.
+The current student workflow is Project Setup → Assessment → Backlog Creator → Prioritization → Self-Improvement → Summary & Export. Safety services and stored data remain available to the backend for existing records and future reconsideration, but the AI Safety page is not built into the team workspace. Existing safety-origin backlog notes remain usable with generic Backlog Creator attribution; safety exercise data are omitted from user-facing exports. Advanced Self-Improvement automation questions, implementation fields and numerical classifications remain hidden pending pedagogical review. Additional improvement loops from earlier versions are retained in user-facing JSON, while only the first-created loop is editable in the UI.
 
-The team workspace exposes the workshop sections through tabs. The integration suite exercises a representative create, reload, assess, hypothesize, experiment, and export journey.
+The team workspace exposes the six workflow steps through sidebar navigation. The integration suite exercises a representative create, reload, assess, hypothesize, experiment, and export journey.
 
 English and German resource catalogs are validated at startup. The workspace language selector changes section context text while preserving stable internal keys and stored project content; remaining field labels will be migrated to the same catalog in the next localization pass.
 

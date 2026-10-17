@@ -35,7 +35,7 @@ def test_exports_are_versioned_complete_and_unicode_safe(db):
     update_project(db, user, project.id, project.revision, short_description="Line one\nLine two", target_user="Teams")
     create_note(db, user, project.id, "question", "Welche Annahme müssen wir testen?\nNext line.")
     payload = json.loads(export_project_json(db, user, project.id))
-    assert payload["schema_version"] == "1.0"
+    assert payload["schema_version"] == "1.1"
     assert "Éxample AI" in payload["project"]["product_name"]
     assert "Welche Annahme" in payload["notes"][0]["text"]
     assert "password_hash" not in export_project_json(db, user, project.id)
@@ -71,8 +71,10 @@ def test_learning_report_preserves_comments_provenance_and_excludes_history(db):
         "approval_boundary": "", "success_checks": "", "rollback": "",
     })
     report = export_project_markdown(db, user, project.id)
-    for content in (rationale, assessment.text, safety.text, "Do summaries reveal recurring problems?", "Review rejected edits", "Capability explanation for observe", "H1", "Test first", "Risk and evidence"):
+    for content in (rationale, assessment.text, "Do summaries reveal recurring problems?", "Review rejected edits", "Capability explanation for observe", "H1", "Test first", "Risk and evidence"):
         assert content in report
+    assert "AI Safety" not in report
+    assert safety.text not in report
     assert "Risk 5–10" not in report and "Priority 72/100" not in report
     assert "risk 9 × uncertainty" not in report
     assert "## Project History" not in report
@@ -80,6 +82,12 @@ def test_learning_report_preserves_comments_provenance_and_excludes_history(db):
     payload = build_project_export(db, user, project.id)
     assert payload["hypothesis_sources"][0]["note_id"] == str(assessment.id)
     assert payload["project_history"]  # Archival JSON retains history.
+    assert any(note["id"] == str(safety.id) for note in payload["notes"])
+    user_payload = json.loads(export_project_json(db, user, project.id))
+    assert "safety_assessment" not in user_payload
+    assert "safety_hypothesis_links" not in user_payload
+    assert all(note["origin_section"] != "safety" for note in user_payload["notes"])
+    assert safety.text not in json.dumps(user_payload)
     pdf = export_project_pdf(db, user, project.id)
     assert len(re.findall(rb"/Type /Page\b", pdf)) > 10
     streams = []
@@ -90,6 +98,8 @@ def test_learning_report_preserves_comments_provenance_and_excludes_history(db):
             continue
     # ASCII fallback and embedded Unicode fonts both retain all content streams.
     assert streams
+    assert b"AI Safety" not in b"".join(streams)
+    assert b"Users review edits before submitting." not in b"".join(streams)
 
 
 def test_test_first_quadrant_has_exact_bounds():
