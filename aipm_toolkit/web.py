@@ -35,7 +35,7 @@ def _login_page(error: str = "", next_path: str = "/app") -> str:
 then build a backlog of testable hypotheses with your team.</p>
 <ol class="steps">
 <li><span class="step" aria-hidden="true">1</span><div><strong>Find the value</strong><small>Define the user, their problem, and your product idea.</small></div></li>
-<li><span class="step" aria-hidden="true">2</span><div><strong>Explore the unknowns</strong><small>Discuss product dimensions, AI safety, and improvement.</small></div></li>
+<li><span class="step" aria-hidden="true">2</span><div><strong>Explore the unknowns</strong><small>Assess product dimensions and imagine how the product could improve.</small></div></li>
 <li><span class="step" aria-hidden="true">3</span><div><strong>Build your hypothesis backlog</strong><small>Turn assumptions into hypotheses and decide what to test next.</small></div></li>
 </ol></section><section class="card" aria-labelledby="signin-title">
 <h2 id="signin-title">Welcome to your workspace</h2>

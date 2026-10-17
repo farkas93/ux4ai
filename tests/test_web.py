@@ -23,6 +23,7 @@ def test_cookie_session_protects_app_and_supports_logout(tmp_path):
 
     page = client.get("/auth/login")
     assert page.headers["cache-control"] == "no-store"
+    assert "AI safety" not in page.text
     assert "AI Product Toolkit" in page.text
     assert "backlog of testable hypotheses" in page.text
     assert 'name="viewport"' in page.text

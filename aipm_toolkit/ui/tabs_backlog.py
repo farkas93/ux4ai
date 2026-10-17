@@ -13,8 +13,8 @@ def build_backlog_tab(token, product_dropdown, status):
     with gr.Column(visible=False, elem_id="page-backlog-creator") as tab:
         gr.Markdown(
             "## Backlog Creator\n"
-            "Rows are auto-populated from Assessment, AI Safety, and Self-Improvement. "
-            "Their source is preserved. A product dimension is optional for safety and improvement questions. "
+            "Rows are auto-populated from Assessment and Self-Improvement. "
+            "Their source is preserved. A product dimension is optional for open learning questions. "
             "Turn a question or assumption into a testable hypothesis. Save each entry when you finish.",
             elem_classes=["toolkit-page-heading"],
         )
@@ -45,7 +45,7 @@ def build_backlog_tab(token, product_dropdown, status):
                             scale=4,
                         )
                     with gr.Row(elem_classes=["backlog-actions"]):
-                        dim_dropdown = gr.Dropdown(choices=[(d["title"], d["key"]) for d in DEFAULT_DIMENSIONS], value=None, label="Product dimension (optional for Safety / Self-Improvement)", scale=4)
+                        dim_dropdown = gr.Dropdown(choices=[(d["title"], d["key"]) for d in DEFAULT_DIMENSIONS], value=None, label="Product dimension (optional for open learning questions)", scale=4)
                         remove_btn = gr.Button("Remove", variant="secondary", scale=1, visible=False)
                         cancel_btn = gr.Button("Cancel", scale=1, visible=False)
                         save_btn = gr.Button("Save entry", variant="primary", scale=1)

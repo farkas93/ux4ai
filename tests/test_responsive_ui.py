@@ -4,13 +4,24 @@ from aipm_toolkit.ui.shell import build_app
 def test_responsive_navigation_targets_sections_without_duplicating_forms():
     app = build_app()
     config = app.get_config_file()
+    expected_sections = [
+        "Project Setup",
+        "Assessment",
+        "Backlog Creator",
+        "Prioritization",
+        "Self-Improvement",
+        "Summary & Export",
+    ]
     components = config["components"]
     assert not any(item["type"] in {"tabs", "tabitem"} for item in components)
     pages = [item for item in components if (item["props"].get("elem_id") or "").startswith("page-")]
-    assert len(pages) == 8
+    assert len(pages) == len(expected_sections)
+    desktop = next(item for item in components if item["props"].get("elem_id") == "toolkit-desktop-section")
+    assert [choice[0] for choice in desktop["props"]["choices"]] == expected_sections
+    assert not any("AI Safety" in str(item["props"]) for item in components)
+    assert not any(item["props"].get("elem_id") in {"page-ai-safety", "page-project-history"} for item in components)
     assert sum(item["props"]["visible"] for item in pages) == 1
     assert not any(item["props"].get("elem_id") == "toolkit-mobile-section" for item in components)
-    desktop = next(item for item in components if item["props"].get("elem_id") == "toolkit-desktop-section")
     assert desktop["type"] == "radio"
     assert desktop["props"]["value"] == "Project Setup"
     indicator = next(item for item in components if item["props"].get("elem_id") == "toolkit-current-section")
@@ -21,8 +32,8 @@ def test_responsive_navigation_targets_sections_without_duplicating_forms():
     assert drawer["props"]["width"] == 240
     assert not any(item["props"].get("elem_id") == "toolkit-menu" for item in components)
     switch = next(fn for fn in app.fns.values() if fn.fn and fn.fn.__name__ == "select_section")
-    updates = switch.fn("AI Safety")
-    assert [item["visible"] for item in updates] == [False, False, True, False, False, False, False, False]
+    updates = switch.fn("Backlog Creator")
+    assert [item["visible"] for item in updates] == [False, False, True, False, False, False]
     assert config["title"] == "AI Product Toolkit"
     assert app.theme.to_dict()["theme"]["block_label_background_fill_dark"] == "transparent"
     assert app.theme.to_dict()["theme"]["input_text_size"] == "14px"

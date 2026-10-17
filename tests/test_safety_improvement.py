@@ -146,14 +146,14 @@ def test_safety_question_develops_in_backlog_and_legacy_hypothesis_survives(db, 
     monkeypatch.setattr(cb_mod, "SessionLocal", lambda: db)
     monkeypatch.setattr(cb_mod, "get_authenticated_user", lambda _db, _token: user)
     backlog = cb_mod.load_backlog_table_from_ui("token", str(project.id))
-    assert backlog[1] == "AI Safety · Harms"
+    assert backlog[1] == "Backlog Creator"
     assert backlog[2]["value"] is None  # Safety is independent of product dimensions.
     assert backlog[4] == "Could retrieval disclose another user's data?"
     saved, note_id, hyp_id, _revision = cb_mod.save_backlog_row_from_ui("token", str(project.id), None, "", backlog[4], "If retrieval leaks, users lose trust", backlog[8], None, None)
     assert "saved" in saved
     assert db.get(Hypothesis, UUID(hyp_id)).statement == "If retrieval leaks, users lose trust"
     assert db.scalar(select(HypothesisSource).where(HypothesisSource.hypothesis_id == UUID(hyp_id))).note_id == UUID(note_id)
-    assert cb_mod.load_backlog_table_from_ui("token", str(project.id))[1] == "AI Safety · Harms"
+    assert cb_mod.load_backlog_table_from_ui("token", str(project.id))[1] == "Backlog Creator"
     saved, _, _, new_revision = cb_mod.save_backlog_row_from_ui("token", str(project.id), None, "", "Could retrieval expose another user's records?", "If retrieval is restricted, exposure decreases", note_id, hyp_id, _revision)
     assert "saved" in saved and new_revision > _revision
     assert "Could retrieval expose another user's records?" in safety_callbacks.learning_notes_ui("token", str(project.id), "safety", "harms")
@@ -175,6 +175,8 @@ def test_safety_question_develops_in_backlog_and_legacy_hypothesis_survives(db, 
     assert document["notes"][0]["origin_section"] == "safety"
     assert document["reflections"][0]["content"] == "Legacy concern"
     markdown = export_project_markdown(db, user, project.id)
+    assert "AI Safety" not in markdown
+    assert "Could retrieval expose another user's records?" not in markdown
     assert "AI Safety (design coverage" not in markdown
     assert "Self-Improvement (course-specific classification)" not in markdown
     assert "Level 5" not in markdown

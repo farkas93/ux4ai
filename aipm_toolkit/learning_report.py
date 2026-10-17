@@ -7,7 +7,6 @@ from fpdf import FPDF
 from .dimensions import DEFAULT_DIMENSIONS
 from .improvement_services import QUESTIONS
 from .priority_rules import RANKING_RULE, priority_group_score
-from .safety_services import CHECKPOINTS
 
 INK = (25, 44, 57)
 TEAL = (11, 118, 108)
@@ -17,7 +16,7 @@ MUTED = (98, 117, 128)
 def report_sections(document):
     """Build content from recorded student work, without inventing conclusions."""
     project = document["project"]
-    notes = [n for n in document["notes"] if not n["archived_at"]]
+    notes = [n for n in document["notes"] if not n["archived_at"] and n.get("origin_section") != "safety"]
     hypotheses = [h for h in document["hypotheses"] if h["kind"] == "supporting" and not h["archived_at"]]
     identifiers = {h["id"]: f"H{i + 1}" for i, h in enumerate(hypotheses)}
     main = next((h for h in document["hypotheses"] if h["kind"] == "main" and not h["archived_at"]), {})
@@ -28,9 +27,7 @@ def report_sections(document):
         for note in selected:
             links = [identifiers[s["hypothesis_id"]] for s in document["hypothesis_sources"] if s["note_id"] == note["id"] and s["hypothesis_id"] in identifiers]
             result.append((note["note_type"].title(), note["text"]))
-            if note.get("origin_section") == "safety":
-                source = "AI Safety · " + (note.get("origin_key") or "").title()
-            elif note.get("origin_section") == "self_improvement":
+            if note.get("origin_section") == "self_improvement":
                 source = "Self-Improvement"
             elif note["dimensions"]:
                 source = "Assessment · " + ", ".join(d["title"] for d in DEFAULT_DIMENSIONS if d["key"] in note["dimensions"])
@@ -69,11 +66,6 @@ def report_sections(document):
                 blocks.append((label, row[key]))
         blocks += note_blocks([n for n in notes if definition["key"] in n["dimensions"]])
         sections.append((f"Assessment · {definition['title']}", blocks))
-    safety = [("Safety exploration", "These are the team's questions and assumptions, not a rating of product safety.")]
-    for key, (title, prompt) in CHECKPOINTS.items():
-        safety.append((title, prompt))
-        safety += note_blocks([n for n in notes if n["origin_section"] == "safety" and n["origin_key"] == key])
-    sections.append(("AI Safety", safety))
     improvement = []
     loop = next(iter(document["improvement_loops"]), None)
     if loop:
