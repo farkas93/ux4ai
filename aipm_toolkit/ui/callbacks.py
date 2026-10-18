@@ -1280,7 +1280,7 @@ def priority_text(token: str | None, project_id: str | None, request: gr.Request
             return "Session expired."
 
 
-PLACEMENT_SLOTS = 10
+PLACEMENT_SLOTS = 30
 
 
 def _ranking_items(ids, statements, risks, evidences):
