@@ -1,8 +1,10 @@
 """App shell: header bar with product switcher, language, and real tabs."""
 
 import gradio as gr
-from gradio.helpers import special_args
+from sqlalchemy.exc import SQLAlchemyError
 
+from ..auth import AuthenticationError, AuthorizationError
+from ..dimensions import DEFAULT_DIMENSIONS
 from ..i18n import load_catalog
 from . import (
     tabs_assessment,
@@ -239,7 +241,7 @@ def build_app():
                     backlog = tabs_backlog.build_backlog_tab(token, active_project_id, status)
                     priority = tabs_priority.build_priority_tab(token, active_project_id, status)
                     improvement = tabs_improvement.build_improvement_tab(token, active_project_id, status)
-                    summary = tabs_summary.build_summary_tab(token, active_project_id, status)
+                    summary = tabs_summary.build_summary_tab(token, active_project_id, status, product_dropdown)
             pages = [setup, assessment, backlog, priority, improvement, summary]
 
             def select_section(name):
@@ -307,149 +309,110 @@ def build_app():
             if action == "confirm":
                 prompt = project_switch_prompt_text(auth_token, active_id, requested_id, request=request)
                 return active_id, requested_id, "none", gr.update(visible=True), prompt, gr.update(value=active_id, interactive=False), True
-            return requested_id, None, "load", gr.update(visible=False), "", gr.update(value=requested_id, interactive=False), True
+            # Keep editors associated with the old project until every target
+            # value has loaded. The picker is a requested target, not identity.
+            return active_id, requested_id, "load", gr.update(visible=False), "", gr.update(value=active_id, interactive=False), True
 
-        def _guard_project_load(fn, output_count):
-            # Gradio injects annotated positional arguments before *args. Keep
-            # the authenticated request available when wrapping a UI callback.
-            def guarded(action, request: gr.Request, *args):
-                if action != "load":
-                    skipped = [gr.update() for _ in range(output_count)]
-                    return skipped[0] if output_count == 1 else skipped
-                inputs, _, _ = special_args(fn, list(args), request=request)
-                return fn(*inputs)
+        setup_load_outputs = [
+            setup["description"], setup["target_user"], setup["job"], setup["problem"],
+            setup["hypothesis"], setup["product_type"], setup["figma_url"], project_revision,
+        ]
+        estimate_load_outputs = assessment["assessment_components"] + [assessment["assessment_revisions"]]
+        backlog_load_outputs = backlog["table_flat_outputs"] + [backlog["visible_rows_count"]]
+        priority_load_outputs = priority["placement_outputs"] + [priority["ranking_display"], priority["matrix_fig"]]
+        improvement_load_outputs = [improvement["loop_id"], *improvement["fields"]]
+        snapshot_outputs = [
+            *setup_load_outputs, *estimate_load_outputs, *dimension_note_outputs,
+            *backlog_load_outputs, *priority_load_outputs, *improvement_load_outputs,
+            improvement["notes_list"], assessment["comparator"], assessment["frozen_state"],
+            assessment["comparison_table"], assessment["live_chart"], assessment["unsaved_note"],
+            summary["checklist_display"], summary["summary_preview"],
+            summary["pdf_download"], summary["json_download"], summary["markdown_download"],
+            *dirty_states, *[draft["text"] for draft in assessment["note_drafts"]],
+            improvement["note_draft"]["text"],
+            active_project_id, pending_project_id, project_switch_action, project_switch_busy,
+            product_dropdown, status,
+        ]
 
-            return guarded
-
-        def _clear_comparator_selection():
-            choices = load_comparator_choices()
-            choices["value"] = None
-            return choices
-
-        def _finish_project_load(action):
+        def load_project_snapshot(action, auth_token, active_id, target_id, request: gr.Request):
             if action != "load":
-                return gr.update(), gr.update(), gr.update()
-            return False, "none", gr.update(interactive=True)
+                return gr.skip()
+            target_id = target_id if target_id is not None else active_id
+            try:
+                # Fetch all project-owned editor values before returning any UI
+                # update, so identity and content change in the same response.
+                values = {}
+
+                def put(outputs, data):
+                    values.update(zip(outputs, data, strict=True))
+
+                setup_values = load_project_from_ui(auth_token, target_id, request=request)
+                if target_id and setup_values[-1] is None:
+                    raise ValueError("The selected product could not be loaded. Please sign in again and retry.")
+                put(setup_load_outputs, setup_values)
+                estimates = load_estimates_from_ui(auth_token, target_id, request=request)
+                put(estimate_load_outputs, estimates)
+                for definition, output in zip(DEFAULT_DIMENSIONS, dimension_note_outputs, strict=True):
+                    values[output] = dimension_notes_from_ui(auth_token, target_id, definition["key"], request=request)
+                put(backlog_load_outputs, load_backlog_table_from_ui(auth_token, target_id, request=request))
+                put(priority_load_outputs, load_placements_from_ui(auth_token, target_id, request=request))
+                put(improvement_load_outputs, load_primary_loop_ui(auth_token, target_id, request=request))
+                values[improvement["notes_list"]] = learning_notes_ui(auth_token, target_id, "self_improvement", request=request)
+                auxiliary_errors = []
+                try:
+                    comparator = load_comparator_choices()
+                    comparator["value"] = None
+                except (SQLAlchemyError, ValueError) as exc:
+                    comparator = gr.update(choices=[], value=None)
+                    auxiliary_errors.append(f"Historical comparison could not be loaded: {exc}")
+                values[assessment["comparator"]] = comparator
+                values[assessment["frozen_state"]] = {}
+                values[assessment["comparison_table"]] = "Select a comparator to see the comparison table."
+                values[assessment["live_chart"]] = live_profile_from_ui({}, *estimates[:-1:2])
+                values[assessment["unsaved_note"]] = ""
+                for name, output, load in (
+                    ("Workshop checklist", summary["checklist_display"], checklist_text),
+                    ("Summary", summary["summary_preview"], summary_preview_from_ui),
+                ):
+                    try:
+                        values[output] = load(auth_token, target_id, request=request)
+                    except (AuthenticationError, AuthorizationError, SQLAlchemyError, ValueError, LookupError) as exc:
+                        message = f"{name} could not be loaded: {exc}"
+                        values[output] = message
+                        auxiliary_errors.append(message)
+                for output in (summary["pdf_download"], summary["json_download"], summary["markdown_download"]):
+                    values[output] = None
+                values.update(dict.fromkeys(dirty_states, False))
+                for draft in assessment["note_drafts"]:
+                    values[draft["text"]] = ""
+                values[improvement["note_draft"]["text"]] = ""
+                values.update({
+                    active_project_id: target_id,
+                    pending_project_id: None,
+                    project_switch_action: "none",
+                    project_switch_busy: False,
+                    product_dropdown: gr.update(value=target_id, interactive=True),
+                    status: " ".join(auxiliary_errors) if auxiliary_errors else gr.skip(),
+                })
+                return values
+            except (AuthenticationError, AuthorizationError, SQLAlchemyError, ValueError, LookupError) as exc:
+                # Retain the previous snapshot and make failures visible rather
+                # than leaving some pages empty and the selector locked.
+                return {
+                    status: f"Product load failed: {exc}",
+                    pending_project_id: None,
+                    project_switch_action: "none",
+                    project_switch_busy: False,
+                    product_dropdown: gr.update(value=active_id, interactive=True),
+                }
 
         def _wire_project_load(trigger):
-            return (
-                trigger.then(
-                    _guard_project_load(load_project_from_ui, 8),
-                    [project_switch_action, token, active_project_id],
-                    [
-                        setup["description"],
-                        setup["target_user"],
-                        setup["job"],
-                        setup["problem"],
-                        setup["hypothesis"],
-                        setup["product_type"],
-                        setup["figma_url"],
-                        project_revision,
-                    ],
-                )
-                .then(_guard_project_load(lambda: False, 1), project_switch_action, setup["brief_dirty"])
-                .then(
-                    _guard_project_load(load_estimates_from_ui, len(assessment["assessment_components"]) + 1),
-                    [project_switch_action, token, active_project_id],
-                    assessment["assessment_components"] + [assessment["assessment_revisions"]],
-                )
-                .then(_guard_project_load(lambda: False, 1), project_switch_action, assessment["assessment_dirty"])
-                .then(_guard_project_load(lambda: "", 1), project_switch_action, assessment["unsaved_note"])
-                .then(_guard_project_load(dict, 1), project_switch_action, assessment["frozen_state"])
-                .then(_guard_project_load(_clear_comparator_selection, 1), project_switch_action, assessment["comparator"])
-                .then(
-                    _guard_project_load(lambda: "Select a comparator to see the comparison table.", 1),
-                    project_switch_action,
-                    assessment["comparison_table"],
-                )
-                .then(
-                    _guard_project_load(live_profile_from_ui, 1),
-                    [project_switch_action, assessment["frozen_state"], *assessment["sliders"]],
-                    assessment["live_chart"],
-                )
-                .then(
-                    _guard_project_load(dimension_notes_from_ui, 1),
-                    [project_switch_action, token, active_project_id, assessment["dimension_note_states"][0]],
-                    dimension_note_outputs[0],
-                )
-                .then(
-                    _guard_project_load(dimension_notes_from_ui, 1),
-                    [project_switch_action, token, active_project_id, assessment["dimension_note_states"][1]],
-                    dimension_note_outputs[1],
-                )
-                .then(
-                    _guard_project_load(dimension_notes_from_ui, 1),
-                    [project_switch_action, token, active_project_id, assessment["dimension_note_states"][2]],
-                    dimension_note_outputs[2],
-                )
-                .then(
-                    _guard_project_load(dimension_notes_from_ui, 1),
-                    [project_switch_action, token, active_project_id, assessment["dimension_note_states"][3]],
-                    dimension_note_outputs[3],
-                )
-                .then(
-                    _guard_project_load(dimension_notes_from_ui, 1),
-                    [project_switch_action, token, active_project_id, assessment["dimension_note_states"][4]],
-                    dimension_note_outputs[4],
-                )
-                .then(
-                    _guard_project_load(lambda: [""] * len(assessment["note_drafts"]), len(assessment["note_drafts"])),
-                    project_switch_action,
-                    [draft["text"] for draft in assessment["note_drafts"]],
-                )
-                .then(
-                    _guard_project_load(lambda: [False] * len(assessment["note_drafts"]), len(assessment["note_drafts"])),
-                    project_switch_action,
-                    [draft["dirty"] for draft in assessment["note_drafts"]],
-                )
-                .then(
-                    _guard_project_load(load_backlog_table_from_ui, len(backlog["table_flat_outputs"]) + 1),
-                    [project_switch_action, token, active_project_id],
-                    backlog["table_flat_outputs"] + [backlog["visible_rows_count"]],
-                )
-                .then(
-                    _guard_project_load(lambda: [False] * len(row_dirty_states), len(row_dirty_states)),
-                    project_switch_action,
-                    row_dirty_states,
-                )
-                .then(
-                    _guard_project_load(load_placements_from_ui, len(priority["placement_outputs"]) + 2),
-                    [project_switch_action, token, active_project_id],
-                    priority["placement_outputs"] + [priority["ranking_display"], priority["matrix_fig"]],
-                )
-                .then(
-                    _guard_project_load(lambda: [False] * len(priority["dirty_states"]), len(priority["dirty_states"])),
-                    project_switch_action,
-                    priority["dirty_states"],
-                )
-                .then(
-                    _guard_project_load(load_primary_loop_ui, len(improvement["fields"]) + 1),
-                    [project_switch_action, token, active_project_id],
-                    [improvement["loop_id"], *improvement["fields"]],
-                )
-                .then(_guard_project_load(lambda: False, 1), project_switch_action, improvement["dirty"])
-                .then(
-                    _guard_project_load(learning_notes_ui, 1),
-                    [project_switch_action, token, active_project_id, improvement["note_section"]],
-                    improvement["notes_list"],
-                )
-                .then(_guard_project_load(lambda: "", 1), project_switch_action, improvement["note_draft"]["text"])
-                .then(_guard_project_load(lambda: False, 1), project_switch_action, improvement["note_draft"]["dirty"])
-                .then(
-                    _guard_project_load(checklist_text, 1),
-                    [project_switch_action, token, active_project_id],
-                    summary["checklist_display"],
-                )
-                .then(
-                    _guard_project_load(summary_preview_from_ui, 1),
-                    [project_switch_action, token, active_project_id],
-                    summary["summary_preview"],
-                )
-                .then(
-                    _finish_project_load,
-                    project_switch_action,
-                    [project_switch_busy, project_switch_action, product_dropdown],
-                )
+            return trigger.then(
+                load_project_snapshot,
+                [project_switch_action, token, active_project_id, pending_project_id],
+                snapshot_outputs,
+                concurrency_id="project-data-write",
+                concurrency_limit=1,
             )
 
         switch_event = product_dropdown.input(
@@ -528,7 +491,7 @@ def build_app():
 
         def _finish_confirmed_switch(saved, active_id, target_id):
             if saved and target_id:
-                return target_id, None, "load", gr.update(visible=False), "", gr.update(value=target_id, interactive=False), True
+                return active_id, target_id, "load", gr.update(visible=False), "", gr.update(value=active_id, interactive=False), True
             return active_id, target_id, "none", gr.update(visible=True), gr.update(), gr.update(interactive=False), True
 
         save_switch_event = save_switch_button.click(
@@ -547,7 +510,7 @@ def build_app():
 
         def _discard_and_switch(active_id, target_id):
             if target_id:
-                return target_id, None, "load", gr.update(visible=False), "", gr.update(value=target_id, interactive=False), True
+                return active_id, target_id, "load", gr.update(visible=False), "", gr.update(value=active_id, interactive=False), True
             return active_id, None, "none", gr.update(visible=False), "", gr.update(value=active_id, interactive=True), False
 
         discard_switch_event = discard_switch_button.click(

@@ -61,7 +61,7 @@ def build_priority_tab(token, product_dropdown, status):
 
         for slot in slot_components:
             for slider in (slot["risk"], slot["evidence"]):
-                slider.change(
+                slider.input(
                     save_placement_from_ui,
                     [token, slot["id"], slot["revision"], slot["risk"], slot["evidence"]],
                     [status, slot["revision"], slot["dirty"]],
