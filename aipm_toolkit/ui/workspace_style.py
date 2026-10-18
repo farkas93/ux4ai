@@ -72,6 +72,12 @@ footer { display: none !important; }
 .toolkit-history-card p { margin: 6px 0 0; color: var(--body-text-color-subdued); font-size: 13px; }
 #toolkit-workspace-note, #toolkit-session-note { display: none !important; }
 label span { background: transparent !important; color: var(--body-text-color) !important; }
+#toolkit-project-switch-backdrop { position: fixed; inset: 0; z-index: 10000; background: rgba(15, 23, 42, .65);
+  align-items: center; justify-content: center; padding: 20px; }
+#toolkit-project-switch-card { width: min(560px, calc(100vw - 32px)); padding: 24px; border: 1px solid var(--border-color-primary);
+  border-radius: 16px; background: var(--background-fill-primary); box-shadow: 0 24px 80px rgba(0, 0, 0, .3); }
+#toolkit-project-switch-message { line-height: 1.6; }
+#toolkit-project-switch-actions { justify-content: end; flex-wrap: wrap; gap: 8px; }
 @media (max-width: 1023px) {
   #toolkit-mobile-section { display: block; margin-top: 14px; }
   #aipm-app-bar { grid-template-columns: minmax(0, 1fr) 72px; gap: 8px; padding: 0 0 12px; }

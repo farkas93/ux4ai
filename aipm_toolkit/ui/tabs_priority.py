@@ -34,7 +34,10 @@ def build_priority_tab(token, product_dropdown, status):
                         "id": gr.State(None),
                         "revision": gr.State(None),
                         "source": source_display,
+                        "dirty": gr.State(False),
                     })
+                    for slider in (risk_slider, evidence_slider):
+                        slider.input(lambda: True, outputs=slot_components[-1]["dirty"], concurrency_id="project-data-write", concurrency_limit=1)
             with gr.Column():
                 gr.Markdown("**Test first** · High risk with limited evidence", elem_id="test-first-key")
                 matrix_fig = gr.Plot(label="Risk versus evidence matrix")
@@ -61,7 +64,9 @@ def build_priority_tab(token, product_dropdown, status):
                 slider.change(
                     save_placement_from_ui,
                     [token, slot["id"], slot["revision"], slot["risk"], slot["evidence"]],
-                    [status, slot["revision"]],
+                    [status, slot["revision"], slot["dirty"]],
+                    concurrency_id="project-data-write",
+                    concurrency_limit=1,
                 ).then(refresh_ranking, ranking_inputs + source_inputs, [ranking_display, matrix_fig])
 
     placement_outputs = []
@@ -71,6 +76,9 @@ def build_priority_tab(token, product_dropdown, status):
     return {
         "tab": tab,
         "placement_outputs": placement_outputs,
+        "slot_components": slot_components,
+        "dirty_states": [slot["dirty"] for slot in slot_components],
+        "revision_states": [slot["revision"] for slot in slot_components],
         "ranking_display": ranking_display,
         "matrix_fig": matrix_fig,
     }

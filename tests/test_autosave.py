@@ -19,6 +19,18 @@ def test_autosave_does_not_write_when_clean(monkeypatch):
     assert dirty is False
 
 
+def test_project_autosave_pauses_during_product_switch(monkeypatch):
+    def fail_if_called(*args):
+        raise AssertionError("autosave must pause while a project switch is being confirmed")
+
+    monkeypatch.setattr(app_module, "save_project_from_ui", fail_if_called)
+    _status, revision, dirty = app_module.autosave_project_from_ui(
+        "token", "project", 2, True, None, "pending edit", "", "", "", "", "", True,
+    )
+    assert revision == 2
+    assert dirty is True
+
+
 def test_assessment_save_returns_new_revisions(monkeypatch):
     monkeypatch.setattr(app_module, "save_estimates_from_ui", lambda *args, **kwargs: ("Dimension assessments saved.", [2, 2, 2, 2, 2]))
     status, revisions, dirty = app_module.save_assessments_action("token", "project", [1] * 5, *([2.5, ""] * 5))

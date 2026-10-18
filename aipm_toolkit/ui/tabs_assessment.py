@@ -11,7 +11,7 @@ from .callbacks import (
 )
 
 
-def build_assessment_tab(token, product_dropdown, status):
+def build_assessment_tab(token, project_id, status):
     with gr.Column(visible=False, elem_id="page-assessment") as tab:
         frozen_state = gr.State({})
         unsaved_note = gr.Markdown()
@@ -28,6 +28,7 @@ def build_assessment_tab(token, product_dropdown, status):
                 dimension_note_states = []
                 dimension_note_lists = []
                 note_events = []
+                note_drafts = []
 
                 for index, definition in enumerate(DEFAULT_DIMENSIONS):
                     with gr.Accordion(f"{definition['title']}", open=(index == 0)):
@@ -66,7 +67,19 @@ def build_assessment_tab(token, product_dropdown, status):
                             note_type = gr.Radio(choices=["Question", "Assumption"], value="Question", label="Add")
                             note_text = gr.Textbox(label="Question or assumption", placeholder="What should the team test?", scale=3)
                             add_button = gr.Button("Add", scale=1)
-                        note_events.append(add_button.click(add_dimension_note_from_ui, [token, product_dropdown, dim_key_state, note_type, note_text], [status, notes_list, note_text]))
+                        draft_dirty = gr.State(False)
+                        note_type.input(lambda: True, outputs=draft_dirty, concurrency_id="project-data-write", concurrency_limit=1)
+                        note_text.input(lambda: True, outputs=draft_dirty, concurrency_id="project-data-write", concurrency_limit=1)
+                        note_event = add_button.click(
+                            add_dimension_note_from_ui,
+                            [token, project_id, dim_key_state, note_type, note_text],
+                            [status, notes_list, note_text],
+                            concurrency_id="project-data-write",
+                            concurrency_limit=1,
+                        )
+                        note_event.then(lambda message: not message.startswith("Added to this dimension."), status, draft_dirty)
+                        note_events.append(note_event)
+                        note_drafts.append({"dirty": draft_dirty, "key": dim_key_state, "type": note_type, "text": note_text, "list": notes_list})
 
                 assessment_revisions = gr.State([])
                 assessment_dirty = gr.State(False)
@@ -89,8 +102,10 @@ def build_assessment_tab(token, product_dropdown, status):
         # Comparator dropdown event: immediately updates frozen_state, table, and chart
         comparator_dropdown.change(
             on_comparator_selected,
-            [token, product_dropdown, comparator_dropdown],
+            [token, project_id, comparator_dropdown],
             [frozen_state, comparison_table],
+            concurrency_id="project-data-write",
+            concurrency_limit=1,
         ).then(
             live_profile_from_ui,
             [frozen_state, *sliders],
@@ -102,7 +117,7 @@ def build_assessment_tab(token, product_dropdown, status):
             return True
 
         for comp in assessment_components:
-            comp.input(mark_dirty, outputs=assessment_dirty)
+            comp.input(mark_dirty, outputs=assessment_dirty, concurrency_id="project-data-write", concurrency_limit=1)
 
         assessment_dirty.change(
             lambda dirty: "⚠ Unsaved changes — save dimension assessments to keep them." if dirty else "",
@@ -113,8 +128,10 @@ def build_assessment_tab(token, product_dropdown, status):
         # Save assessments button
         save_assessments_button.click(
             save_assessments_action,
-            [token, product_dropdown, assessment_revisions, *assessment_components],
+            [token, project_id, assessment_revisions, *assessment_components],
             [status, assessment_revisions, assessment_dirty],
+            concurrency_id="project-data-write",
+            concurrency_limit=1,
         )
 
     return {
@@ -124,8 +141,10 @@ def build_assessment_tab(token, product_dropdown, status):
         "assessment_components": assessment_components,
         "assessment_revisions": assessment_revisions,
         "assessment_dirty": assessment_dirty,
+        "unsaved_note": unsaved_note,
         "dimension_note_states": dimension_note_states,
         "dimension_note_lists": dimension_note_lists,
+        "note_drafts": note_drafts,
         "note_events": note_events,
         "comparator": comparator_dropdown,
         "comparison_table": comparison_table,

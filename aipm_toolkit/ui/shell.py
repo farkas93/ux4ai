@@ -16,6 +16,7 @@ from .callbacks import (
     auto_login,
     checklist_text,
     create_project_from_ui,
+    decide_project_switch,
     delete_product_from_ui,
     dimension_notes_from_ui,
     instructor_overview_from_ui,
@@ -27,9 +28,11 @@ from .callbacks import (
     load_project_from_ui,
     login,
     preview_upload_from_ui,
+    project_switch_prompt_text,
     provision_team_from_ui,
     publish_upload_from_ui,
     save_backlog_row_from_ui,
+    save_pending_project_edits,
     summary_preview_from_ui,
     workspace,
 )
@@ -178,6 +181,10 @@ def build_app():
     )
     with gr.Blocks(title="AI Product Toolkit", theme=theme, js=BLOCKS_JS, css=WORKSPACE_CSS) as app:
         token = gr.State(None)
+        active_project_id = gr.State(None)
+        pending_project_id = gr.State(None)
+        project_switch_action = gr.State("none")
+        project_switch_busy = gr.State(False)
         project_revision = gr.State(None)
         delete_confirm_state = gr.State(True)
 
@@ -207,6 +214,15 @@ def build_app():
                 confirm_delete_btn = gr.Button("Yes, delete permanently", variant="stop", scale=1)
                 cancel_delete_btn = gr.Button("Cancel", variant="secondary", scale=1)
 
+            with gr.Column(visible=False, elem_id="toolkit-project-switch-backdrop") as project_switch_dialog:  # noqa: SIM117
+                with gr.Column(elem_id="toolkit-project-switch-card"):
+                    gr.Markdown("### Switch product?")
+                    project_switch_message = gr.Markdown(elem_id="toolkit-project-switch-message")
+                    with gr.Row(elem_id="toolkit-project-switch-actions"):
+                        save_switch_button = gr.Button("Save & Switch", variant="primary")
+                        discard_switch_button = gr.Button("Discard & Switch", variant="stop")
+                        cancel_switch_button = gr.Button("Cancel")
+
             section_names = ["Project Setup", "Assessment", "Backlog Creator", "Prioritization", "Self-Improvement", "Summary & Export"]
             with gr.Row(elem_id="toolkit-workspace"):
                 with gr.Sidebar(label="Workspace navigation", open=True, width=240, elem_id="toolkit-sidebar") as sidebar:
@@ -217,12 +233,12 @@ def build_app():
                         delete_product_btn = gr.Button("Delete product", variant="stop", size="sm")
                 with gr.Column(scale=1, min_width=0, elem_id="toolkit-main"):
                     current_section = gr.Markdown("Project Setup", elem_id="toolkit-current-section")
-                    setup = tabs_setup.build_setup_tab(token, product_dropdown, project_revision, status)
-                    assessment = tabs_assessment.build_assessment_tab(token, product_dropdown, status)
-                    backlog = tabs_backlog.build_backlog_tab(token, product_dropdown, status)
-                    priority = tabs_priority.build_priority_tab(token, product_dropdown, status)
-                    improvement = tabs_improvement.build_improvement_tab(token, product_dropdown, status)
-                    summary = tabs_summary.build_summary_tab(token, product_dropdown, status)
+                    setup = tabs_setup.build_setup_tab(token, active_project_id, project_revision, status, project_switch_busy)
+                    assessment = tabs_assessment.build_assessment_tab(token, active_project_id, status)
+                    backlog = tabs_backlog.build_backlog_tab(token, active_project_id, status)
+                    priority = tabs_priority.build_priority_tab(token, active_project_id, status)
+                    improvement = tabs_improvement.build_improvement_tab(token, active_project_id, status)
+                    summary = tabs_summary.build_summary_tab(token, active_project_id, status)
             pages = [setup, assessment, backlog, priority, improvement, summary]
 
             def select_section(name):
@@ -270,11 +286,52 @@ def build_app():
         delete_product_btn.click(lambda: gr.update(visible=True), outputs=delete_confirm_panel)
         cancel_delete_btn.click(lambda: gr.update(visible=False), outputs=delete_confirm_panel)
 
-        def _wire_product_load(trigger):
+        row_dirty_states = [row["dirty"] for row in backlog["row_components"]]
+        dirty_states = [
+            setup["brief_dirty"],
+            assessment["assessment_dirty"],
+            *[draft["dirty"] for draft in assessment["note_drafts"]],
+            improvement["dirty"],
+            improvement["note_draft"]["dirty"],
+            *priority["dirty_states"],
+            *row_dirty_states,
+        ]
+
+        def route_project_selection(auth_token, requested_id, active_id, switching, *dirty_values):
+            if switching or requested_id == active_id:
+                return (gr.update(),) * 7
+            action = decide_project_switch(active_id, requested_id, dirty_values)
+            if action == "none":
+                return active_id, None, "none", False, "", gr.update(value=active_id, interactive=True), False
+            if action == "confirm":
+                prompt = project_switch_prompt_text(auth_token, active_id, requested_id)
+                return active_id, requested_id, "none", True, prompt, gr.update(value=active_id, interactive=False), True
+            return requested_id, None, "load", False, "", gr.update(value=requested_id, interactive=False), True
+
+        def _guard_project_load(fn, output_count):
+            def guarded(action, *args):
+                if action != "load":
+                    skipped = [gr.update() for _ in range(output_count)]
+                    return skipped[0] if output_count == 1 else skipped
+                return fn(*args)
+
+            return guarded
+
+        def _clear_comparator_selection():
+            choices = load_comparator_choices()
+            choices["value"] = None
+            return choices
+
+        def _finish_project_load(action):
+            if action != "load":
+                return gr.update(), gr.update(), gr.update()
+            return False, "none", gr.update(interactive=True)
+
+        def _wire_project_load(trigger):
             return (
                 trigger.then(
-                    load_project_from_ui,
-                    [token, product_dropdown],
+                    _guard_project_load(load_project_from_ui, 8),
+                    [project_switch_action, token, active_project_id],
                     [
                         setup["description"],
                         setup["target_user"],
@@ -286,137 +343,320 @@ def build_app():
                         project_revision,
                     ],
                 )
-                .then(lambda: False, outputs=setup["brief_dirty"])
+                .then(_guard_project_load(lambda: False, 1), project_switch_action, setup["brief_dirty"])
                 .then(
-                    load_estimates_from_ui,
-                    [token, product_dropdown],
+                    _guard_project_load(load_estimates_from_ui, len(assessment["assessment_components"]) + 1),
+                    [project_switch_action, token, active_project_id],
                     assessment["assessment_components"] + [assessment["assessment_revisions"]],
                 )
-                .then(lambda: False, outputs=assessment["assessment_dirty"])
-                .then(load_primary_loop_ui, [token, product_dropdown], [improvement["loop_id"], *improvement["fields"]])
-                .then(learning_notes_ui, [token, product_dropdown, improvement["note_section"]], improvement["notes_list"])
+                .then(_guard_project_load(lambda: False, 1), project_switch_action, assessment["assessment_dirty"])
+                .then(_guard_project_load(lambda: "", 1), project_switch_action, assessment["unsaved_note"])
+                .then(_guard_project_load(dict, 1), project_switch_action, assessment["frozen_state"])
+                .then(_guard_project_load(_clear_comparator_selection, 1), project_switch_action, assessment["comparator"])
                 .then(
-                    load_comparator_choices,
-                    outputs=assessment["comparator"],
+                    _guard_project_load(lambda: "Select a comparator to see the comparison table.", 1),
+                    project_switch_action,
+                    assessment["comparison_table"],
                 )
                 .then(
-                    live_profile_from_ui,
-                    [assessment["frozen_state"], *assessment["sliders"]],
+                    _guard_project_load(live_profile_from_ui, 1),
+                    [project_switch_action, assessment["frozen_state"], *assessment["sliders"]],
                     assessment["live_chart"],
                 )
                 .then(
-                    dimension_notes_from_ui,
-                    [token, product_dropdown, assessment["dimension_note_states"][0]],
+                    _guard_project_load(dimension_notes_from_ui, 1),
+                    [project_switch_action, token, active_project_id, assessment["dimension_note_states"][0]],
                     dimension_note_outputs[0],
                 )
                 .then(
-                    dimension_notes_from_ui,
-                    [token, product_dropdown, assessment["dimension_note_states"][1]],
+                    _guard_project_load(dimension_notes_from_ui, 1),
+                    [project_switch_action, token, active_project_id, assessment["dimension_note_states"][1]],
                     dimension_note_outputs[1],
                 )
                 .then(
-                    dimension_notes_from_ui,
-                    [token, product_dropdown, assessment["dimension_note_states"][2]],
+                    _guard_project_load(dimension_notes_from_ui, 1),
+                    [project_switch_action, token, active_project_id, assessment["dimension_note_states"][2]],
                     dimension_note_outputs[2],
                 )
                 .then(
-                    dimension_notes_from_ui,
-                    [token, product_dropdown, assessment["dimension_note_states"][3]],
+                    _guard_project_load(dimension_notes_from_ui, 1),
+                    [project_switch_action, token, active_project_id, assessment["dimension_note_states"][3]],
                     dimension_note_outputs[3],
                 )
                 .then(
-                    dimension_notes_from_ui,
-                    [token, product_dropdown, assessment["dimension_note_states"][4]],
+                    _guard_project_load(dimension_notes_from_ui, 1),
+                    [project_switch_action, token, active_project_id, assessment["dimension_note_states"][4]],
                     dimension_note_outputs[4],
                 )
                 .then(
-                    load_backlog_table_from_ui,
-                    [token, product_dropdown],
+                    _guard_project_load(lambda: [""] * len(assessment["note_drafts"]), len(assessment["note_drafts"])),
+                    project_switch_action,
+                    [draft["text"] for draft in assessment["note_drafts"]],
+                )
+                .then(
+                    _guard_project_load(lambda: [False] * len(assessment["note_drafts"]), len(assessment["note_drafts"])),
+                    project_switch_action,
+                    [draft["dirty"] for draft in assessment["note_drafts"]],
+                )
+                .then(
+                    _guard_project_load(load_backlog_table_from_ui, len(backlog["table_flat_outputs"]) + 1),
+                    [project_switch_action, token, active_project_id],
                     backlog["table_flat_outputs"] + [backlog["visible_rows_count"]],
                 )
                 .then(
-                    checklist_text,
-                    [token, product_dropdown],
-                    summary["checklist_display"],
+                    _guard_project_load(lambda: [False] * len(row_dirty_states), len(row_dirty_states)),
+                    project_switch_action,
+                    row_dirty_states,
                 )
                 .then(
-                    load_placements_from_ui,
-                    [token, product_dropdown],
+                    _guard_project_load(load_placements_from_ui, len(priority["placement_outputs"]) + 2),
+                    [project_switch_action, token, active_project_id],
                     priority["placement_outputs"] + [priority["ranking_display"], priority["matrix_fig"]],
                 )
                 .then(
-                    summary_preview_from_ui,
-                    [token, product_dropdown],
+                    _guard_project_load(lambda: [False] * len(priority["dirty_states"]), len(priority["dirty_states"])),
+                    project_switch_action,
+                    priority["dirty_states"],
+                )
+                .then(
+                    _guard_project_load(load_primary_loop_ui, len(improvement["fields"]) + 1),
+                    [project_switch_action, token, active_project_id],
+                    [improvement["loop_id"], *improvement["fields"]],
+                )
+                .then(_guard_project_load(lambda: False, 1), project_switch_action, improvement["dirty"])
+                .then(
+                    _guard_project_load(learning_notes_ui, 1),
+                    [project_switch_action, token, active_project_id, improvement["note_section"]],
+                    improvement["notes_list"],
+                )
+                .then(_guard_project_load(lambda: "", 1), project_switch_action, improvement["note_draft"]["text"])
+                .then(_guard_project_load(lambda: False, 1), project_switch_action, improvement["note_draft"]["dirty"])
+                .then(
+                    _guard_project_load(checklist_text, 1),
+                    [project_switch_action, token, active_project_id],
+                    summary["checklist_display"],
+                )
+                .then(
+                    _guard_project_load(summary_preview_from_ui, 1),
+                    [project_switch_action, token, active_project_id],
                     summary["summary_preview"],
+                )
+                .then(
+                    _finish_project_load,
+                    project_switch_action,
+                    [project_switch_busy, project_switch_action, product_dropdown],
                 )
             )
 
-        # Wire product loading on dropdown change
-        _wire_product_load(product_dropdown.change(lambda: None))
+        switch_event = product_dropdown.input(
+            route_project_selection,
+            [token, product_dropdown, active_project_id, project_switch_busy, *dirty_states],
+            [active_project_id, pending_project_id, project_switch_action, project_switch_dialog, project_switch_message, product_dropdown, project_switch_busy],
+            concurrency_id="project-data-write",
+            concurrency_limit=1,
+        )
+        _wire_project_load(switch_event)
+
+        save_switch_ok = gr.State(False)
+        save_switch_inputs = [
+            token,
+            active_project_id,
+            setup["brief_dirty"],
+            project_revision,
+            setup["product_type"],
+            setup["description"],
+            setup["target_user"],
+            setup["job"],
+            setup["problem"],
+            setup["hypothesis"],
+            setup["figma_url"],
+            assessment["assessment_dirty"],
+            assessment["assessment_revisions"],
+            *assessment["assessment_components"],
+            improvement["dirty"],
+            improvement["loop_id"],
+            *improvement["fields"],
+        ]
+        for slot in priority["slot_components"]:
+            save_switch_inputs.extend([slot["dirty"], slot["id"], slot["revision"], slot["risk"], slot["evidence"]])
+        for row in backlog["row_components"]:
+            save_switch_inputs.extend([
+                row["dirty"],
+                row["dim"],
+                row["assumption"],
+                row["question"],
+                row["hypothesis"],
+                row["note_id"],
+                row["hyp_id"],
+                row["hyp_rev"],
+            ])
+        for draft in assessment["note_drafts"]:
+            save_switch_inputs.extend([draft["dirty"], draft["key"], draft["type"], draft["text"], draft["list"]])
+        save_switch_inputs.extend([
+            improvement["note_draft"]["dirty"],
+            improvement["note_draft"]["type"],
+            improvement["note_draft"]["text"],
+            improvement["note_draft"]["list"],
+        ])
+
+        save_switch_outputs = [
+            project_switch_message,
+            project_revision,
+            setup["brief_dirty"],
+            assessment["assessment_revisions"],
+            assessment["assessment_dirty"],
+            improvement["loop_id"],
+            improvement["revision"],
+            improvement["dirty"],
+        ]
+        for slot in priority["slot_components"]:
+            save_switch_outputs.extend([slot["dirty"], slot["revision"]])
+        for row in backlog["row_components"]:
+            save_switch_outputs.extend([row["dirty"], row["note_id"], row["hyp_id"], row["hyp_rev"]])
+        for draft in assessment["note_drafts"]:
+            save_switch_outputs.extend([draft["dirty"], draft["text"], draft["list"]])
+        save_switch_outputs.extend([
+            improvement["note_draft"]["dirty"],
+            improvement["note_draft"]["text"],
+            improvement["note_draft"]["list"],
+        ])
+        save_switch_outputs.append(save_switch_ok)
+
+        def _finish_confirmed_switch(saved, active_id, target_id):
+            if saved and target_id:
+                return target_id, None, "load", False, "", gr.update(value=target_id, interactive=False), True
+            return active_id, target_id, "none", True, gr.update(), gr.update(interactive=False), True
+
+        save_switch_event = save_switch_button.click(
+            save_pending_project_edits,
+            save_switch_inputs,
+            save_switch_outputs,
+            concurrency_id="project-data-write",
+            concurrency_limit=1,
+        )
+        saved_switch_event = save_switch_event.then(
+            _finish_confirmed_switch,
+            [save_switch_ok, active_project_id, pending_project_id],
+            [active_project_id, pending_project_id, project_switch_action, project_switch_dialog, project_switch_message, product_dropdown, project_switch_busy],
+        )
+        _wire_project_load(saved_switch_event)
+
+        def _discard_and_switch(active_id, target_id):
+            if target_id:
+                return target_id, None, "load", False, "", gr.update(value=target_id, interactive=False), True
+            return active_id, None, "none", False, "", gr.update(value=active_id, interactive=True), False
+
+        discard_switch_event = discard_switch_button.click(
+            _discard_and_switch,
+            [active_project_id, pending_project_id],
+            [active_project_id, pending_project_id, project_switch_action, project_switch_dialog, project_switch_message, product_dropdown, project_switch_busy],
+            concurrency_id="project-data-write",
+            concurrency_limit=1,
+        )
+        _wire_project_load(discard_switch_event)
+
+        def _cancel_project_switch(active_id):
+            return None, "none", False, False, "", gr.update(value=active_id, interactive=True)
+
+        cancel_switch_button.click(
+            _cancel_project_switch,
+            active_project_id,
+            [pending_project_id, project_switch_action, project_switch_busy, project_switch_dialog, project_switch_message, product_dropdown],
+            concurrency_id="project-data-write",
+            concurrency_limit=1,
+        )
 
         # Create product: updates dropdown, then triggers full load
         created_event = create_product_btn.click(
             create_project_from_ui,
             [token, new_product_input],
             [status, product_dropdown, new_product_input, new_product_panel],
+            concurrency_id="project-data-write",
+            concurrency_limit=1,
         )
-        _wire_product_load(created_event)
-
+        created_switch_event = created_event.then(
+            route_project_selection,
+            [token, product_dropdown, active_project_id, project_switch_busy, *dirty_states],
+            [active_project_id, pending_project_id, project_switch_action, project_switch_dialog, project_switch_message, product_dropdown, project_switch_busy],
+        )
+        _wire_project_load(created_switch_event)
         # Delete product: deletes product, updates dropdown, hides panel, then triggers full load
         deleted_event = confirm_delete_btn.click(
             delete_product_from_ui,
-            [token, product_dropdown, delete_confirm_state],
+            [token, active_project_id, delete_confirm_state],
             [status, product_dropdown],
+            concurrency_id="project-data-write",
+            concurrency_limit=1,
         ).then(lambda: gr.update(visible=False), outputs=delete_confirm_panel)
-        _wire_product_load(deleted_event)
+        def _route_after_delete(_auth_token, selected_id):
+            return selected_id, None, "load", False, "", gr.update(value=selected_id, interactive=False), True
 
+        deleted_switch_event = deleted_event.then(
+            _route_after_delete,
+            [token, product_dropdown],
+            [active_project_id, pending_project_id, project_switch_action, project_switch_dialog, project_switch_message, product_dropdown, project_switch_busy],
+        )
+        _wire_project_load(deleted_switch_event)
+        summary_deleted_switch = summary["delete_event"].then(
+            _route_after_delete,
+            [token, product_dropdown],
+            [active_project_id, pending_project_id, project_switch_action, project_switch_dialog, project_switch_message, product_dropdown, project_switch_busy],
+        )
+        _wire_project_load(summary_deleted_switch)
         # Login and auto-login: authenticate, reveal panels, update dropdown, then trigger full load
         login_event = submit.click(login, [username, password], [status, token, login_panel, workspace_panel]).then(
-            workspace, token, [workspace_text, login_panel, instructor_panel, team_panel, product_dropdown]
+            workspace, token, [workspace_text, login_panel, instructor_panel, team_panel, product_dropdown, active_project_id, project_switch_action, project_switch_busy]
         )
-        _wire_product_load(login_event)
+        _wire_project_load(login_event)
 
         load_event = app.load(auto_login, outputs=[session_notice, token, login_panel, workspace_panel]).then(
-            workspace, token, [workspace_text, login_panel, instructor_panel, team_panel, product_dropdown]
+            workspace, token, [workspace_text, login_panel, instructor_panel, team_panel, product_dropdown, active_project_id, project_switch_action, project_switch_busy]
         )
-        _wire_product_load(load_event)
+        _wire_project_load(load_event)
 
         def _refresh_backlog_workspace(event):
             event = event.then(
                 load_backlog_table_from_ui,
-                [token, product_dropdown],
+                [token, active_project_id],
                 backlog["table_flat_outputs"] + [backlog["visible_rows_count"]],
             )
             for note_state, note_output in zip(assessment["dimension_note_states"], dimension_note_outputs):
-                event = event.then(dimension_notes_from_ui, [token, product_dropdown, note_state], note_output)
-            event = event.then(learning_notes_ui, [token, product_dropdown, improvement["note_section"]], improvement["notes_list"])
+                event = event.then(dimension_notes_from_ui, [token, active_project_id, note_state], note_output)
+            event = event.then(learning_notes_ui, [token, active_project_id, improvement["note_section"]], improvement["notes_list"])
             return (
                 event.then(
                     load_placements_from_ui,
-                    [token, product_dropdown],
+                    [token, active_project_id],
                     priority["placement_outputs"] + [priority["ranking_display"], priority["matrix_fig"]],
                 )
-                .then(checklist_text, [token, product_dropdown], summary["checklist_display"])
+                .then(checklist_text, [token, active_project_id], summary["checklist_display"])
             )
 
         for r in backlog["row_components"]:
             saved_event = r["save_btn"].click(
                 save_backlog_row_from_ui,
-                [token, product_dropdown, r["dim"], r["assumption"], r["question"], r["hypothesis"], r["note_id"], r["hyp_id"], r["hyp_rev"]],
+                [token, active_project_id, r["dim"], r["assumption"], r["question"], r["hypothesis"], r["note_id"], r["hyp_id"], r["hyp_rev"]],
                 [status, r["note_id"], r["hyp_id"], r["hyp_rev"]],
+                concurrency_id="project-data-write",
+                concurrency_limit=1,
             )
             _refresh_backlog_workspace(saved_event)
+            saved_event.then(lambda message: not message.startswith("Row saved:"), status, r["dirty"])
             removed_event = r["remove_btn"].click(
                 archive_backlog_row_from_ui,
-                [token, product_dropdown, r["note_id"], r["hyp_id"]],
+                [token, active_project_id, r["note_id"], r["hyp_id"]],
                 status,
+                concurrency_id="project-data-write",
+                concurrency_limit=1,
             )
             _refresh_backlog_workspace(removed_event)
+            removed_event.then(lambda: False, outputs=r["dirty"])
             r["cancel_btn"].click(
-                load_backlog_table_from_ui, [token, product_dropdown], backlog["table_flat_outputs"] + [backlog["visible_rows_count"]],
+                load_backlog_table_from_ui, [token, active_project_id], backlog["table_flat_outputs"] + [backlog["visible_rows_count"]],
             )
+            r["cancel_btn"].click(lambda: False, outputs=r["dirty"])
 
         for event in [*assessment["note_events"], improvement["note_event"]]:
-            event.then(load_backlog_table_from_ui, [token, product_dropdown], backlog["table_flat_outputs"] + [backlog["visible_rows_count"]])
+            event.then(load_backlog_table_from_ui, [token, active_project_id], backlog["table_flat_outputs"] + [backlog["visible_rows_count"]])
 
     return app

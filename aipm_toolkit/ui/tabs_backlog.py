@@ -9,7 +9,7 @@ from .callbacks import (
 )
 
 
-def build_backlog_tab(token, product_dropdown, status):
+def build_backlog_tab(token, project_id, status):
     with gr.Column(visible=False, elem_id="page-backlog-creator") as tab:
         gr.Markdown(
             "## Backlog Creator\n"
@@ -66,7 +66,11 @@ def build_backlog_tab(token, product_dropdown, status):
                     "note_id": note_id_state,
                     "hyp_id": hyp_id_state,
                     "hyp_rev": hyp_rev_state,
+                    "dirty": gr.State(False),
                 })
+
+                for field in (dim_dropdown, assumption_box, question_box, hypothesis_box):
+                    field.input(lambda: True, outputs=row_components[-1]["dirty"], concurrency_id="project-data-write", concurrency_limit=1)
 
         with gr.Row():
             add_row_btn = gr.Button("+ Add entry", variant="secondary")

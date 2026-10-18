@@ -13,8 +13,8 @@ The interface is a student learning workspace: define value, identify questions 
 ## Further usability opportunities
 
 - The backlog's many columns remain crowded on phones. A row-detail editor would be easier than shrinking its inputs.
-- Eight tabs are useful for exploration, but a next-step cue could help first-time students move from questions to hypotheses.
-- Save behavior varies by section (autosave versus explicit Save). Future work should use consistent dirty-state feedback and protect unsaved drafts when switching products.
+- The six-step workflow supports exploration, though a next-step cue could still help first-time students move from questions to hypotheses.
+- Save behavior varies by section (autosave versus explicit Save). Switching products now offers **Save & Switch**, **Discard & Switch**, or **Cancel** when drafts are pending.
 - Instructor administration remains a long form; grouping its functions into collapsible sections would improve scanning.
 - Full label/help-text localization remains incomplete.
 

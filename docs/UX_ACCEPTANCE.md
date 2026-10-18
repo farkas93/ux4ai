@@ -8,6 +8,8 @@ This checklist directly covers the improvement feedback that triggered the UI re
 - [ ] Sidebar navigation follows this order: Project Setup, Assessment, Backlog Creator, Prioritization, Self-Improvement, Summary & Export.
 - [ ] AI Safety and Project History are not reachable as workspace pages.
 - [ ] AI Safety is absent from Summary & Export previews and downloaded reports.
+- [ ] Changing products from any workflow page reloads that product's data across all pages.
+- [ ] Pending edits prompt with Save & Switch, Discard & Switch, and Cancel; saves apply to the project being left.
 - [ ] User-facing copy consistently says product (not a mixture of project/product).
 - [ ] Product name is entered once during creation and edited once in Product Setup.
 - [ ] English/German switching does not reset entered content.
