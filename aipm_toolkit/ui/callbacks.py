@@ -131,8 +131,8 @@ def workspace(token: str | None, request: gr.Request | None = None):
     return "Select an existing product or create a new draft.", gr.update(visible=False), gr.update(visible=False), gr.update(visible=True), gr.update(choices=choices, value=selected_id, interactive=not bool(selected_id)), selected_id, "load" if selected_id else "none", bool(selected_id)
 
 
-def project_switch_prompt_text(token: str | None, current_project_id: str | None, target_project_id: str | None) -> str:
-    token = _resolve_token(token)
+def project_switch_prompt_text(token: str | None, current_project_id: str | None, target_project_id: str | None, request: gr.Request | None = None) -> str:
+    token = _resolve_token(token, request)
     with SessionLocal() as db:
         try:
             user = get_authenticated_user(db, token)
@@ -835,8 +835,9 @@ def save_backlog_row_from_ui(
             return str(exc), note_id, hyp_id, hyp_rev
 
 
-def save_pending_project_edits(token: str | None, project_id: str | None, *draft):
+def save_pending_project_edits(token: str | None, project_id: str | None, request: gr.Request | None, *draft):
     """Save every dirty editor against its currently active project before switching."""
+    token = _resolve_token(token, request)
     values = iter(draft)
     setup_dirty = bool(next(values))
     project_revision = next(values)

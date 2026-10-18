@@ -130,7 +130,7 @@ def test_save_before_switch_persists_all_dirty_edits_to_the_old_project(db, monk
         "",
     ]
 
-    result = cb.save_pending_project_edits("token", str(alpha.id), *draft)
+    result = cb.save_pending_project_edits("token", str(alpha.id), None, *draft)
     assert result[0] == "Changes saved to the current project."
     assert result[-1] is True
     assert result[2] is False and result[4] is False and result[7] is False
@@ -167,7 +167,7 @@ def test_failed_save_keeps_switch_blocked_and_preserves_dirty_project_setup(db, 
     draft.extend(value for _ in DEFAULT_DIMENSIONS for value in [False, None, "Question", "", ""])
     draft.extend([False, "Question", "", ""])
 
-    result = cb.save_pending_project_edits("token", str(alpha.id), *draft)
+    result = cb.save_pending_project_edits("token", str(alpha.id), None, *draft)
     assert result[-1] is False
     assert result[2] is True
     assert result[1] == alpha.revision
@@ -185,14 +185,15 @@ def test_product_switch_popup_offers_save_discard_and_cancel(monkeypatch):
         "Discard & Switch",
         "Cancel",
     }
-    monkeypatch.setattr(shell, "project_switch_prompt_text", lambda *_args: "Save changes in Alpha before opening Beta?")
+    monkeypatch.setattr(shell, "project_switch_prompt_text", lambda *_args, **_kwargs: "Save changes in Alpha before opening Beta?")
     route = next(fn.fn for fn in app.fns.values() if fn.fn and fn.fn.__name__ == "route_project_selection")
     dirty_count = 3 + cb.PLACEMENT_SLOTS + cb.MAX_BACKLOG_ROWS + len(DEFAULT_DIMENSIONS) + 1
-    clean = route("token", "beta", "alpha", False, *([False] * dirty_count))
+    clean = route("token", "beta", "alpha", False, None, *([False] * dirty_count))
     assert clean[0:3] == ("beta", None, "load")
     assert clean[-1] is True
-    dirty = route("token", "beta", "alpha", False, *([True] + [False] * (dirty_count - 1)))
-    assert dirty[0:4] == ("alpha", "beta", "none", True)
+    dirty = route("token", "beta", "alpha", False, None, *([True] + [False] * (dirty_count - 1)))
+    assert dirty[0:3] == ("alpha", "beta", "none")
+    assert dirty[3]["visible"] is True
     assert dirty[4] == "Save changes in Alpha before opening Beta?"
     assert dirty[5]["value"] == "alpha"
     assert dirty[6] is True

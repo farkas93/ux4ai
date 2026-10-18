@@ -1,6 +1,7 @@
 """App shell: header bar with product switcher, language, and real tabs."""
 
 import gradio as gr
+from gradio.helpers import special_args
 
 from ..i18n import load_catalog
 from . import (
@@ -297,23 +298,26 @@ def build_app():
             *row_dirty_states,
         ]
 
-        def route_project_selection(auth_token, requested_id, active_id, switching, *dirty_values):
+        def route_project_selection(auth_token, requested_id, active_id, switching, request: gr.Request, *dirty_values):
             if switching or requested_id == active_id:
                 return (gr.update(),) * 7
             action = decide_project_switch(active_id, requested_id, dirty_values)
             if action == "none":
-                return active_id, None, "none", False, "", gr.update(value=active_id, interactive=True), False
+                return active_id, None, "none", gr.update(visible=False), "", gr.update(value=active_id, interactive=True), False
             if action == "confirm":
-                prompt = project_switch_prompt_text(auth_token, active_id, requested_id)
-                return active_id, requested_id, "none", True, prompt, gr.update(value=active_id, interactive=False), True
-            return requested_id, None, "load", False, "", gr.update(value=requested_id, interactive=False), True
+                prompt = project_switch_prompt_text(auth_token, active_id, requested_id, request=request)
+                return active_id, requested_id, "none", gr.update(visible=True), prompt, gr.update(value=active_id, interactive=False), True
+            return requested_id, None, "load", gr.update(visible=False), "", gr.update(value=requested_id, interactive=False), True
 
         def _guard_project_load(fn, output_count):
-            def guarded(action, *args):
+            # Gradio injects annotated positional arguments before *args. Keep
+            # the authenticated request available when wrapping a UI callback.
+            def guarded(action, request: gr.Request, *args):
                 if action != "load":
                     skipped = [gr.update() for _ in range(output_count)]
                     return skipped[0] if output_count == 1 else skipped
-                return fn(*args)
+                inputs, _, _ = special_args(fn, list(args), request=request)
+                return fn(*inputs)
 
             return guarded
 
@@ -524,8 +528,8 @@ def build_app():
 
         def _finish_confirmed_switch(saved, active_id, target_id):
             if saved and target_id:
-                return target_id, None, "load", False, "", gr.update(value=target_id, interactive=False), True
-            return active_id, target_id, "none", True, gr.update(), gr.update(interactive=False), True
+                return target_id, None, "load", gr.update(visible=False), "", gr.update(value=target_id, interactive=False), True
+            return active_id, target_id, "none", gr.update(visible=True), gr.update(), gr.update(interactive=False), True
 
         save_switch_event = save_switch_button.click(
             save_pending_project_edits,
@@ -543,8 +547,8 @@ def build_app():
 
         def _discard_and_switch(active_id, target_id):
             if target_id:
-                return target_id, None, "load", False, "", gr.update(value=target_id, interactive=False), True
-            return active_id, None, "none", False, "", gr.update(value=active_id, interactive=True), False
+                return target_id, None, "load", gr.update(visible=False), "", gr.update(value=target_id, interactive=False), True
+            return active_id, None, "none", gr.update(visible=False), "", gr.update(value=active_id, interactive=True), False
 
         discard_switch_event = discard_switch_button.click(
             _discard_and_switch,
@@ -556,7 +560,7 @@ def build_app():
         _wire_project_load(discard_switch_event)
 
         def _cancel_project_switch(active_id):
-            return None, "none", False, False, "", gr.update(value=active_id, interactive=True)
+            return None, "none", False, gr.update(visible=False), "", gr.update(value=active_id, interactive=True)
 
         cancel_switch_button.click(
             _cancel_project_switch,
@@ -589,7 +593,7 @@ def build_app():
             concurrency_limit=1,
         ).then(lambda: gr.update(visible=False), outputs=delete_confirm_panel)
         def _route_after_delete(_auth_token, selected_id):
-            return selected_id, None, "load", False, "", gr.update(value=selected_id, interactive=False), True
+            return selected_id, None, "load", gr.update(visible=False), "", gr.update(value=selected_id, interactive=False), True
 
         deleted_switch_event = deleted_event.then(
             _route_after_delete,

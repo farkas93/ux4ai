@@ -5,6 +5,7 @@ from aipm_toolkit.hypothesis_services import create_hypothesis, create_note, set
 from aipm_toolkit.models import Course, Role, Team, User
 from aipm_toolkit.services import create_project
 from aipm_toolkit.ui.callbacks import (
+    PLACEMENT_SLOTS,
     load_estimates_from_ui,
     load_experiment_edit_from_ui,
     load_placements_from_ui,
@@ -104,7 +105,7 @@ def test_load_placements_and_estimates_unpack_proper_component_counts(db, monkey
 
     # Seven components per slot, plus ranking and figure.
     placement_results = load_placements_from_ui("token", str(project.id))
-    assert len(placement_results) == 72
+    assert len(placement_results) == PLACEMENT_SLOTS * 7 + 2
     assert not isinstance(placement_results[0], list)
 
     # load_estimates_from_ui must return exactly 11 flat items: 10 for 5 dimensions (score, reasoning) + list of revisions
@@ -130,7 +131,7 @@ def test_load_placements_with_populated_hypotheses_does_not_fail_on_str_float(db
 
     # Must execute without TypeError: can only concatenate str (not "float") to str
     placement_results = load_placements_from_ui("token", str(project.id))
-    assert len(placement_results) == 72
+    assert len(placement_results) == PLACEMENT_SLOTS * 7 + 2
     ranking_text = placement_results[-2]
     assert "First supporting claim" in ranking_text
 
