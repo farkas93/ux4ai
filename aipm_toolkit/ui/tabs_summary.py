@@ -29,7 +29,13 @@ def build_summary_tab(token, product_dropdown, status):
 
         refresh_summary_button.click(summary_preview_from_ui, [token, product_dropdown], summary_preview)
         export_button.click(export_project_from_ui, [token, product_dropdown], [status, json_download, markdown_download, pdf_download])
-        delete_button.click(delete_product_from_ui, [token, product_dropdown, confirm_delete], [status, product_dropdown])
+        delete_event = delete_button.click(
+            delete_product_from_ui,
+            [token, product_dropdown, confirm_delete],
+            [status, product_dropdown],
+            concurrency_id="project-data-write",
+            concurrency_limit=1,
+        )
 
     return {
         "tab": tab,
@@ -38,4 +44,5 @@ def build_summary_tab(token, product_dropdown, status):
         "pdf_download": pdf_download,
         "json_download": json_download,
         "markdown_download": markdown_download,
+        "delete_event": delete_event,
     }

@@ -8,7 +8,7 @@ from .callbacks import (
 )
 
 
-def build_setup_tab(token, product_dropdown, project_revision, status):
+def build_setup_tab(token, project_id, project_revision, status, switching):
     with gr.Column(visible=True, elem_id="page-project-setup") as tab:
         gr.Markdown("### Start with the value\nWho are you helping, and what should improve for them? Define the idea before exploring its assumptions.")
         with gr.Row(elem_id="toolkit-setup-cards", elem_classes=["toolkit-two-column"]):
@@ -29,17 +29,21 @@ def build_setup_tab(token, product_dropdown, project_revision, status):
         brief_dirty = gr.State(False)
         brief_timer = gr.Timer(2.0)
         for brief_field in (product_type, description, target_user, job, problem, hypothesis, figma_url):
-            brief_field.input(lambda: True, outputs=brief_dirty)
+            brief_field.input(lambda: True, outputs=brief_dirty, concurrency_id="project-data-write", concurrency_limit=1)
 
         save_button.click(
             save_project_action,
-            [token, product_dropdown, project_revision, product_type, description, target_user, job, problem, hypothesis, figma_url],
+            [token, project_id, project_revision, product_type, description, target_user, job, problem, hypothesis, figma_url],
             [status, project_revision, brief_dirty],
+            concurrency_id="project-data-write",
+            concurrency_limit=1,
         )
         brief_timer.tick(
             autosave_project_from_ui,
-            [token, product_dropdown, project_revision, brief_dirty, product_type, description, target_user, job, problem, hypothesis, figma_url],
+            [token, project_id, project_revision, brief_dirty, product_type, description, target_user, job, problem, hypothesis, figma_url, switching],
             [status, project_revision, brief_dirty],
+            concurrency_id="project-data-write",
+            concurrency_limit=1,
         )
 
     return {

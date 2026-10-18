@@ -121,13 +121,32 @@ def workspace(token: str | None, request: gr.Request | None = None):
         try:
             user = get_authenticated_user(db, token)
         except AuthenticationError:
-            return "Session expired. Please sign in again.", gr.update(visible=True), gr.update(visible=False), gr.update(visible=False), gr.update()
+            return "Session expired. Please sign in again.", gr.update(visible=True), gr.update(visible=False), gr.update(visible=False), gr.update(), None, "none", False
     if user.role == Role.INSTRUCTOR.value:
-        return "Instructor area: course progress, teams, and baselines.", gr.update(visible=False), gr.update(visible=True), gr.update(visible=False), gr.update()
+        return "Instructor area: course progress, teams, and baselines.", gr.update(visible=False), gr.update(visible=True), gr.update(visible=False), gr.update(), None, "none", False
     with SessionLocal() as db:
         projects = list_projects(db, user)
     choices = [(project.product_name, str(project.id)) for project in projects]
-    return "Select an existing product or create a new draft.", gr.update(visible=False), gr.update(visible=False), gr.update(visible=True), gr.update(choices=choices, value=choices[0][1] if choices else None)
+    selected_id = choices[0][1] if choices else None
+    return "Select an existing product or create a new draft.", gr.update(visible=False), gr.update(visible=False), gr.update(visible=True), gr.update(choices=choices, value=selected_id, interactive=not bool(selected_id)), selected_id, "load" if selected_id else "none", bool(selected_id)
+
+
+def project_switch_prompt_text(token: str | None, current_project_id: str | None, target_project_id: str | None) -> str:
+    token = _resolve_token(token)
+    with SessionLocal() as db:
+        try:
+            user = get_authenticated_user(db, token)
+            target = get_project(db, user, UUID(target_project_id))
+            current_name = get_project(db, user, UUID(current_project_id)).product_name if current_project_id else "the current workspace"
+        except (AuthenticationError, AuthorizationError, ValueError):
+            return "The selected product is no longer available."
+    return f"Save your unsaved changes to **{escape(current_name)}** before switching to **{escape(target.product_name)}**?"
+
+
+def decide_project_switch(current_project_id: str | None, target_project_id: str | None, dirty_states) -> str:
+    if not target_project_id or target_project_id == current_project_id:
+        return "none"
+    return "confirm" if any(dirty_states) else "load"
 
 
 def create_project_from_ui(token: str, product_name: str, request: gr.Request | None = None):
@@ -229,9 +248,9 @@ def save_project_action(token: str, project_id: str | None, revision: int | None
     return status, new_revision, not status.startswith("Product setup saved")
 
 
-def autosave_project_from_ui(token: str, project_id: str | None, revision: int | None, dirty: bool, product_type: str | None, description: str, target_user: str, job: str, problem: str, hypothesis: str, figma_url: str, request: gr.Request | None = None):
+def autosave_project_from_ui(token: str, project_id: str | None, revision: int | None, dirty: bool, product_type: str | None, description: str, target_user: str, job: str, problem: str, hypothesis: str, figma_url: str, switching: bool = False, request: gr.Request | None = None):
     token = _resolve_token(token, request)
-    if not dirty:
+    if not dirty or switching:
         return gr.update(), revision, dirty
     status, new_revision = save_project_from_ui(token, project_id, revision, product_type, description, target_user, job, problem, hypothesis, figma_url)
     if status.startswith("Product setup saved"):
@@ -816,6 +835,147 @@ def save_backlog_row_from_ui(
             return str(exc), note_id, hyp_id, hyp_rev
 
 
+def save_pending_project_edits(token: str | None, project_id: str | None, *draft):
+    """Save every dirty editor against its currently active project before switching."""
+    values = iter(draft)
+    setup_dirty = bool(next(values))
+    project_revision = next(values)
+    setup_fields = [next(values) for _ in range(7)]
+    assessment_dirty = bool(next(values))
+    assessment_revisions = next(values)
+    assessment_fields = [next(values) for _ in range(len(DEFAULT_DIMENSIONS) * 2)]
+    improvement_dirty = bool(next(values))
+    loop_id = next(values)
+    improvement_fields = [next(values) for _ in range(12)]
+    priority_slots = [[next(values) for _ in range(5)] for _ in range(PLACEMENT_SLOTS)]
+    backlog_rows = [[next(values) for _ in range(8)] for _ in range(MAX_BACKLOG_ROWS)]
+    assessment_note_drafts = [[next(values) for _ in range(5)] for _ in DEFAULT_DIMENSIONS]
+    improvement_note_draft = [next(values) for _ in range(4)]
+
+    errors = []
+    if not project_id and (
+        setup_dirty
+        or assessment_dirty
+        or improvement_dirty
+        or any(bool(slot[0]) for slot in priority_slots)
+        or any(bool(row[0]) for row in backlog_rows)
+        or any(bool(note[0]) for note in assessment_note_drafts)
+        or bool(improvement_note_draft[0])
+    ):
+        errors.append("No active product is selected.")
+
+    if setup_dirty and project_id:
+        status, project_revision = save_project_from_ui(token, project_id, project_revision, *setup_fields)
+        if status == "Product setup saved.":
+            setup_dirty = False
+        else:
+            errors.append(f"Project Setup: {status}")
+
+    if assessment_dirty and project_id:
+        status, assessment_revisions = save_estimates_from_ui(token, project_id, assessment_revisions, *assessment_fields)
+        if status == "Dimension assessments saved.":
+            assessment_dirty = False
+        else:
+            errors.append(f"Assessment: {status}")
+
+    if improvement_dirty and project_id:
+        from .safety_callbacks import save_primary_loop_ui
+
+        loop_fields = improvement_fields[:-1]
+        loop_revision = improvement_fields[-1]
+        status, loop_id, loop_revision = save_primary_loop_ui(token, project_id, loop_id, loop_revision, *loop_fields)
+        if status == "Learning loop saved.":
+            improvement_dirty = False
+            improvement_fields[-1] = loop_revision
+        else:
+            errors.append(f"Self-Improvement: {status}")
+
+    priority_states = []
+    for index, slot in enumerate(priority_slots, start=1):
+        dirty, hypothesis_id, revision, risk, evidence = slot
+        if dirty and project_id:
+            status, revision, dirty = save_placement_from_ui(token, hypothesis_id, revision, risk, evidence)
+            if dirty:
+                errors.append(f"Prioritization hypothesis {index}: {status}")
+        priority_states.append((dirty, revision))
+
+    row_states = []
+    for index, row in enumerate(backlog_rows, start=1):
+        dirty, dimension, assumption, question, hypothesis, note_id, hypothesis_id, hypothesis_revision = row
+        if dirty and not note_id and not hypothesis_id and not any((content or "").strip() for content in (assumption, question, hypothesis)):
+            dirty = False
+        if dirty and project_id:
+            status, note_id, hypothesis_id, hypothesis_revision = save_backlog_row_from_ui(
+                token,
+                project_id,
+                dimension,
+                assumption,
+                question,
+                hypothesis,
+                note_id,
+                hypothesis_id,
+                hypothesis_revision,
+            )
+            if status.startswith("Row saved:"):
+                dirty = False
+            else:
+                errors.append(f"Backlog entry {index}: {status}")
+        row_states.append((dirty, note_id, hypothesis_id, hypothesis_revision))
+
+    from .safety_callbacks import add_learning_note_ui
+
+    assessment_note_states = []
+    for index, (dirty, dimension_key, note_type, text, _notes_list) in enumerate(assessment_note_drafts, start=1):
+        notes_list_update = gr.update()
+        if dirty and project_id and (text or "").strip():
+            status, notes_list_update, cleared_text = add_dimension_note_from_ui(token, project_id, dimension_key, note_type, text)
+            if status == "Added to this dimension.":
+                dirty = False
+                text = cleared_text
+            else:
+                errors.append(f"Assessment question {index}: {status}")
+                text = text if cleared_text is None else cleared_text
+        elif dirty and not (text or "").strip():
+            dirty = False
+            text = ""
+        assessment_note_states.append((dirty, text, notes_list_update))
+
+    note_dirty, note_type, note_text, _notes_list = improvement_note_draft
+    improvement_note_list_update = gr.update()
+    if note_dirty and project_id and (note_text or "").strip():
+        status, improvement_note_list_update, cleared_text = add_learning_note_ui(
+            token, project_id, "self_improvement", None, note_type, note_text,
+        )
+        if status.startswith("Added."):
+            note_dirty = False
+            note_text = cleared_text
+        else:
+            errors.append(f"Self-Improvement question: {status}")
+            note_text = note_text if cleared_text is None else cleared_text
+    elif note_dirty and not (note_text or "").strip():
+        note_dirty = False
+        note_text = ""
+
+    status_message = "Changes saved to the current project." if not errors else "Could not save all changes. " + " ".join(errors)
+    return (
+        status_message,
+        project_revision,
+        setup_dirty,
+        assessment_revisions,
+        assessment_dirty,
+        loop_id,
+        improvement_fields[-1],
+        improvement_dirty,
+        *[value for priority_state in priority_states for value in priority_state],
+        *[value for row_state in row_states for value in row_state],
+        *[value for note_state in assessment_note_states for value in note_state],
+        note_dirty,
+        note_text,
+        improvement_note_list_update,
+        not errors,
+    )
+
+
 def archive_backlog_row_from_ui(
     token: str | None,
     project_id: str | None,
@@ -1338,14 +1498,14 @@ def ranked_backlog_from_ui(*args, sources=None):
 def save_placement_from_ui(token: str | None, hypothesis_id: str | None, revision: int | None, risk, evidence, request: gr.Request | None = None):
     token = _resolve_token(token, request)
     if not hypothesis_id or revision is None:
-        return gr.update(), revision
+        return "", revision, False
     try:
         with SessionLocal() as db:
             user = get_authenticated_user(db, token)
             hypothesis = set_placement(db, user, UUID(hypothesis_id), revision, risk, evidence)
-            return gr.update(), hypothesis.revision
+            return "", hypothesis.revision, False
     except (AuthenticationError, AuthorizationError, RevisionConflict, ValueError) as exc:
-        return gr.update(value=f"Placement save failed: {exc}"), revision
+        return f"Placement save failed: {exc}", revision, True
 
 
 def load_placements_from_ui(token: str | None, project_id: str | None, request: gr.Request | None = None):
