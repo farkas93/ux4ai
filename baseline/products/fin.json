@@ -1,0 +1,53 @@
+{
+  "product_name": "Fin · knowledge-base customer support",
+  "product_family": "Fin",
+  "canonical_url": "https://fin.ai/service",
+  "assessment_date": "2026-10-18",
+  "assessment_basis": "ai_assisted_documentation_review",
+  "live_testing_performed": false,
+  "scope": {
+    "experience": "A customer-facing support agent answering from configured business knowledge with human handoff",
+    "task": "Ask a support question covered by supplied help articles, then an unsupported request that should be handed to a person.",
+    "configuration": "Configured knowledge-base chat with escalation; external refund/account actions and autonomous operational changes are disabled or excluded. No actual customer deployment was tested.",
+    "excluded_features": ["Refund or payment execution", "Account modifications", "Operator", "Sales/ecommerce agents", "Autonomous knowledge changes"],
+    "audience_perspective": "The end customer using support, not the administrator configuring the deployment"
+  },
+  "scores": {
+    "conversational": 4.0,
+    "specialization": 4.5,
+    "autonomy": 3.0,
+    "accessibility": 4.0,
+    "explainability": 2.0
+  },
+  "dimensions": {
+    "conversational": {
+      "rationale": "Customers can ask natural-language follow-ups while the conversation remains bounded by support intent, business rules and escalation paths.",
+      "evidence": ["service"], "confidence": "medium",
+      "uncertainty": "Channel and configured conversation rules may make a deployment more guided than this estimate."
+    },
+    "specialization": {
+      "rationale": "A configured business knowledge base and customer-service workflow create a strongly task/domain-focused assistant.",
+      "evidence": ["service"], "confidence": "medium",
+      "uncertainty": "The breadth and quality of the supplied business knowledge vary by deployment."
+    },
+    "autonomy": {
+      "rationale": "After setup, Fin handles customer conversations and can hand off cases without a human approving every answer.",
+      "evidence": ["service"], "confidence": "medium",
+      "uncertainty": "The score is for answer-and-handoff automation. Procedures that change external records would require separate assessment."
+    },
+    "accessibility": {
+      "rationale": "From the end customer's perspective, familiar support channels can provide help without learning an administrator or developer interface.",
+      "evidence": ["service"], "confidence": "low",
+      "uncertainty": "Service deployment, supported languages and handoff availability determine actual reach; administrative setup is a separate audience."
+    },
+    "explainability": {
+      "rationale": "Customers see an answer and may receive supporting information, but the documented administrative observability is not assumed to be fully visible to them.",
+      "evidence": ["service"], "confidence": "low",
+      "uncertainty": "Customer-visible source links, explanations and decision boundaries depend on deployment and were not tested."
+    }
+  },
+  "provenance_notes": "AI-assisted documentation review, 2026-10-18; no customer deployment or performance tests. Scope: Fin knowledge-base support chat with human handoff; excludes external account/refund actions and Operator. Audience perspective: end customer. Scores are design estimates, not vendor resolution-rate claims. Source: https://fin.ai/service .",
+  "sources": [
+    {"id": "service", "title": "Fin for Service", "url": "https://fin.ai/service", "accessed_on": "2026-10-18"}
+  ]
+}

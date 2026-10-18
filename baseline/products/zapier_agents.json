@@ -1,0 +1,55 @@
+{
+  "product_name": "Zapier Agents (legacy) · expense classification",
+  "product_family": "Zapier Agents",
+  "canonical_url": "https://zapier.com/agents",
+  "assessment_date": "2026-10-18",
+  "assessment_basis": "ai_assisted_documentation_review",
+  "live_testing_performed": false,
+  "scope": {
+    "experience": "A configured agent classifying new expense records and updating a connected table",
+    "task": "Read a new expense record, select a category using configured rules, write it to the designated field and inspect the run activity.",
+    "configuration": "Legacy Agents experience with an explicit trigger, defined categories and connected-table read/write actions; human review of ambiguous cases. Zapier documents migration to AI by Zapier, which is not assessed here.",
+    "excluded_features": ["AI by Zapier replacement", "Unrestricted tools", "Payments", "General-purpose browser work", "Candidate hiring decisions"],
+    "audience_perspective": "A business operator configuring and reviewing an automated workflow"
+  },
+  "scores": {
+    "conversational": 1.5,
+    "specialization": 4.5,
+    "autonomy": 3.5,
+    "accessibility": 2.5,
+    "explainability": 3.5
+  },
+  "dimensions": {
+    "conversational": {
+      "rationale": "Natural-language instructions help configure the agent, but ordinary runs are triggered workflows rather than open-ended user conversations.",
+      "evidence": ["actions", "activity"], "confidence": "medium",
+      "uncertainty": "Chat-driven Agents use would have a more conversational profile; the replacement product is excluded."
+    },
+    "specialization": {
+      "rationale": "Although the platform is general-purpose, this explicitly configured product experience is narrowly limited to expense categories and a designated table.",
+      "evidence": ["actions"], "confidence": "medium",
+      "uncertainty": "This is a profile of the configured agent, not an aggregate score for every Zapier workflow."
+    },
+    "autonomy": {
+      "rationale": "An enabled agent can read, choose field values and write records across connected apps without per-record instructions, within its configured tool boundary.",
+      "evidence": ["actions", "statuses"], "confidence": "medium",
+      "uncertainty": "Triggers, approvals and allowed actions determine actual autonomy. Ambiguous cases and failures are assumed to need human intervention."
+    },
+    "accessibility": {
+      "rationale": "No-code setup reduces programming requirements, but connected-account permissions, workflow design and business data knowledge limit the audience.",
+      "evidence": ["actions"], "confidence": "low",
+      "uncertainty": "Legacy availability and migration affect access; no setup or usability trials were performed."
+    },
+    "explainability": {
+      "rationale": "Activity views expose run status, actions, selected fields and execution details that an operator can inspect.",
+      "evidence": ["activity", "statuses"], "confidence": "medium",
+      "uncertainty": "Logs show actions rather than a proven faithful explanation of category choices; external-source and model details can remain opaque."
+    }
+  },
+  "provenance_notes": "AI-assisted documentation review, 2026-10-18; no live product tests. Scope: legacy Zapier Agents expense-classification configuration with bounded table actions and review of ambiguous records. Documentation announces migration to AI by Zapier; that replacement is excluded. Scores are design estimates. Sources: https://help.zapier.com/hc/en-us/articles/26028298697485-Use-actions-on-Zapier-Agents and https://help.zapier.com/hc/en-us/articles/33336184962573-Review-your-agent-s-activity .",
+  "sources": [
+    {"id": "actions", "title": "Use actions on Zapier Agents", "url": "https://help.zapier.com/hc/en-us/articles/26028298697485-Use-actions-on-Zapier-Agents", "accessed_on": "2026-10-18"},
+    {"id": "activity", "title": "Review your agent's activity", "url": "https://help.zapier.com/hc/en-us/articles/33336184962573-Review-your-agent-s-activity", "accessed_on": "2026-10-18"},
+    {"id": "statuses", "title": "Understand your agent's statuses", "url": "https://help.zapier.com/hc/en-us/articles/36818600959501-Understand-your-agent-s-statuses", "accessed_on": "2026-10-18"}
+  ]
+}

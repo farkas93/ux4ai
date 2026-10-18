@@ -1,0 +1,13 @@
+{
+  "source_type": "documentation_reference",
+  "cohort_label": "AI product design references 2026-10-18 (rubric v1)",
+  "aliases": {},
+  "scale_versions": {
+    "conversational": 1,
+    "specialization": 1,
+    "autonomy": 1,
+    "accessibility": 1,
+    "explainability": 1
+  },
+  "provenance_notes": "AI-assisted documentation review dated 2026-10-18 using the current five-dimension design rubric. One scoped reference assessment per product; no hands-on product tests or independent performance measurements were performed. Scores describe design characteristics, not overall quality or a best-product ranking. Per-product scope, rationales, uncertainty and official sources are retained in each assessment's raw_record."
+}

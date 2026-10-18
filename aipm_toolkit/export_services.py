@@ -27,7 +27,7 @@ from .models import (
     Project,
     ProjectEvent,
     ProjectReflection,
-    SafetyExplore Dimensions,
+    SafetyAssessment,
     SafetyCheckpoint,
     SafetyHypothesisLink,
     ScaleDefinition,
@@ -72,8 +72,8 @@ def build_project_export(db: Session, actor: User, project_id: UUID) -> dict:
     scales = list(db.scalars(select(ScaleDefinition).where(ScaleDefinition.version == 1).order_by(ScaleDefinition.key)))
     experiments = list(db.scalars(select(Experiment).where(Experiment.project_id == project_id).order_by(Experiment.created_at)))
     reflections = list(db.scalars(select(ProjectReflection).where(ProjectReflection.project_id == project_id)))
-    safety = db.scalar(select(SafetyExplore Dimensions).where(SafetyExplore Dimensions.project_id == project_id))
-    safety_checkpoints = list(db.scalars(select(SafetyCheckpoint).where(SafetyCheckpoint.Explore Dimensions_id == safety.id))) if safety else []
+    safety = db.scalar(select(SafetyAssessment).where(SafetyAssessment.project_id == project_id))
+    safety_checkpoints = list(db.scalars(select(SafetyCheckpoint).where(SafetyCheckpoint.assessment_id == safety.id))) if safety else []
     loops = list(db.scalars(select(ImprovementLoop).where(ImprovementLoop.project_id == project_id).order_by(ImprovementLoop.created_at, ImprovementLoop.id)))
     sources = list(db.scalars(select(HypothesisSource).where(HypothesisSource.hypothesis_id.in_(hypothesis_ids)))) if hypothesis_ids else []
     safety_links = list(db.scalars(select(SafetyHypothesisLink).where(SafetyHypothesisLink.hypothesis_id.in_(hypothesis_ids)))) if hypothesis_ids else []
@@ -89,7 +89,7 @@ def build_project_export(db: Session, actor: User, project_id: UUID) -> dict:
         "warning": WARNING,
         "project": _record(Project, project),
         "scale_definitions": [_record(ScaleDefinition, item) for item in scales],
-        "dimension_Explore Dimensionss": [_record(DimensionEstimate, item) for item in estimates],
+        "dimension_assessments": [_record(DimensionEstimate, item) for item in estimates],
         "comparison_snapshots": snapshot_data,
         "notes": [{**_record(Note, note), "dimensions": note_dimensions.get(note.id, [])} for note in notes],
         "hypotheses": [{**_record(Hypothesis, item), "dimensions": dimensions[item.id]} for item in hypotheses],
@@ -97,7 +97,7 @@ def build_project_export(db: Session, actor: User, project_id: UUID) -> dict:
         "hypothesis_sources": [_record(HypothesisSource, item) for item in sources],
         "experiments": [_record(Experiment, item) for item in experiments],
         "reflections": [_record(ProjectReflection, item) for item in reflections],
-        "safety_Explore Dimensions": {**_record(SafetyExplore Dimensions, safety), "checkpoints": [_record(SafetyCheckpoint, item) for item in safety_checkpoints], "coverage_summary": safety_result([{"key": item.checkpoint_key, "coverage": item.coverage, "maturity": item.maturity} for item in safety_checkpoints], safety.critical_risk)} if safety else None,
+        "safety_assessment": {**_record(SafetyAssessment, safety), "checkpoints": [_record(SafetyCheckpoint, item) for item in safety_checkpoints], "coverage_summary": safety_result([{"key": item.checkpoint_key, "coverage": item.coverage, "maturity": item.maturity} for item in safety_checkpoints], safety.critical_risk)} if safety else None,
         "safety_hypothesis_links": [_record(SafetyHypothesisLink, item) for item in safety_links],
         "improvement_loops": [{**_record(ImprovementLoop, item), "learning_loop": index == 0, "capabilities": json.loads(item.capabilities_json), "change_scopes": json.loads(item.change_scopes_json), "classification": classify_loop({key: answer["answer"] for key, answer in json.loads(item.capabilities_json).items()}, item.release_approval, item.success_checks, item.rollback, item.approval_boundary)} for index, item in enumerate(loops)],
         "project_history": [
@@ -136,14 +136,14 @@ def _build_user_export(db: Session, actor: User, project_id: UUID) -> dict:
         event
         for event in document["project_history"]
         if event["event_type"] != "safety.updated"
-        and event["entity_type"] != "safety_Explore Dimensions"
+        and event["entity_type"] != "safety_assessment"
         and event["entity_id"] not in safety_note_ids
         and event["entity_id"] not in safety_hypothesis_ids
         and event["details"].get("origin_section") != "safety"
     ]
     for event in document["project_history"]:
         event["summary"] = event["summary"].replace("AI Safety", "Explore Backlog").replace("AI safety", "Explore Backlog")
-    document.pop("safety_Explore Dimensions", None)
+    document.pop("safety_assessment", None)
     document.pop("safety_hypothesis_links", None)
     return document
 
@@ -163,7 +163,7 @@ def _pdf_text(value: object, unicode_font: bool) -> str:
 
 def _draw_radar(pdf: FPDF, document: dict, x: float, y: float, size: float, font: str) -> None:
     labels = ["conversational", "specialization", "autonomy", "accessibility", "explainability"]
-    scores = {item["dimension_key"]: item["score"] for item in document["dimension_Explore Dimensionss"] if item["status"] == "estimated"}
+    scores = {item["dimension_key"]: item["score"] for item in document["dimension_assessments"] if item["status"] == "estimated"}
     baseline = {}
     if document["comparison_snapshots"]:
         raw = document["comparison_snapshots"][-1].get("frozen_profile") or "{}"

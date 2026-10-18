@@ -89,16 +89,16 @@ def test_save_before_switch_persists_all_dirty_edits_to_the_old_project(db, monk
     monkeypatch.setattr(safety_callbacks, "SessionLocal", lambda: db)
     monkeypatch.setattr(safety_callbacks, "get_authenticated_user", lambda _db, _token: user)
 
-    Explore Dimensions_fields = []
+    assessment_fields = []
     for index in range(len(DEFAULT_DIMENSIONS)):
-        Explore Dimensions_fields.extend([4.0 + index / 10, f"Alpha Explore Dimensions {index}"])
+        assessment_fields.extend([4.0 + index / 10, f"Alpha Explore Dimensions {index}"])
     loop_fields = ["Alpha learning loop"]
     for key in list(QUESTIONS)[:5]:
         loop_fields.extend(["yes", f"Alpha explanation {key}"])
     backlog_rows = [[True, "autonomy", "Alpha assumption", "", "If we explain the control, users can intervene", None, None, None]]
     backlog_rows.extend([[False, None, "", "", "", None, None, None] for _ in range(cb.MAX_BACKLOG_ROWS - 1)])
-    Explore Dimensions_note_drafts = [[True, DEFAULT_DIMENSIONS[0]["key"], "Question", "Alpha Explore Dimensions note draft", ""]]
-    Explore Dimensions_note_drafts.extend([[False, None, "Question", "", ""] for _ in range(len(DEFAULT_DIMENSIONS) - 1)])
+    assessment_note_drafts = [[True, DEFAULT_DIMENSIONS[0]["key"], "Question", "Alpha Explore Dimensions note draft", ""]]
+    assessment_note_drafts.extend([[False, None, "Question", "", ""] for _ in range(len(DEFAULT_DIMENSIONS) - 1)])
     draft = [
         True,
         alpha.revision,
@@ -111,7 +111,7 @@ def test_save_before_switch_persists_all_dirty_edits_to_the_old_project(db, monk
         "",
         True,
         [],
-        *Explore Dimensions_fields,
+        *assessment_fields,
         True,
         None,
         *loop_fields,
@@ -123,7 +123,7 @@ def test_save_before_switch_persists_all_dirty_edits_to_the_old_project(db, monk
         2.0,
         *[value for _ in range(cb.PLACEMENT_SLOTS - 1) for value in [False, None, None, 0.0, 0.0]],
         *[value for row in backlog_rows for value in row],
-        *[value for note in Explore Dimensions_note_drafts for value in note],
+        *[value for note in assessment_note_drafts for value in note],
         True,
         "Assumption",
         "Alpha improvement note draft",

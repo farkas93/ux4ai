@@ -1,0 +1,54 @@
+{
+  "product_name": "Grammarly · inline writing suggestions",
+  "product_family": "Grammarly",
+  "canonical_url": "https://www.grammarly.com/",
+  "assessment_date": "2026-10-18",
+  "assessment_basis": "ai_assisted_documentation_review",
+  "live_testing_performed": false,
+  "scope": {
+    "experience": "Writing issue detection and accept/dismiss suggestion cards",
+    "task": "Review an English email for correctness and clarity, inspect suggestion explanations, and accept or dismiss changes.",
+    "configuration": "Core writing suggestions with manual acceptance, using a plan that exposes the relevant suggestions. No plan or browser installation was tested.",
+    "excluded_features": ["Generative chat", "AI agents", "Automatic email sending", "Essay grading", "Plagiarism or AI-detection benchmarking"],
+    "audience_perspective": "An individual writing everyday English prose"
+  },
+  "scores": {
+    "conversational": 0.5,
+    "specialization": 4.5,
+    "autonomy": 1.5,
+    "accessibility": 4.0,
+    "explainability": 4.0
+  },
+  "dimensions": {
+    "conversational": {
+      "rationale": "Inline highlights and suggestion cards create a guided review experience; a generative chat capability is not required for this workflow.",
+      "evidence": ["editor", "workflow"], "confidence": "medium",
+      "uncertainty": "The product's wider chat and agent features are intentionally not scored here."
+    },
+    "specialization": {
+      "rationale": "The scoped feature focuses on improving correctness, clarity and style in writing, with specialized feedback controls.",
+      "evidence": ["editor", "workflow"], "confidence": "medium",
+      "uncertainty": "Writing topics can be general, and language-quality specialization is not domain-expert knowledge."
+    },
+    "autonomy": {
+      "rationale": "Suggestions appear automatically as the user writes, but the user normally accepts or dismisses them and retains publication responsibility.",
+      "evidence": ["editor", "workflow"], "confidence": "medium",
+      "uncertainty": "Automatic or agent-driven rewriting would be a different configuration."
+    },
+    "accessibility": {
+      "rationale": "Embedding suggestions in familiar writing applications supports students and professionals without requiring a separate technical workflow.",
+      "evidence": ["workflow"], "confidence": "low",
+      "uncertainty": "Premium features, supported environments and language coverage constrain use; no assistive-technology evaluation was performed."
+    },
+    "explainability": {
+      "rationale": "Highlighted phrases and Learn more explanations connect proposed changes to concrete writing issues that users can inspect and reject.",
+      "evidence": ["editor", "workflow"], "confidence": "medium",
+      "uncertainty": "An explanation may still be wrong or context-insensitive; it does not reveal the underlying model's full reasoning."
+    }
+  },
+  "provenance_notes": "AI-assisted documentation review, 2026-10-18; no live product tests. Scope: Grammarly inline suggestions with human acceptance, excluding generative chat and agents. Scores are design estimates. Sources: https://support.grammarly.com/hc/en-us/articles/360003474732-Grammarly-Editor-user-guide and https://www.grammarly.com/how-grammarly-works .",
+  "sources": [
+    {"id": "editor", "title": "Grammarly Editor user guide", "url": "https://support.grammarly.com/hc/en-us/articles/360003474732-Grammarly-Editor-user-guide", "accessed_on": "2026-10-18"},
+    {"id": "workflow", "title": "How Grammarly's product works", "url": "https://www.grammarly.com/how-grammarly-works", "accessed_on": "2026-10-18"}
+  ]
+}

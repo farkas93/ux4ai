@@ -1,0 +1,54 @@
+{
+  "product_name": "Otter · transcription and summaries",
+  "product_family": "Otter",
+  "canonical_url": "https://otter.ai/",
+  "assessment_date": "2026-10-18",
+  "assessment_basis": "ai_assisted_documentation_review",
+  "live_testing_performed": false,
+  "scope": {
+    "experience": "Transcription and automated summary of a recording",
+    "task": "Record a meeting-length discussion, inspect the transcript and summary, and use summary topics or timestamps to check the original audio.",
+    "configuration": "User-initiated recording or a supported uploaded recording; no automatic meeting joining, CRM writeback or follow-up sending. No subscription was tested.",
+    "excluded_features": ["AI Chat", "Automatic meeting joining", "Sales coaching", "CRM updates", "Automatic follow-ups", "SDR or recruiting agents"],
+    "audience_perspective": "A meeting participant, student or knowledge worker reviewing a conversation"
+  },
+  "scores": {
+    "conversational": 1.0,
+    "specialization": 4.0,
+    "autonomy": 2.5,
+    "accessibility": 3.5,
+    "explainability": 3.5
+  },
+  "dimensions": {
+    "conversational": {
+      "rationale": "The product processes a human conversation, but the assessed user interaction is a structured recording and review workflow rather than chatting with the AI.",
+      "evidence": ["summary", "export"], "confidence": "medium",
+      "uncertainty": "Otter AI Chat and live-agent interactions would warrant a separate conversational score."
+    },
+    "specialization": {
+      "rationale": "Transcription, summaries and meeting takeaways serve a specific conversation-documentation workflow across several professions.",
+      "evidence": ["summary", "export"], "confidence": "medium",
+      "uncertainty": "A specialized sales/recruiting deployment is narrower than this core meeting workflow."
+    },
+    "autonomy": {
+      "rationale": "Once recording begins, the system transcribes and generates summaries without the user specifying each extraction step; people decide how to act on them.",
+      "evidence": ["summary"], "confidence": "medium",
+      "uncertainty": "CRM actions, joining meetings and sending follow-ups are excluded; automation is scoped to creating the record."
+    },
+    "accessibility": {
+      "rationale": "Searchable text and summaries suit learners and meeting participants, while suitable audio, recording setup, supported language and plan features limit reach.",
+      "evidence": ["summary", "export"], "confidence": "low",
+      "uncertainty": "No speech-recognition accuracy or assistive-technology tests were conducted; recording access and quotas vary."
+    },
+    "explainability": {
+      "rationale": "Original audio, transcript, speakers and timestamp navigation give users a concrete basis for checking summaries.",
+      "evidence": ["summary", "export"], "confidence": "medium",
+      "uncertainty": "Both transcript and summary may contain errors, and visible timestamps do not explain all summarization decisions."
+    }
+  },
+  "provenance_notes": "AI-assisted documentation review, 2026-10-18; no live product or transcription-quality tests. Scope: Otter recording/transcription and automated summary review, excluding AI Chat, CRM actions and autonomous follow-ups. Scores are design estimates. Sources: https://help.otter.ai/hc/en-us/articles/5093383818263-Automated-Live-Summary-Overview and https://help.otter.ai/hc/en-us/articles/360047733634-Export-conversations .",
+  "sources": [
+    {"id": "summary", "title": "Automated Live Summary overview", "url": "https://help.otter.ai/hc/en-us/articles/5093383818263-Automated-Live-Summary-Overview", "accessed_on": "2026-10-18"},
+    {"id": "export", "title": "Export conversations", "url": "https://help.otter.ai/hc/en-us/articles/360047733634-Export-conversations", "accessed_on": "2026-10-18"}
+  ]
+}

@@ -43,7 +43,7 @@ def report_sections(document):
                ("Main value hypothesis", main.get("statement")), ("Prototype", project["figma_url"])]
     sections.append(("Product and value", context))
     profile = [("Interpretation", document["warning"])]
-    estimates = {row["dimension_key"]: row for row in document["dimension_Explore Dimensionss"]}
+    estimates = {row["dimension_key"]: row for row in document["dimension_assessments"]}
     for definition in DEFAULT_DIMENSIONS:
         row = estimates.get(definition["key"], {})
         score = f"{row['score']}/5" if row.get("status") == "estimated" and row.get("score") is not None else row.get("status", "unassessed")
@@ -61,7 +61,7 @@ def report_sections(document):
         row = estimates.get(definition["key"], {})
         blocks = [("Rubric", f"{definition['low_anchor']} (0) — {definition['high_anchor']} (5)"),
                   ("Team's reasoning", row.get("rationale"))]
-        for label, key in (("Explore Dimensions basis", "basis"), ("Evidence", "evidence"), ("Uncertainty", "uncertainty")):
+        for label, key in (("Assessment basis", "basis"), ("Evidence", "evidence"), ("Uncertainty", "uncertainty")):
             if row.get(key):
                 blocks.append((label, row[key]))
         blocks += note_blocks([n for n in notes if definition["key"] in n["dimensions"]])

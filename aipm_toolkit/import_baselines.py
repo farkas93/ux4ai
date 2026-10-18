@@ -6,6 +6,7 @@ from .baseline_services import (
     import_legacy_reference_json,
     preview_legacy_reference_json,
     publish_all_reference_datasets,
+    validate_manifest,
 )
 from .db import Base, SessionLocal, engine
 
@@ -26,7 +27,8 @@ def main() -> None:
     with SessionLocal() as db:
         report = import_legacy_reference_json(db, args.directory, args.cohort, manifest)
         if args.publish:
-            publish_all_reference_datasets(db, args.cohort)
+            cohort = validate_manifest(manifest)["cohort_label"] if manifest is not None else args.cohort
+            publish_all_reference_datasets(db, cohort)
     print(report)
 
 

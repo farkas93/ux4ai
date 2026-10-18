@@ -30,7 +30,7 @@ Top-level fields:
 - `warning`
 - `project`
 - `scale_definitions`
-- `dimension_Explore Dimensionss`
+- `dimension_assessments`
 - `comparison_snapshots`
 - `notes`
 - `hypotheses`
@@ -38,7 +38,7 @@ Top-level fields:
 - `hypothesis_sources` (links to source notes/comparator snapshots)
 - `experiments`
 - `reflections`
-- `safety_Explore Dimensions`
+- `safety_assessment`
 - `safety_hypothesis_links`
 - `improvement_loops`
 - `project_history` (archival JSON only)

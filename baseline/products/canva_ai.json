@@ -1,0 +1,53 @@
+{
+  "product_name": "Canva AI · Magic Design presentations",
+  "product_family": "Canva AI",
+  "canonical_url": "https://www.canva.com/magic-design/",
+  "assessment_date": "2026-10-18",
+  "assessment_basis": "ai_assisted_documentation_review",
+  "live_testing_performed": false,
+  "scope": {
+    "experience": "Prompt-based Magic Design for Presentations followed by direct editing",
+    "task": "Generate a short presentation from a supplied outline, edit the pages and review the design before exporting.",
+    "configuration": "Documented Magic Design presentation workflow, using an account with the feature. Canva AI 2.0 announcements are not assumed to be available or tested.",
+    "excluded_features": ["Canva AI 2.0 scheduled tasks", "Connected-app agents", "Automatic publication", "Canva Code", "Video generation"],
+    "audience_perspective": "An individual making a presentation without specialist design training"
+  },
+  "scores": {
+    "conversational": 2.0,
+    "specialization": 4.0,
+    "autonomy": 2.5,
+    "accessibility": 4.0,
+    "explainability": 2.0
+  },
+  "dimensions": {
+    "conversational": {
+      "rationale": "Natural-language prompts initiate generation and refinement, but selecting templates and editing a visual canvas make this primarily a guided creative workflow.",
+      "evidence": ["magic-design"], "confidence": "medium",
+      "uncertainty": "The more conversational Canva AI 2.0 experience requires a separate availability check and assessment."
+    },
+    "specialization": {
+      "rationale": "Presentation layout, sample content and visual editing provide a task-focused product experience rather than general chat.",
+      "evidence": ["magic-design"], "confidence": "medium",
+      "uncertainty": "Canva includes many other design formats; this profile covers presentations only."
+    },
+    "autonomy": {
+      "rationale": "A high-level prompt can produce multiple drafted pages, while the user reviews, edits and chooses whether to export or share.",
+      "evidence": ["magic-design"], "confidence": "medium",
+      "uncertainty": "External actions and recurring generation are excluded; the actual quality of the first draft was not measured."
+    },
+    "accessibility": {
+      "rationale": "Templates and editable generated pages lower the need for professional design skills and fit a broad education/business audience.",
+      "evidence": ["magic-design"], "confidence": "low",
+      "uncertainty": "Language restrictions, quotas, account access and visual-editor usability remain constraints; no accessibility audit was conducted."
+    },
+    "explainability": {
+      "rationale": "Users can inspect and modify the generated layout, but the reasons behind content and design choices are not systematically justified with evidence.",
+      "evidence": ["magic-design"], "confidence": "low",
+      "uncertainty": "Editability helps control, but is not the same as explanatory transparency or factual source attribution."
+    }
+  },
+  "provenance_notes": "AI-assisted documentation review, 2026-10-18; no live product tests. Scope: Canva AI's documented Magic Design for Presentations with human editing and export; excludes announced AI 2.0 scheduling/automation. Scores are design estimates. Source: https://www.canva.com/magic-design/ .",
+  "sources": [
+    {"id": "magic-design", "title": "Magic Design: AI design and presentation generation", "url": "https://www.canva.com/magic-design/", "accessed_on": "2026-10-18"}
+  ]
+}
