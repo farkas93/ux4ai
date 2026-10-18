@@ -150,7 +150,7 @@ def assert_loaded_project(browser, project):
     assert browser.properties[browser.component(elem_id="toolkit-project-switch-backdrop")._id]["visible"] is False
 
 
-def test_cookie_login_loads_existing_project_through_registered_gradio_events(workspace_browser):
+def test_cookie_login_and_switching_load_saved_content_on_every_page(workspace_browser):
     browser, projects, _factory = workspace_browser
     selected_id = browser.values[browser.component(elem_id="toolkit-product")._id]
     selected_project = next(project for project in projects if str(project.id) == selected_id)
@@ -158,19 +158,15 @@ def test_cookie_login_loads_existing_project_through_registered_gradio_events(wo
     workspace_fn = next(fn for fn in browser.blocks.fns.values() if fn.fn is callbacks.workspace)
     assert browser.blocks.state_holder[browser.session_hash][workspace_fn.inputs[0]._id] is None
     assert_loaded_project(browser, selected_project)
+    for section in ("Project Setup", "Assessment", "Backlog Creator", "Prioritization", "Self-Improvement", "Summary & Export"):
+        browser.edit(browser.component(elem_id="toolkit-desktop-section"), section)
+        for project in projects:
+            browser.select_project(project.id)
+            assert_loaded_project(browser, project)
+            assert browser.values[browser.component(elem_id="toolkit-current-section")._id] == section
 
 
-@pytest.mark.parametrize("section", ["Project Setup", "Assessment", "Backlog Creator", "Prioritization", "Self-Improvement", "Summary & Export"])
-def test_cookie_authenticated_switch_refreshes_content_on_every_page(workspace_browser, section):
-    browser, projects, _factory = workspace_browser
-    browser.edit(browser.component(elem_id="toolkit-desktop-section"), section)
-    for project in projects:
-        browser.select_project(project.id)
-        assert_loaded_project(browser, project)
-        assert browser.values[browser.component(elem_id="toolkit-current-section")._id] == section
-
-
-def test_save_and_switch_uses_cookie_and_saves_only_the_project_being_left(workspace_browser):
+def assert_save_and_switch_uses_cookie_and_saves_only_the_project_being_left(workspace_browser):
     browser, projects, factory = workspace_browser
     alpha, beta = projects
     browser.select_project(alpha.id)
@@ -189,7 +185,7 @@ def test_save_and_switch_uses_cookie_and_saves_only_the_project_being_left(works
         assert beta_estimate.rationale == "Project Beta reasoning"
 
 
-def test_cancel_preserves_drafts_and_discard_switches_without_saving(workspace_browser):
+def assert_cancel_preserves_drafts_and_discard_switches_without_saving(workspace_browser):
     browser, projects, factory = workspace_browser
     alpha, beta = projects
     browser.select_project(alpha.id)
@@ -207,7 +203,7 @@ def test_cancel_preserves_drafts_and_discard_switches_without_saving(workspace_b
         assert session.query(DimensionEstimate).filter_by(project_id=alpha.id, dimension_key=DEFAULT_DIMENSIONS[0]["key"]).one().rationale == "Project Alpha reasoning"
 
 
-def test_failed_save_keeps_project_and_draft_visible(workspace_browser):
+def assert_failed_save_keeps_project_and_draft_visible(workspace_browser):
     browser, projects, factory = workspace_browser
     alpha, beta = projects
     browser.select_project(alpha.id)
@@ -226,7 +222,7 @@ def test_failed_save_keeps_project_and_draft_visible(workspace_browser):
     assert_loaded_project(browser, beta)
 
 
-def test_creating_blank_project_clears_previous_content_from_all_pages(workspace_browser):
+def assert_creating_blank_project_clears_previous_content_from_all_pages(workspace_browser):
     browser, _projects, _factory = workspace_browser
     browser.click("+ New")
     name = browser.component(label="New product name")
@@ -239,3 +235,12 @@ def test_creating_blank_project_clears_previous_content_from_all_pages(workspace
     assert not any("Project Alpha" in str(value) or "Project Beta" in str(value) for value in browser.page_values("page-prioritization"))
     assert any("# Blank project · Product learning report" in str(value) for value in browser.page_values("page-summary-export"))
     assert browser.properties[browser.component(elem_id="toolkit-product")._id]["interactive"] is True
+
+
+def test_cookie_authenticated_switch_confirmation_and_creation_journey(workspace_browser):
+    # Exercise the decisions in one browser session, including switching again
+    # after cancelling, discarding, saving, and recovering from a failed save.
+    assert_cancel_preserves_drafts_and_discard_switches_without_saving(workspace_browser)
+    assert_save_and_switch_uses_cookie_and_saves_only_the_project_being_left(workspace_browser)
+    assert_failed_save_keeps_project_and_draft_visible(workspace_browser)
+    assert_creating_blank_project_clears_previous_content_from_all_pages(workspace_browser)
