@@ -53,6 +53,7 @@ footer { display: none !important; }
 .gradio-container .prose h4 { font-size: 15px; margin: 0 0 8px; }
 .gradio-container .prose p { font-size: 14px; line-height: 1.6; margin: 0 0 10px; }
 .gradio-container input, .gradio-container textarea { font-size: 14px !important; line-height: 1.5 !important; }
+.gradio-container textarea { max-height: 28rem !important; overflow-y: auto !important; resize: vertical !important; overscroll-behavior: contain; }
 #toolkit-mobile-section { display: none; }
 .toolkit-form-card, .toolkit-card, .backlog-entry { border: 1px solid var(--border-color-primary); border-radius: 12px; padding: 14px !important; background: var(--block-background-fill); }
 .toolkit-note-composer { align-items: end; gap: 12px; }
@@ -70,6 +71,10 @@ footer { display: none !important; }
 .toolkit-history-card small { color: var(--body-text-color-subdued); }
 .toolkit-history-card h3 { margin: 10px 0; font-size: 16px; }
 .toolkit-history-card p { margin: 6px 0 0; color: var(--body-text-color-subdued); font-size: 13px; }
+.toolkit-summary-section { border: 1px solid var(--border-color-primary); border-radius: 10px; margin: 8px 0; background: var(--block-background-fill); }
+.toolkit-summary-section > summary { cursor: pointer; padding: 12px 14px; font-weight: 650; }
+.toolkit-summary-section-content { max-height: 28rem; overflow-y: auto; padding: 0 14px 12px; }
+.toolkit-summary-section-content p { white-space: pre-wrap; overflow-wrap: anywhere; }
 #toolkit-workspace-note, #toolkit-session-note { display: none !important; }
 label span { background: transparent !important; color: var(--body-text-color) !important; }
 #toolkit-project-switch-backdrop { position: fixed; inset: 0; z-index: 10000; background: rgba(15, 23, 42, .65);

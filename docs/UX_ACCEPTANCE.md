@@ -12,6 +12,11 @@ This checklist directly covers the improvement feedback that triggered the UI re
 - [ ] Setup, backlog, priorities, and the improvement loop load together; failed
   auxiliary comparison/report requests do not leave later workflow pages empty.
 - [ ] Fetching saved priority values does not write them back or increase revisions.
+- [ ] Compare to Product is saved to the active product and restored after switching away and back.
+- [ ] Summary & Export shows Compare to Product in closed-by-default section accordions, with exports above the sections.
+- [ ] Summary & Export progress omits hypotheses connected to value, priority hypothesis selected, and next experiment defined.
+- [ ] Long multiline fields scroll when content exceeds their viewport.
+- [ ] Explainability appears before Accessibility; Accessibility retains the existing target-demographics scale.
 - [ ] Pending edits prompt with Save & Switch, Discard & Switch, and Cancel; saves apply to the project being left.
 - [ ] User-facing copy consistently says product (not a mixture of project/product).
 - [ ] Product name is entered once during creation and edited once in Product Setup.

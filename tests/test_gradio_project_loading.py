@@ -11,7 +11,18 @@ from aipm_toolkit.auth import hash_password
 from aipm_toolkit.dimensions import DEFAULT_DIMENSIONS
 from aipm_toolkit.hypothesis_services import create_hypothesis, create_note, set_placement
 from aipm_toolkit.improvement_services import QUESTIONS, save_loop
-from aipm_toolkit.models import Course, DimensionEstimate, Hypothesis, Role, Team, User
+from aipm_toolkit.models import (
+    BaselineAssessment,
+    BaselineDataset,
+    ComparisonSnapshot,
+    Course,
+    DimensionEstimate,
+    Hypothesis,
+    Product,
+    Role,
+    Team,
+    User,
+)
 from aipm_toolkit.services import create_project, update_project
 from aipm_toolkit.ui import callbacks, safety_callbacks, shell
 from aipm_toolkit.ui.shell import build_app
@@ -183,7 +194,11 @@ def assert_loaded_project(browser, project):
     assert browser.values[browser.component(label="Your improvement loop")._id] == f"{project.product_name} improvement loop"
     assert f"{project.product_name} question" in browser.page_values("page-backlog-creator")
     assert f"{project.product_name} supporting hypothesis" in browser.page_values("page-prioritization")
-    assert any(f"# {project.product_name} · Product learning report" in str(value) for value in browser.page_values("page-summary-export"))
+    assert any(project.product_name in str(value) for value in browser.page_values("page-summary-export"))
+    checklist = browser.values[browser.component(label="Workshop progress")._id]
+    assert "Hypotheses connected to value" not in checklist
+    assert "Priority hypothesis selected" not in checklist
+    assert "Next experiment defined" not in checklist
     assert browser.properties[browser.component(elem_id="toolkit-product")._id]["interactive"] is True
     assert browser.properties[browser.component(elem_id="toolkit-project-switch-backdrop")._id]["visible"] is False
 
@@ -271,7 +286,7 @@ def assert_creating_blank_project_clears_previous_content_from_all_pages(workspa
     assert browser.values[browser.component(label="Your improvement loop")._id] == ""
     assert not any("Project Alpha" in str(value) or "Project Beta" in str(value) for value in browser.page_values("page-backlog-creator"))
     assert not any("Project Alpha" in str(value) or "Project Beta" in str(value) for value in browser.page_values("page-prioritization"))
-    assert any("# Blank project · Product learning report" in str(value) for value in browser.page_values("page-summary-export"))
+    assert any("Blank project" in str(value) for value in browser.page_values("page-summary-export"))
     assert browser.properties[browser.component(elem_id="toolkit-product")._id]["interactive"] is True
 
 
@@ -309,6 +324,61 @@ def test_queued_loading_with_automatic_change_events(workspace_browser):
     assert browser.values[risk._id] == 6.5
 
 
+def test_compare_to_product_persists_and_restores_per_project(workspace_browser):
+    browser, projects, factory = workspace_browser
+    alpha, beta = projects
+    with factory() as session:
+        product = Product(display_name="Compare to Product reference")
+        session.add(product)
+        session.flush()
+        dataset = BaselineDataset(
+            product_id=product.id,
+            source_type="documentation_reference",
+            cohort_label="Test cohort",
+            scale_version=1,
+            scale_versions=json.dumps({definition["key"]: 1 for definition in DEFAULT_DIMENSIONS}),
+            published=True,
+        )
+        session.add(dataset)
+        session.flush()
+        session.add_all(
+            BaselineAssessment(
+                dataset_id=dataset.id,
+                source_record_id="reference.json",
+                dimension_key=definition["key"],
+                score=2.0,
+                original_value="2",
+                raw_record="{}",
+            )
+            for definition in DEFAULT_DIMENSIONS
+        )
+        session.commit()
+        dataset_id = str(dataset.id)
+
+    browser.select_project(beta.id)
+    browser.select_project(alpha.id)
+    comparator = browser.component(label="Compare to Product")
+    browser.edit(comparator, dataset_id)
+    table = browser.values[browser.component(elem_id="toolkit-comparison-details")._id]
+    assert table.index("Explainability") < table.index("Accessibility")
+    summary_html = browser.values[browser.component(elem_id="toolkit-summary-sections")._id]
+    assert "Compare to Product reference" in summary_html
+    with factory() as session:
+        snapshot = session.query(ComparisonSnapshot).filter_by(project_id=alpha.id).one()
+        assert str(snapshot.dataset_id) == dataset_id
+        assert snapshot.revision == 1
+
+    browser.select_project(beta.id)
+    assert browser.values[comparator._id] is None
+    browser.select_project(alpha.id)
+    assert browser.values[comparator._id] == dataset_id
+    summary_html = browser.values[browser.component(elem_id="toolkit-summary-sections")._id]
+    assert "Compare to Product" in summary_html
+    assert "Compare to Product reference" in summary_html
+    assert "<details class=\"toolkit-summary-section\">" in summary_html
+    assert "Historical comparator" not in summary_html
+
+
 def test_project_snapshot_has_no_intermediate_section_updates(workspace_browser):
     browser, projects, _factory = workspace_browser
     browser.select_project(projects[0].id)
@@ -327,14 +397,14 @@ def test_project_snapshot_has_no_intermediate_section_updates(workspace_browser)
 def test_auxiliary_fetch_failure_does_not_block_project_editors(workspace_browser, monkeypatch):
     browser, projects, _factory = workspace_browser
 
-    def fail():
+    def fail(*_args, **_kwargs):
         raise OperationalError("SELECT baseline_datasets", {}, Exception("baseline unavailable"))
 
-    monkeypatch.setattr(shell, "load_comparator_choices", fail)
+    monkeypatch.setattr(shell, "load_project_comparator_from_ui", fail)
     browser.select_project(projects[0].id)
     browser.select_project(projects[1].id)
     assert_loaded_project(browser, projects[1])
-    assert "Historical comparison could not be loaded" in browser.values[browser.component(elem_id="aipm-status-banner")._id]
+    assert "Compare to Product could not be loaded" in browser.values[browser.component(elem_id="aipm-status-banner")._id]
     def fail_summary(*_args, **_kwargs):
         raise ValueError("summary unavailable")
 

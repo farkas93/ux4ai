@@ -25,9 +25,9 @@ from .callbacks import (
     instructor_overview_from_ui,
     live_profile_from_ui,
     load_backlog_table_from_ui,
-    load_comparator_choices,
     load_estimates_from_ui,
     load_placements_from_ui,
+    load_project_comparator_from_ui,
     load_project_from_ui,
     login,
     preview_upload_from_ui,
@@ -258,6 +258,11 @@ def build_app():
 
         instructor_panel = _build_instructor_panel(token, status, product_dropdown)
         dimension_note_outputs = assessment["dimension_note_lists"]
+        assessment["comparator_event"].then(
+            summary_preview_from_ui,
+            [token, active_project_id],
+            summary["summary_preview"],
+        )
         label_bindings = [
             (language_selector, "language", "Language / Sprache"),
             (product_dropdown, "projects", "Product"),
@@ -268,7 +273,7 @@ def build_app():
             (setup["problem"], "problem", "Current problem or workflow"),
             (setup["hypothesis"], "main_hypothesis", "Main value hypothesis"),
             (setup["figma_url"], "figma_url", "Figma prototype URL (optional)"),
-            (assessment["comparator"], "comparator", "Historical comparator"),
+            (assessment["comparator"], "comparator", "Compare to Product"),
             (summary["checklist_display"], "checklist", "Workshop checklist"),
             (summary["pdf_download"], "pdf_export", "PDF export"),
             (summary["json_download"], "json_export", "JSON export"),
@@ -360,15 +365,14 @@ def build_app():
                 values[improvement["notes_list"]] = learning_notes_ui(auth_token, target_id, "self_improvement", request=request)
                 auxiliary_errors = []
                 try:
-                    comparator = load_comparator_choices()
-                    comparator["value"] = None
-                except (SQLAlchemyError, ValueError) as exc:
-                    comparator = gr.update(choices=[], value=None)
-                    auxiliary_errors.append(f"Historical comparison could not be loaded: {exc}")
+                    comparator, frozen, comparison_table = load_project_comparator_from_ui(auth_token, target_id, request=request)
+                except (AuthenticationError, AuthorizationError, SQLAlchemyError, ValueError) as exc:
+                    comparator, frozen, comparison_table = gr.update(choices=[], value=None), {}, "Select a product to compare."
+                    auxiliary_errors.append(f"Compare to Product could not be loaded: {exc}")
                 values[assessment["comparator"]] = comparator
-                values[assessment["frozen_state"]] = {}
-                values[assessment["comparison_table"]] = "Select a comparator to see the comparison table."
-                values[assessment["live_chart"]] = live_profile_from_ui({}, *estimates[:-1:2])
+                values[assessment["frozen_state"]] = frozen
+                values[assessment["comparison_table"]] = comparison_table
+                values[assessment["live_chart"]] = live_profile_from_ui(frozen, *estimates[:-1:2])
                 values[assessment["unsaved_note"]] = ""
                 for name, output, load in (
                     ("Workshop checklist", summary["checklist_display"], checklist_text),

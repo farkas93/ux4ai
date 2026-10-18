@@ -89,10 +89,10 @@ def build_assessment_tab(token, project_id, status):
             with gr.Column(scale=2), gr.Accordion("Product profile & comparison", open=True):
                 live_chart = gr.Plot(label="Product profile", show_label=False)
                 comparator_dropdown = gr.Dropdown(
-                    label="Historical comparison (optional)", choices=[], value=None,
+                    label="Compare to Product", choices=[], value=None,
                 )
                 with gr.Accordion("Comparison details", open=False):
-                    comparison_table = gr.Textbox(show_label=False, interactive=False, lines=7)
+                    comparison_table = gr.Textbox(show_label=False, interactive=False, lines=7, elem_id="toolkit-comparison-details")
 
         # Purely event-driven live spider chart updates:
         for slider in sliders:
@@ -100,7 +100,7 @@ def build_assessment_tab(token, project_id, status):
             slider.input(live_profile_from_ui, [frozen_state, *sliders], live_chart)
 
         # Comparator dropdown event: immediately updates frozen_state, table, and chart
-        comparator_dropdown.input(
+        comparator_event = comparator_dropdown.input(
             on_comparator_selected,
             [token, project_id, comparator_dropdown],
             [frozen_state, comparison_table],
@@ -147,6 +147,7 @@ def build_assessment_tab(token, project_id, status):
         "note_drafts": note_drafts,
         "note_events": note_events,
         "comparator": comparator_dropdown,
+        "comparator_event": comparator_event,
         "comparison_table": comparison_table,
         "live_chart": live_chart,
         "frozen_state": frozen_state,

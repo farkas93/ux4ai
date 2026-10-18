@@ -50,12 +50,12 @@ def report_sections(document):
         profile.append((definition["title"], score))
     for snapshot in document["comparison_snapshots"][-1:]:
         dataset = snapshot["dataset"]
-        profile.append(("Historical comparator", f"{snapshot['product']} · {dataset['cohort_label']} · {dataset['source_type']} · scale {dataset['scale_version']}"))
+        profile.append(("Compare to Product", f"{snapshot['product']} · {dataset['cohort_label']} · {dataset['source_type']} · scale {dataset['scale_version']}"))
         profile.append(("Comparison purpose and scope", f"{snapshot['purpose']}: {snapshot['scope_explanation']}"))
         profile.append(("Provenance", dataset["provenance_notes"]))
         profile.append(("Compatibility", "Unknown or incompatible baseline dimensions are shown as gaps, not numeric comparisons."))
     if not document["comparison_snapshots"]:
-        profile.append(("Historical comparator", "No comparator selected."))
+        profile.append(("Compare to Product", "No product selected."))
     sections.append(("Product dimensions", profile))
     for definition in DEFAULT_DIMENSIONS:
         row = estimates.get(definition["key"], {})
@@ -199,7 +199,7 @@ def pdf_report(document, draw_radar, draw_matrix):
             y = pdf.get_y()
             draw_radar(pdf, document, 25, y, 155, pdf.report_font)
             pdf.set_y(y + 165)
-            pdf.block("Chart legend", "Blue: intended product profile. Red: historical reference. Gaps indicate unknown or incompatible dimensions.")
+            pdf.block("Chart legend", "Blue: intended product profile. Red: Compare to Product. Gaps indicate unknown or incompatible dimensions.")
         if title == "Priorities and next test":
             y = pdf.get_y() + 8
             pdf.set_font(pdf.report_font, "B", 9)

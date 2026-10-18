@@ -195,7 +195,8 @@ def select_comparator(db: Session, actor: User, project_id: UUID, dataset_id: UU
     aggregates = aggregate_dataset(db, dataset.id)
     scale_versions = json.loads(dataset.scale_versions or "{}")
     frozen_profile = {key: {"median": values["median"], "p25": values["p25"], "p75": values["p75"], "count": values["count"], "compatible": scale_versions.get(key, 1) == 1} for key, values in aggregates.items()}
-    snapshot = ComparisonSnapshot(project_id=project_id, product_id=dataset.product_id, dataset_id=dataset.id, purpose=purpose, scope_explanation=scope_explanation, frozen_profile=json.dumps(frozen_profile, sort_keys=True))
+    latest_revision = db.scalar(select(func.max(ComparisonSnapshot.revision)).where(ComparisonSnapshot.project_id == project_id)) or 0
+    snapshot = ComparisonSnapshot(project_id=project_id, product_id=dataset.product_id, dataset_id=dataset.id, purpose=purpose, scope_explanation=scope_explanation, frozen_profile=json.dumps(frozen_profile, sort_keys=True), revision=latest_revision + 1)
     db.add(snapshot)
     db.commit()
     return snapshot

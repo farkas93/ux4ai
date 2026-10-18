@@ -105,7 +105,7 @@ uv run python -m aipm_toolkit.import_baselines baseline/products --manifest base
 The reference scores are documentation-based estimates, with per-dimension
 rationales and sources. The manifest uses the current scale for all five dimensions.
 
-The importer preserves source records for instructor-only access, keeps valid zero scores, reports invalid values, and publishes only aggregate-ready reference data to teams. Teams can select one published comparator and save a purpose/scope snapshot from the Explore Dimensions tab. Historical comparators are classroom assessments, not rankings or current product ratings.
+The importer preserves source records for instructor-only access, keeps valid zero scores, reports invalid values, and publishes only aggregate-ready reference data to teams. Teams can select one published product with **Compare to Product** from the Explore Dimensions tab; the project keeps a frozen comparison snapshot. These classroom references are not rankings or current product ratings.
 
 Legacy reference imports preserve per-dimension scale metadata. The historical autonomy scale is marked incompatible with the current autonomy definition, so its numeric difference is suppressed and its baseline radar point is shown as a gap.
 

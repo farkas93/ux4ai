@@ -14,23 +14,23 @@ and sources so the estimates can be reviewed or revised.
 Import only the JSON files in `products/`. `import_manifest.json` is separate so
 the importer will not mistake it for a product assessment.
 
-| File in `products/` | Scoped product | Conversation | Specialization | Autonomy | Audience breadth | Explainability |
+| File in `products/` | Scoped product | Conversation | Specialization | Autonomy | Explainability | Accessibility |
 | --- | --- | ---: | ---: | ---: | ---: | ---: |
-| `chatgpt.json` | ChatGPT: standard chat | 5.0 | 0.5 | 1.0 | 4.5 | 1.5 |
-| `claude.json` | Claude: document chat | 5.0 | 1.0 | 1.5 | 4.0 | 2.0 |
-| `google_gemini.json` | Google Gemini: standard chat | 5.0 | 0.5 | 1.0 | 4.5 | 1.5 |
-| `microsoft_365_copilot.json` | Microsoft 365 Copilot: Word authoring | 4.0 | 3.5 | 2.5 | 3.5 | 3.0 |
+| `chatgpt.json` | ChatGPT: standard chat | 5.0 | 0.5 | 1.0 | 1.5 | 4.5 |
+| `claude.json` | Claude: document chat | 5.0 | 1.0 | 1.5 | 2.0 | 4.0 |
+| `google_gemini.json` | Google Gemini: standard chat | 5.0 | 0.5 | 1.0 | 1.5 | 4.5 |
+| `microsoft_365_copilot.json` | Microsoft 365 Copilot: Word authoring | 4.0 | 3.5 | 2.5 | 3.0 | 3.5 |
 | `perplexity.json` | Perplexity: ordinary web search | 4.5 | 3.0 | 2.0 | 4.0 | 4.0 |
-| `gemini_notebook.json` | Gemini Notebook / NotebookLM: source Q&A | 4.0 | 3.5 | 2.0 | 3.5 | 4.5 |
-| `deepl_translator.json` | DeepL Translator: text translation | 0.5 | 5.0 | 1.0 | 4.5 | 2.0 |
+| `gemini_notebook.json` | Gemini Notebook / NotebookLM: source Q&A | 4.0 | 3.5 | 2.0 | 4.5 | 3.5 |
+| `deepl_translator.json` | DeepL Translator: text translation | 0.5 | 5.0 | 1.0 | 2.0 | 4.5 |
 | `grammarly.json` | Grammarly: inline writing suggestions | 0.5 | 4.5 | 1.5 | 4.0 | 4.0 |
-| `canva_ai.json` | Canva AI: Magic Design for Presentations | 2.0 | 4.0 | 2.5 | 4.0 | 2.0 |
-| `adobe_firefly.json` | Adobe Firefly: image generation and editing | 1.5 | 4.5 | 2.0 | 4.0 | 1.5 |
+| `canva_ai.json` | Canva AI: Magic Design for Presentations | 2.0 | 4.0 | 2.5 | 2.0 | 4.0 |
+| `adobe_firefly.json` | Adobe Firefly: image generation and editing | 1.5 | 4.5 | 2.0 | 1.5 | 4.0 |
 | `github_copilot.json` | GitHub Copilot: VS Code suggestions and chat | 3.0 | 4.5 | 2.0 | 2.5 | 2.5 |
 | `otter.json` | Otter: transcription and summaries | 1.0 | 4.0 | 2.5 | 3.5 | 3.5 |
-| `cursor.json` | Cursor: coding agent | 4.0 | 4.5 | 3.5 | 2.0 | 3.5 |
-| `fin.json` | Fin: knowledge-base customer support | 4.0 | 4.5 | 3.0 | 4.0 | 2.0 |
-| `zapier_agents.json` | Zapier Agents: expense classification (legacy) | 1.5 | 4.5 | 3.5 | 2.5 | 3.5 |
+| `cursor.json` | Cursor: coding agent | 4.0 | 4.5 | 3.5 | 3.5 | 2.0 |
+| `fin.json` | Fin: knowledge-base customer support | 4.0 | 4.5 | 3.0 | 2.0 | 4.0 |
+| `zapier_agents.json` | Zapier Agents: expense classification (legacy) | 1.5 | 4.5 | 3.5 | 3.5 | 2.5 |
 
 ### How to interpret the five dimensions
 
@@ -43,12 +43,12 @@ All five keys and scale versions match `aipm_toolkit/dimensions.py`:
 - **`autonomy`**: consulting (0) to theoretical full autonomous agency (5).
   The assumed approvals, integrations, and action permissions matter. No profile
   is scored 5; higher autonomy is not a target.
-- **`accessibility`**: niche audience (0) to broad audience usability (5). This
-  is the application's audience-breadth dimension, not a WCAG/accessibility audit.
-  The evaluated audience is stated in each file, especially for enterprise tools.
 - **`explainability`**: opaque product experience (0) to fully transparent (5).
   Citations, highlighted changes, and activity logs improve inspectability but
   do not demonstrate faithful access to internal model reasoning.
+- **`accessibility`**: how well the product supports its intended target
+  demographics, from narrow (0) to broad (5). This is not a WCAG/accessibility
+  audit; the evaluated demographics are stated in each file.
 
 Half-point scores express coarse judgment, not measured precision. These are
 one-assessment reference profiles (`n = 1`), not student-cohort aggregates. Median,
@@ -81,7 +81,7 @@ on an existing, previously working database.
 5. Click **Preview import**. Expect 15 records, 15 distinct product names, and no
    invalid values. Then use **Publish preview**.
 6. Reload the team workspace. The scoped product names appear under
-   **Explore Dimensions → Historical comparison (optional)**.
+   **Explore Dimensions → Compare to Product**.
 
 ### CLI import
 
