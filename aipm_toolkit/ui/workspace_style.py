@@ -93,7 +93,7 @@ label span { background: transparent !important; color: var(--body-text-color) !
   .toolkit-card, .toolkit-form-card, .backlog-entry { padding: 14px !important; }
   .backlog-fields, .backlog-actions, .toolkit-two-column { flex-direction: column !important; }
   .backlog-fields > *, .toolkit-two-column > * { width: 100%; min-width: 0 !important; }
-  #toolkit-Explore Dimensions-row { flex-direction: column-reverse !important; }
+  #toolkit-assessment-row { flex-direction: column-reverse !important; }
   .backlog-actions button { max-width: none; width: 100%; }
   #toolkit-workspace { display: block; margin-top: 12px; }
   #toolkit-desktop-section label { padding: 8px 6px; font-size: 12px; }

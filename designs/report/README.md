@@ -56,7 +56,7 @@ H-numbers must use the same deterministic order as the UI, not ranking position.
 
 ## Feedback requested
 
-Review `03-reasoning-behind-the-profile.svg`, `04-ai-safety.svg`, and `05-Build Self-Improvement.svg` first: these address the missing reasoning. Then review the backlog and priority pages for traceability.
+Review `03-reasoning-behind-the-profile.svg`, `04-ai-safety.svg`, and `05-self-improvement.svg` first: these address the missing reasoning. Then review the backlog and priority pages for traceability.
 
 - Is this amount of detail right for a student hand-in?
 - Do we keep the product overview as a standalone opening page or condense it?

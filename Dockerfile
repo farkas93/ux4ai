@@ -16,6 +16,7 @@ RUN uv sync --frozen --no-dev
 
 COPY aipm_toolkit ./aipm_toolkit
 COPY alembic ./alembic
+COPY baseline ./baseline
 COPY alembic.ini README.md ./
 
 RUN useradd --create-home --uid 10001 appuser && chown -R appuser:appuser /app

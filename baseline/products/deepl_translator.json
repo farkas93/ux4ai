@@ -1,0 +1,53 @@
+{
+  "product_name": "DeepL Translator · text translation",
+  "product_family": "DeepL Translator",
+  "canonical_url": "https://www.deepl.com/en/translator",
+  "assessment_date": "2026-10-18",
+  "assessment_basis": "ai_assisted_documentation_review",
+  "live_testing_performed": false,
+  "scope": {
+    "experience": "The web translator's source/target text workflow",
+    "task": "Translate a short English paragraph into German, inspect the result, and choose wording alternatives where offered.",
+    "configuration": "Manual text input with source/target language selection; no API, continuous voice translation or automated translation workflow. No plan was tested.",
+    "excluded_features": ["DeepL Write", "DeepL Voice", "API integrations", "Translation Flow", "Agent integrations"],
+    "audience_perspective": "An individual needing a translation in supported languages"
+  },
+  "scores": {
+    "conversational": 0.5,
+    "specialization": 5.0,
+    "autonomy": 1.0,
+    "accessibility": 4.5,
+    "explainability": 2.0
+  },
+  "dimensions": {
+    "conversational": {
+      "rationale": "Users work with source/target text and language controls rather than an ongoing open-ended dialogue.",
+      "evidence": ["translator"], "confidence": "medium",
+      "uncertainty": "Optional clarification or newer interfaces may add interaction; the core translation panes are the assessed experience."
+    },
+    "specialization": {
+      "rationale": "Translation between languages is a narrowly defined task with task-specific controls and outputs.",
+      "evidence": ["translator"], "confidence": "medium",
+      "uncertainty": "A maximum specialization score describes task focus, not best-in-class translation quality."
+    },
+    "autonomy": {
+      "rationale": "The translator produces a result from submitted text, while the user selects the text, language and whether to use the output.",
+      "evidence": ["translator"], "confidence": "medium",
+      "uncertainty": "Automated publishing and integrated translation pipelines would have different autonomy."
+    },
+    "accessibility": {
+      "rationale": "A straightforward web text-in/text-out interface supports a broad audience without coding or a specialized professional role.",
+      "evidence": ["translator"], "confidence": "low",
+      "uncertainty": "Supported language pairs, quotas and paid options constrain use; this is not a translation-accuracy or disability-accessibility test."
+    },
+    "explainability": {
+      "rationale": "Side-by-side text and available alternatives expose the input and wording choices, but the translator does not provide a complete accountable explanation of each translation decision.",
+      "evidence": ["translator"], "confidence": "low",
+      "uncertainty": "Users need language knowledge or a reviewer to judge correctness; alternatives are not proof of model reasoning."
+    }
+  },
+  "provenance_notes": "AI-assisted documentation review, 2026-10-18; no live product tests or translation-quality measurements. Scope: DeepL web text translation with human review, excluding Voice, Write, API and automated pipelines. Scores are design estimates. Source: https://www.deepl.com/en/translator .",
+  "sources": [
+    {"id": "translator", "title": "DeepL Translator", "url": "https://www.deepl.com/en/translator", "accessed_on": "2026-10-18"}
+  ]
+}

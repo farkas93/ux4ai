@@ -44,7 +44,8 @@ def page(number, title, subtitle, content):
            + text(56, 140, subtitle, 13, MUTED) + content
            + rule(1067) + text(56, 1091, "Learning report · Intended product behavior, not proven product quality", 10, MUTED)
            + text(705, 1091, f"{number:02d}", 11, TEAL, 700) + '</svg>')
-    (ROOT / f"{number:02d}-{title.lower().replace(' & ', '-').replace(' ', '-')}.svg").write_text(svg, encoding="utf-8")
+    filename_title = "Self-Improvement" if title == "Build Self-Improvement" else title
+    (ROOT / f"{number:02d}-{filename_title.lower().replace(' & ', '-').replace(' ', '-')}.svg").write_text(svg, encoding="utf-8")
 
 
 def overview():

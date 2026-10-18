@@ -118,7 +118,7 @@ def workspace_browser(db, monkeypatch):
                 project_id=project.id, dimension_key=definition["key"], scale_version=1,
                 status="estimated", score=index + 1.0, rationale=f"{project.product_name} reasoning",
             ))
-        create_note(db, user, project.id, "question", f"{project.product_name} question", ["autonomy"], origin_section="Explore Dimensions")
+        create_note(db, user, project.id, "question", f"{project.product_name} question", ["autonomy"], origin_section="assessment")
         create_hypothesis(db, user, project.id, f"{project.product_name} supporting hypothesis")
         save_loop(db, user, project.id, None, None, {
             "name": f"{project.product_name} improvement loop",
@@ -144,7 +144,7 @@ def assert_loaded_project(browser, project):
     assert browser.values[browser.component(label="Reasoning / Notes")._id] == f"{project.product_name} reasoning"
     assert browser.values[browser.component(label="Your improvement loop")._id] == f"{project.product_name} improvement loop"
     assert f"{project.product_name} question" in browser.page_values("page-backlog-creator")
-    assert f"{project.product_name} supporting hypothesis" in browser.page_values("page-Explore Priority")
+    assert f"{project.product_name} supporting hypothesis" in browser.page_values("page-prioritization")
     assert any(f"# {project.product_name} · Product learning report" in str(value) for value in browser.page_values("page-summary-export"))
     assert browser.properties[browser.component(elem_id="toolkit-product")._id]["interactive"] is True
     assert browser.properties[browser.component(elem_id="toolkit-project-switch-backdrop")._id]["visible"] is False
@@ -232,7 +232,7 @@ def assert_creating_blank_project_clears_previous_content_from_all_pages(workspa
     assert browser.values[browser.component(label="Reasoning / Notes")._id] == ""
     assert browser.values[browser.component(label="Your improvement loop")._id] == ""
     assert not any("Project Alpha" in str(value) or "Project Beta" in str(value) for value in browser.page_values("page-backlog-creator"))
-    assert not any("Project Alpha" in str(value) or "Project Beta" in str(value) for value in browser.page_values("page-Explore Priority"))
+    assert not any("Project Alpha" in str(value) or "Project Beta" in str(value) for value in browser.page_values("page-prioritization"))
     assert any("# Blank project · Product learning report" in str(value) for value in browser.page_values("page-summary-export"))
     assert browser.properties[browser.component(elem_id="toolkit-product")._id]["interactive"] is True
 

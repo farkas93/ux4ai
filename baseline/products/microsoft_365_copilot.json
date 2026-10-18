@@ -1,0 +1,53 @@
+{
+  "product_name": "Microsoft 365 Copilot · Word authoring",
+  "product_family": "Microsoft 365 Copilot",
+  "canonical_url": "https://www.microsoft.com/en-us/copilot",
+  "assessment_date": "2026-10-18",
+  "assessment_basis": "ai_assisted_documentation_review",
+  "live_testing_performed": false,
+  "scope": {
+    "experience": "Copilot drafting and editing inside Word",
+    "task": "Draft a short project brief from supplied material, then revise its structure and tone while reviewing the document changes.",
+    "configuration": "An eligible Word subscription/account with in-app Copilot available. Human review remains required before sharing; no autonomous cross-app work is assumed.",
+    "excluded_features": ["Copilot Studio agents", "Cowork", "Autopilot", "Cross-app automation", "Automatic publication"],
+    "audience_perspective": "A Word user creating and reviewing documents"
+  },
+  "scores": {
+    "conversational": 4.0,
+    "specialization": 3.5,
+    "autonomy": 2.5,
+    "accessibility": 3.5,
+    "explainability": 3.0
+  },
+  "dimensions": {
+    "conversational": {
+      "rationale": "Natural-language requests and follow-ups sit alongside an established document editor, combining dialogue with direct authoring controls.",
+      "evidence": ["word"], "confidence": "medium",
+      "uncertainty": "The exact interaction depends on Word client version and which in-app features the account exposes."
+    },
+    "specialization": {
+      "rationale": "The experience is focused on document drafting, rewriting and restructuring rather than unrestricted general chat.",
+      "evidence": ["word"], "confidence": "medium",
+      "uncertainty": "It is specialized by workflow, not validated as an expert in a legal, medical or other professional domain."
+    },
+    "autonomy": {
+      "rationale": "Copilot can carry out multi-step edits within a document from a high-level request; the user reviews and controls the finished work.",
+      "evidence": ["word"], "confidence": "medium",
+      "uncertainty": "No tenant-specific permissions or actual approval behavior was tested; external sharing and background agents are excluded."
+    },
+    "accessibility": {
+      "rationale": "Embedding assistance in Word supports a broad office/education audience, but eligible subscriptions, accounts and document skills impose constraints.",
+      "evidence": ["word"], "confidence": "low",
+      "uncertainty": "Availability varies across clients, organizations and subscriptions; audience breadth is not a disability-accessibility certification."
+    },
+    "explainability": {
+      "rationale": "Users can inspect the source document and resulting edits, retaining a concrete artifact for review instead of relying only on a chat answer.",
+      "evidence": ["word"], "confidence": "low",
+      "uncertainty": "Visible changes and source material do not guarantee a correct rationale for every edit or full model transparency."
+    }
+  },
+  "provenance_notes": "AI-assisted documentation review, 2026-10-18; no live product tests. Scope: Microsoft 365 Copilot in Word, human-reviewed document authoring; excludes Cowork, Autopilot and cross-app actions. Scores are design estimates. Source: https://www.microsoft.com/en-us/copilot/blog/2026/04/22/copilots-agentic-capabilities-in-word-excel-and-powerpoint-are-generally-available/ .",
+  "sources": [
+    {"id": "word", "title": "Copilot's agentic capabilities in Word, Excel, and PowerPoint are generally available", "url": "https://www.microsoft.com/en-us/copilot/blog/2026/04/22/copilots-agentic-capabilities-in-word-excel-and-powerpoint-are-generally-available/", "accessed_on": "2026-10-18"}
+  ]
+}

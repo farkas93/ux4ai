@@ -1,0 +1,53 @@
+{
+  "product_name": "Perplexity · web search",
+  "product_family": "Perplexity",
+  "canonical_url": "https://www.perplexity.ai/",
+  "assessment_date": "2026-10-18",
+  "assessment_basis": "ai_assisted_documentation_review",
+  "live_testing_performed": false,
+  "scope": {
+    "experience": "Ordinary web-grounded search and conversational follow-ups",
+    "task": "Research a public question, open the cited sources, and ask a follow-up comparing two findings.",
+    "configuration": "Core search experience; no Computer workflow, browser agent, deep research report or scheduled automation. No subscription/model was tested.",
+    "excluded_features": ["Computer", "Comet browser actions", "Deep Research", "Scheduled automations", "Connected enterprise data"],
+    "audience_perspective": "An individual researching public information"
+  },
+  "scores": {
+    "conversational": 4.5,
+    "specialization": 3.0,
+    "autonomy": 2.0,
+    "accessibility": 4.0,
+    "explainability": 4.0
+  },
+  "dimensions": {
+    "conversational": {
+      "rationale": "Natural-language questions and follow-ups form a flexible conversation centered on finding and synthesizing information.",
+      "evidence": ["overview"], "confidence": "medium",
+      "uncertainty": "Search grounding and a research focus constrain interaction compared with a completely unrestricted chat assistant."
+    },
+    "specialization": {
+      "rationale": "The product emphasizes web information retrieval and synthesis across many subject areas rather than one domain or all-purpose task execution.",
+      "evidence": ["overview"], "confidence": "medium",
+      "uncertainty": "A broad-topic search tool is less specialized than a narrowly configured knowledge-base assistant."
+    },
+    "autonomy": {
+      "rationale": "The system searches and combines sources for a question without the user directing every retrieval step, while the user sets the question and subsequent use.",
+      "evidence": ["overview"], "confidence": "medium",
+      "uncertainty": "This does not include long-running digital-worker capabilities or external app actions."
+    },
+    "accessibility": {
+      "rationale": "A question-and-answer experience reduces navigation effort for a broad audience, while checking sources still requires research and information-literacy skills.",
+      "evidence": ["overview"], "confidence": "low",
+      "uncertainty": "Access limits, available features and user needs vary; no direct accessibility/usability study was performed."
+    },
+    "explainability": {
+      "rationale": "Linked citations give users an observable evidence trail and a way to compare generated claims with original material.",
+      "evidence": ["overview"], "confidence": "medium",
+      "uncertainty": "A citation can be incomplete or mismatched; linked evidence is not proof that a conclusion is accurate or that model reasoning is transparent."
+    }
+  },
+  "provenance_notes": "AI-assisted documentation review, 2026-10-18; no live product tests. Scope: Perplexity core web search with citations and follow-ups, excluding Computer, Comet automation and Deep Research. Scores are design estimates. Source: https://www.perplexity.ai/help-center/en/articles/10352155-what-is-perplexity .",
+  "sources": [
+    {"id": "overview", "title": "What is Perplexity?", "url": "https://www.perplexity.ai/help-center/en/articles/10352155-what-is-perplexity", "accessed_on": "2026-10-18"}
+  ]
+}

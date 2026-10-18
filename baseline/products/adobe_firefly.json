@@ -1,0 +1,53 @@
+{
+  "product_name": "Adobe Firefly · image generation and editing",
+  "product_family": "Adobe Firefly",
+  "canonical_url": "https://firefly.adobe.com/",
+  "assessment_date": "2026-10-18",
+  "assessment_basis": "ai_assisted_documentation_review",
+  "live_testing_performed": false,
+  "scope": {
+    "experience": "Text-to-image generation followed by image-specific refinements",
+    "task": "Generate a fictional product illustration, choose a variation, and refine its composition or background before downloading.",
+    "configuration": "User-triggered image generation and editing with visible prompt, style and composition controls. No particular image model or paid plan was tested.",
+    "excluded_features": ["Video or audio generation", "Bulk asset pipelines", "External publication", "Automated creative agents"],
+    "audience_perspective": "An individual creating visual assets with a web editor"
+  },
+  "scores": {
+    "conversational": 1.5,
+    "specialization": 4.5,
+    "autonomy": 2.0,
+    "accessibility": 4.0,
+    "explainability": 1.5
+  },
+  "dimensions": {
+    "conversational": {
+      "rationale": "Natural-language prompts sit inside a structured generate/select/edit workflow with image controls rather than a general ongoing conversation.",
+      "evidence": ["text-image"], "confidence": "medium",
+      "uncertainty": "Other Firefly experiences may be more conversational; the assessed feature is text-to-image and editing."
+    },
+    "specialization": {
+      "rationale": "Image composition and generation are specialized creative tasks supported by aspect ratio, style, lighting and reference controls.",
+      "evidence": ["text-image"], "confidence": "medium",
+      "uncertainty": "The broader platform supports other media; this profile is not an average of all Firefly tools or models."
+    },
+    "autonomy": {
+      "rationale": "The system creates image candidates or local edits from a description, while users direct iterations and choose the finished artifact.",
+      "evidence": ["text-image"], "confidence": "medium",
+      "uncertainty": "No autonomous publishing or project-wide creative decisions are assumed."
+    },
+    "accessibility": {
+      "rationale": "A web workflow and natural-language generation lower the technical barrier to producing images compared with building them manually.",
+      "evidence": ["text-image"], "confidence": "low",
+      "uncertainty": "Visual assessment, account access, generation credits and regional availability impose limitations; no assistive-technology test was performed."
+    },
+    "explainability": {
+      "rationale": "Prompt and settings are visible, but generation does not give users a complete evidential explanation for the pixels, objects or artistic choices produced.",
+      "evidence": ["text-image"], "confidence": "low",
+      "uncertainty": "Content provenance or editability does not itself explain model decisions; this profile does not assess licensing or output accuracy."
+    }
+  },
+  "provenance_notes": "AI-assisted documentation review, 2026-10-18; no live product tests. Scope: Adobe Firefly image generation and human-directed edits, excluding other media and automated pipelines. Scores are design estimates. Source: https://www.adobe.com/products/firefly/features/text-to-image.html .",
+  "sources": [
+    {"id": "text-image", "title": "Adobe Firefly Text to Image", "url": "https://www.adobe.com/products/firefly/features/text-to-image.html", "accessed_on": "2026-10-18"}
+  ]
+}

@@ -1,4 +1,4 @@
-"""Gradio adapters for safety and individual improvement-loop Explore Dimensionss."""
+"""Gradio adapters for safety and individual improvement-loop assessments."""
 
 import json
 from uuid import UUID
@@ -39,10 +39,10 @@ def load_safety_ui(token, project_id, request: gr.Request | None = None):
     with SessionLocal() as db:
         try:
             actor = get_authenticated_user(db, _resolve_token(token, request))
-            Explore Dimensions, rows = get_safety(db, actor, UUID(project_id))
+            assessment, rows = get_safety(db, actor, UUID(project_id))
             flat = [value for row in rows for value in (row["coverage"], row["maturity"], row["evidence"])]
-            risk = Explore Dimensions.critical_risk if Explore Dimensions else ""
-            return (*flat, risk, Explore Dimensions.revision if Explore Dimensions else None, safety_card(rows, risk))
+            risk = assessment.critical_risk if assessment else ""
+            return (*flat, risk, assessment.revision if assessment else None, safety_card(rows, risk))
         except (AuthenticationError, AuthorizationError, ValueError):
             return (*blank, "", None, safety_card(_rows_from_flat(blank), ""))
 
@@ -54,8 +54,8 @@ def save_safety_ui(token, project_id, revision, *values, request: gr.Request | N
     with SessionLocal() as db:
         try:
             actor = get_authenticated_user(db, _resolve_token(token, request))
-            Explore Dimensions = save_safety(db, actor, UUID(project_id), revision, rows, risk)
-            return "AI safety Explore Dimensions saved.", Explore Dimensions.revision, safety_card(rows, risk)
+            assessment = save_safety(db, actor, UUID(project_id), revision, rows, risk)
+            return "AI safety assessment saved.", assessment.revision, safety_card(rows, risk)
         except (AuthenticationError, AuthorizationError, RevisionConflict, ValueError) as exc:
             return str(exc), revision, safety_card(rows, risk)
 

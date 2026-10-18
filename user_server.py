@@ -117,7 +117,7 @@ def capture_all_data(
     ai_role,
     conversational, specialization, autonomy, accessibility, explainability, # CHANGED: Renamed
     risk_level,
-    risk_Explore Dimensions_description,
+    risk_assessment_description,
     continuous_learning_analytics_type,
     continuous_learning_aspects,
     continuous_learning_explanation,
@@ -153,7 +153,7 @@ def capture_all_data(
         },
         "risk_of_adversarial_attacks": {
             "level": risk_level,
-            "description": risk_Explore Dimensions_description
+            "description": risk_assessment_description
         },
         "continuous_learning_feedback_loops": {
             "aspects": continuous_learning_aspects,
@@ -279,7 +279,7 @@ with gr.Blocks(title="UX4AI Workshop") as app:
                 info=LANG["risk_level_info"],
                 value=2.5
             )
-            risk_Explore Dimensions_description = gr.Textbox(
+            risk_assessment_description = gr.Textbox(
                 label=LANG["risk_description_label"],
                 info=LANG["risk_description_info"],
                 lines=3
@@ -329,7 +329,7 @@ with gr.Blocks(title="UX4AI Workshop") as app:
             conversational, specialization, autonomy, accessibility, explainability, # CHANGED: Renamed
             ai_role_radio,
             risk_level_slider,
-            risk_Explore Dimensions_description,
+            risk_assessment_description,
             continuous_learning_analytics_type_slider,
             continuous_learning_aspects,
             continuous_learning_explanation,
@@ -355,7 +355,7 @@ with gr.Blocks(title="UX4AI Workshop") as app:
             ai_role_radio,
             conversational, specialization, autonomy, accessibility, explainability, # CHANGED: Renamed
             risk_level_slider,
-            risk_Explore Dimensions_description,
+            risk_assessment_description,
             continuous_learning_analytics_type_slider,
             continuous_learning_aspects,
             continuous_learning_explanation,
@@ -381,7 +381,7 @@ with gr.Blocks(title="UX4AI Workshop") as app:
         separator_1_markdown,
         risk_section_title_markdown,
         risk_level_slider,
-        risk_Explore Dimensions_description,
+        risk_assessment_description,
         separator_2_markdown,
         continuous_learning_section_title_markdown,
         continuous_learning_aspects,

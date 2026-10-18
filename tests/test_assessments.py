@@ -1,6 +1,6 @@
 import pytest
 
-from aipm_toolkit.Explore Dimensions_services import (
+from aipm_toolkit.assessment_services import (
     ensure_scale_definitions,
     get_project_estimates,
     save_project_estimates,
@@ -53,7 +53,7 @@ def test_invalid_score_and_stale_revision_are_rejected(db):
         save_project_estimates(db, user, project.id, valid)
 
 
-def test_Explore Dimensionss_can_be_saved_repeatedly_with_returned_revisions(db):
+def test_assessments_can_be_saved_repeatedly_with_returned_revisions(db):
     user = team_user(db)
     project = create_project(db, user, "Explore Dimensions prototype")
     ensure_scale_definitions(db)
@@ -67,7 +67,7 @@ def test_Explore Dimensionss_can_be_saved_repeatedly_with_returned_revisions(db)
     assert updated[0].rationale == "Updated after discussion"
 
 
-def test_Explore Dimensions_scores_and_reasoning_persist_and_reload_cleanly(db, monkeypatch):
+def test_assessment_scores_and_reasoning_persist_and_reload_cleanly(db, monkeypatch):
     user = team_user(db)
     project = create_project(db, user, "Reload Prototype")
     ensure_scale_definitions(db)
@@ -105,5 +105,5 @@ def test_Explore Dimensions_scores_and_reasoning_persist_and_reload_cleanly(db, 
     assert reloaded[8] == 0.2
     assert reloaded[9] == "Custom note 5"
     assert reloaded[10] == revs
-    events = list(db.query(ProjectEvent).filter_by(project_id=project.id, event_type="Explore Dimensions.updated"))
+    events = list(db.query(ProjectEvent).filter_by(project_id=project.id, event_type="assessment.updated"))
     assert len(events) == 5

@@ -1,0 +1,53 @@
+{
+  "product_name": "ChatGPT · standard chat",
+  "product_family": "ChatGPT",
+  "canonical_url": "https://chatgpt.com/",
+  "assessment_date": "2026-10-18",
+  "assessment_basis": "ai_assisted_documentation_review",
+  "live_testing_performed": false,
+  "scope": {
+    "experience": "Ordinary text chat for questions, brainstorming and writing",
+    "task": "Explain a concept, draft a short email, then revise it through follow-up prompts.",
+    "configuration": "Standard web chat; no connected apps or agentic execution. No specific paid model or plan was tested.",
+    "excluded_features": ["Work", "Codex", "Deep research", "Connected apps", "Scheduled tasks", "Code execution"],
+    "audience_perspective": "An individual using the ordinary chat experience"
+  },
+  "scores": {
+    "conversational": 5.0,
+    "specialization": 0.5,
+    "autonomy": 1.0,
+    "accessibility": 4.5,
+    "explainability": 1.5
+  },
+  "dimensions": {
+    "conversational": {
+      "rationale": "Natural-language dialogue supports open-ended requests and contextual follow-ups without a fixed task sequence.",
+      "evidence": ["capabilities"], "confidence": "medium",
+      "uncertainty": "The assessment describes the interaction format, not whether every dialogue succeeds."
+    },
+    "specialization": {
+      "rationale": "The same assistant covers explanations, writing, translation and many unrelated topics; the selected email task does not make it domain-specific.",
+      "evidence": ["capabilities"], "confidence": "medium",
+      "uncertainty": "Custom GPTs and specialized agent experiences would need separate profiles."
+    },
+    "autonomy": {
+      "rationale": "The scoped chat produces answers or drafts in response to user prompts; the user chooses follow-ups and any external use of the result.",
+      "evidence": ["capabilities"], "confidence": "medium",
+      "uncertainty": "This score excludes tools that can execute code, operate apps or continue scheduled work."
+    },
+    "accessibility": {
+      "rationale": "Conversational input and general-purpose tasks suit a broad non-specialist audience through familiar web/mobile experiences.",
+      "evidence": ["capabilities"], "confidence": "low",
+      "uncertainty": "Account, language, regional availability and usage limits vary; no assistive-technology or usability testing was conducted."
+    },
+    "explainability": {
+      "rationale": "Users see their prompts and responses and can ask for clarification, but ordinary ungrounded chat does not consistently expose verifiable evidence for claims.",
+      "evidence": ["capabilities"], "confidence": "low",
+      "uncertainty": "A generated explanation is not proof of faithful model reasoning; cited search responses are outside this scope."
+    }
+  },
+  "provenance_notes": "AI-assisted documentation review, 2026-10-18; no live product tests. Scope: standard ChatGPT text chat without Work, Codex, search agents or external actions. Scores are design estimates. Official source: https://help.openai.com/en/articles/9260256-chatgpt-capabilities-overview .",
+  "sources": [
+    {"id": "capabilities", "title": "ChatGPT capabilities overview", "url": "https://help.openai.com/en/articles/9260256-chatgpt-capabilities-overview", "accessed_on": "2026-10-18"}
+  ]
+}

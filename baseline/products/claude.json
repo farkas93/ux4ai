@@ -1,0 +1,54 @@
+{
+  "product_name": "Claude · document chat",
+  "product_family": "Claude",
+  "canonical_url": "https://claude.ai/",
+  "assessment_date": "2026-10-18",
+  "assessment_basis": "ai_assisted_documentation_review",
+  "live_testing_performed": false,
+  "scope": {
+    "experience": "Conversational discussion of an uploaded document",
+    "task": "Upload a short PDF, request a summary, and ask questions about its arguments.",
+    "configuration": "Individual web chat with a supplied document; no code execution, connected apps or delegated agent tasks. No specific model or plan was tested.",
+    "excluded_features": ["Claude Code", "Cowork", "Research", "Connectors", "Code execution", "Custom skills"],
+    "audience_perspective": "An individual reading or writing with document context"
+  },
+  "scores": {
+    "conversational": 5.0,
+    "specialization": 1.0,
+    "autonomy": 1.5,
+    "accessibility": 4.0,
+    "explainability": 2.0
+  },
+  "dimensions": {
+    "conversational": {
+      "rationale": "Document uploads provide context for free-form prompts and follow-up questions rather than a mandatory form or fixed workflow.",
+      "evidence": ["uploads", "uses"], "confidence": "medium",
+      "uncertainty": "Format and context limits can constrain what can actually be discussed."
+    },
+    "specialization": {
+      "rationale": "The scoped workflow emphasizes documents, but Claude remains a general assistant rather than a dedicated professional-domain product.",
+      "evidence": ["uses", "uploads"], "confidence": "medium",
+      "uncertainty": "A configured project, skill or domain workflow could be much more specialized."
+    },
+    "autonomy": {
+      "rationale": "Claude can synthesize uploaded material into an answer, while users initiate each task and decide how to use or revise the output.",
+      "evidence": ["uploads"], "confidence": "medium",
+      "uncertainty": "File creation, code execution and tool-driven workflows are excluded."
+    },
+    "accessibility": {
+      "rationale": "A familiar chat interface supports students and knowledge workers, but supplying and understanding documents adds a practical skills requirement.",
+      "evidence": ["uploads", "uses"], "confidence": "low",
+      "uncertainty": "Plan quotas, supported formats and regional availability can limit participation; accessibility was not directly tested."
+    },
+    "explainability": {
+      "rationale": "The original document is available for manual verification and users can ask for references, but document context alone does not guarantee quoted or correctly linked evidence for every answer.",
+      "evidence": ["uploads"], "confidence": "low",
+      "uncertainty": "The assessment does not assume all document answers have reliable citations or expose the model's internal reasoning."
+    }
+  },
+  "provenance_notes": "AI-assisted documentation review, 2026-10-18; no live product tests. Scope: Claude document chat, excluding agents, connectors and code execution. Scores are design estimates. Sources: https://support.claude.com/en/articles/8241126-upload-files-to-claude and https://support.claude.com/en/articles/7996845-what-are-some-things-i-can-use-claude-for .",
+  "sources": [
+    {"id": "uploads", "title": "Upload files to Claude", "url": "https://support.claude.com/en/articles/8241126-upload-files-to-claude", "accessed_on": "2026-10-18"},
+    {"id": "uses", "title": "What are some things I can use Claude for?", "url": "https://support.claude.com/en/articles/7996845-what-are-some-things-i-can-use-claude-for", "accessed_on": "2026-10-18"}
+  ]
+}

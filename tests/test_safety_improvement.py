@@ -82,13 +82,13 @@ def test_safety_unknown_is_a_range_but_not_addressed_is_zero(db):
 
 def test_safety_reloads_with_revision_and_history(db):
     user, project = project_for(db, "safety-team")
-    Explore Dimensions = save_safety(db, user, project.id, None, rows(), "Unauthorized data disclosure")
+    assessment = save_safety(db, user, project.id, None, rows(), "Unauthorized data disclosure")
     persisted, saved_rows = get_safety(db, user, project.id)
     assert persisted.critical_risk == "Unauthorized data disclosure"
     assert saved_rows[0]["coverage"] == "clearly_specified"
     with pytest.raises(RevisionConflict):
         save_safety(db, user, project.id, None, rows(), "Stale")
-    updated = save_safety(db, user, project.id, Explore Dimensions.revision, rows("partly_specified"), "New risk")
+    updated = save_safety(db, user, project.id, assessment.revision, rows("partly_specified"), "New risk")
     assert updated.revision == 2
     assert db.scalar(select(ProjectEvent).where(ProjectEvent.event_type == "safety.updated")) is not None
 
@@ -168,8 +168,8 @@ def test_safety_question_develops_in_backlog_and_legacy_hypothesis_survives(db, 
     save_loop(db, user, project.id, None, None, data("Improve prompt failure handling"))
     save_reflection(db, user, project.id, "adversarial_risk", "Legacy concern")
     document = build_project_export(db, user, project.id)
-    assert document["safety_Explore Dimensions"]["critical_risk"] == "Data leakage"
-    assert len(document["safety_Explore Dimensions"]["checkpoints"]) == 6
+    assert document["safety_assessment"]["critical_risk"] == "Data leakage"
+    assert len(document["safety_assessment"]["checkpoints"]) == 6
     assert document["improvement_loops"][0]["name"] == "Improve prompt failure handling"
     assert document["safety_hypothesis_links"][0]["checkpoint_key"] == "harms"
     assert document["notes"][0]["origin_section"] == "safety"
@@ -182,7 +182,7 @@ def test_safety_question_develops_in_backlog_and_legacy_hypothesis_survives(db, 
     assert "Level 5" not in markdown
 
 
-def test_Explore Dimensions_can_add_question_and_backlog_loads_it(db, monkeypatch):
+def test_assessment_can_add_question_and_backlog_loads_it(db, monkeypatch):
     user, project = project_for(db, "Explore Dimensions-add")
     monkeypatch.setattr(cb_mod, "SessionLocal", lambda: db)
     monkeypatch.setattr(cb_mod, "get_authenticated_user", lambda _db, _token: user)
@@ -235,9 +235,9 @@ def test_product_deletion_cleans_up_safety_and_loops(db):
     save_safety(db, user, project.id, None, rows(), "Unknown use")
     save_loop(db, user, project.id, None, None, data("Review incident patterns"))
     delete_project(db, user, project.id, confirm=True)
-    from aipm_toolkit.models import ImprovementLoop, SafetyExplore Dimensions, SafetyCheckpoint
+    from aipm_toolkit.models import ImprovementLoop, SafetyAssessment, SafetyCheckpoint
 
-    assert db.scalar(select(SafetyExplore Dimensions).where(SafetyExplore Dimensions.project_id == project.id)) is None
+    assert db.scalar(select(SafetyAssessment).where(SafetyAssessment.project_id == project.id)) is None
     assert db.scalar(select(SafetyCheckpoint)) is None
     assert db.scalar(select(ImprovementLoop).where(ImprovementLoop.project_id == project.id)) is None
 

@@ -7,7 +7,7 @@ Deletion is always manual and explicit:
 - **Team members** can delete their own product in the Summary & Export tab ("Danger zone"), with an explicit confirmation checkbox. Deletion removes the product and all of its editable content.
 - **Instructors** can delete any product from the instructor area with the same explicit confirmation.
 
-Deletion removes the product setup and associated content, including notes, hypotheses, relationships, Explore Dimensionss, experiments, reflections, and comparison snapshots. It cannot be undone from the application.
+Deletion removes the product setup and associated content, including notes, hypotheses, relationships, assessments, experiments, reflections, and comparison snapshots. It cannot be undone from the application.
 
 Before deleting a product that should be preserved:
 

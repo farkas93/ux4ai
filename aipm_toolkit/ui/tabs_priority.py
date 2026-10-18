@@ -10,7 +10,7 @@ from .callbacks import (
 
 
 def build_priority_tab(token, product_dropdown, status):
-    with gr.Column(visible=False, elem_id="page-Explore Priority") as tab:
+    with gr.Column(visible=False, elem_id="page-prioritization") as tab:
         gr.Markdown("## Explore Priority\nWhich hypothesis is most important to test next?", elem_classes=["toolkit-page-heading"])
         gr.Markdown(
             "Open a hypothesis and discuss risk if it is wrong and the evidence you have. "

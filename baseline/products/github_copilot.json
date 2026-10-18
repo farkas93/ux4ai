@@ -1,0 +1,53 @@
+{
+  "product_name": "GitHub Copilot · VS Code suggestions and chat",
+  "product_family": "GitHub Copilot",
+  "canonical_url": "https://github.com/features/copilot",
+  "assessment_date": "2026-10-18",
+  "assessment_basis": "ai_assisted_documentation_review",
+  "live_testing_performed": false,
+  "scope": {
+    "experience": "Assistive inline completions and code chat inside VS Code",
+    "task": "Request an explanation of a function, accept or reject code suggestions, and manually review and test the resulting change.",
+    "configuration": "VS Code with Copilot suggestions and chat; no agent mode or autonomous command execution. No specific model, license or repository was tested.",
+    "excluded_features": ["Cloud agent", "Agent mode", "CLI execution", "Automatic code review", "Automatic commits or merges"],
+    "audience_perspective": "A developer or learner who understands code and an IDE"
+  },
+  "scores": {
+    "conversational": 3.0,
+    "specialization": 4.5,
+    "autonomy": 2.0,
+    "accessibility": 2.5,
+    "explainability": 2.5
+  },
+  "dimensions": {
+    "conversational": {
+      "rationale": "The assessed experience combines open natural-language code chat with non-conversational inline suggestions inside an editor.",
+      "evidence": ["overview"], "confidence": "medium",
+      "uncertainty": "Using only chat or only completions would change the interaction profile."
+    },
+    "specialization": {
+      "rationale": "Software development is a clear professional task domain with codebase context, code suggestions and developer-specific workflows.",
+      "evidence": ["overview"], "confidence": "medium",
+      "uncertainty": "Broad programming-language support does not imply expert performance in every language or repository."
+    },
+    "autonomy": {
+      "rationale": "The tool prepares code and explanations using context, while users review and apply suggestions and control testing or publication.",
+      "evidence": ["overview"], "confidence": "medium",
+      "uncertainty": "This assistive profile excludes agent modes that can edit multiple files or run commands independently."
+    },
+    "accessibility": {
+      "rationale": "Integration with an existing editor reduces friction for developers, but understanding code and configuring an IDE are significant prerequisites.",
+      "evidence": ["overview"], "confidence": "low",
+      "uncertainty": "License, organization policy, supported clients and programming skills constrain use; this is audience breadth, not an accessibility audit."
+    },
+    "explainability": {
+      "rationale": "Suggestions are concrete code users can inspect, and code chat can provide explanations, but generated rationales and context selection are not fully accountable.",
+      "evidence": ["overview"], "confidence": "low",
+      "uncertainty": "Source inspection and tests remain necessary; code explanations do not certify correctness or faithful model reasoning."
+    }
+  },
+  "provenance_notes": "AI-assisted documentation review, 2026-10-18; no live product tests. Scope: GitHub Copilot assistive VS Code suggestions and chat without agent mode, cloud tasks or autonomous commands. Scores are design estimates. Source: https://docs.github.com/en/copilot/get-started/what-is-github-copilot .",
+  "sources": [
+    {"id": "overview", "title": "About GitHub Copilot", "url": "https://docs.github.com/en/copilot/get-started/what-is-github-copilot", "accessed_on": "2026-10-18"}
+  ]
+}

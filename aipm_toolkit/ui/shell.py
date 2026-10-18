@@ -5,7 +5,7 @@ from gradio.helpers import special_args
 
 from ..i18n import load_catalog
 from . import (
-    tabs_Explore Dimensions,
+    tabs_assessment,
     tabs_backlog,
     tabs_improvement,
     tabs_priority,
@@ -235,12 +235,12 @@ def build_app():
                 with gr.Column(scale=1, min_width=0, elem_id="toolkit-main"):
                     current_section = gr.Markdown("Value Hypothesis", elem_id="toolkit-current-section")
                     setup = tabs_setup.build_setup_tab(token, active_project_id, project_revision, status, project_switch_busy)
-                    Explore Dimensions = tabs_Explore Dimensions.build_Explore Dimensions_tab(token, active_project_id, status)
+                    assessment = tabs_assessment.build_assessment_tab(token, active_project_id, status)
                     backlog = tabs_backlog.build_backlog_tab(token, active_project_id, status)
                     priority = tabs_priority.build_priority_tab(token, active_project_id, status)
                     improvement = tabs_improvement.build_improvement_tab(token, active_project_id, status)
                     summary = tabs_summary.build_summary_tab(token, active_project_id, status)
-            pages = [setup, Explore Dimensions, backlog, priority, improvement, summary]
+            pages = [setup, assessment, backlog, priority, improvement, summary]
 
             def select_section(name):
                 return [gr.update(visible=label == name) for label in section_names]
@@ -255,7 +255,7 @@ def build_app():
             )
 
         instructor_panel = _build_instructor_panel(token, status, product_dropdown)
-        dimension_note_outputs = Explore Dimensions["dimension_note_lists"]
+        dimension_note_outputs = assessment["dimension_note_lists"]
         label_bindings = [
             (language_selector, "language", "Language / Sprache"),
             (product_dropdown, "projects", "Product"),
@@ -266,7 +266,7 @@ def build_app():
             (setup["problem"], "problem", "Current problem or workflow"),
             (setup["hypothesis"], "main_hypothesis", "Main value hypothesis"),
             (setup["figma_url"], "figma_url", "Figma prototype URL (optional)"),
-            (Explore Dimensions["comparator"], "comparator", "Historical comparator"),
+            (assessment["comparator"], "comparator", "Historical comparator"),
             (summary["checklist_display"], "checklist", "Workshop checklist"),
             (summary["pdf_download"], "pdf_export", "PDF export"),
             (summary["json_download"], "json_export", "JSON export"),
@@ -290,8 +290,8 @@ def build_app():
         row_dirty_states = [row["dirty"] for row in backlog["row_components"]]
         dirty_states = [
             setup["brief_dirty"],
-            Explore Dimensions["Explore Dimensions_dirty"],
-            *[draft["dirty"] for draft in Explore Dimensions["note_drafts"]],
+            assessment["assessment_dirty"],
+            *[draft["dirty"] for draft in assessment["note_drafts"]],
             improvement["dirty"],
             improvement["note_draft"]["dirty"],
             *priority["dirty_states"],
@@ -349,58 +349,58 @@ def build_app():
                 )
                 .then(_guard_project_load(lambda: False, 1), project_switch_action, setup["brief_dirty"])
                 .then(
-                    _guard_project_load(load_estimates_from_ui, len(Explore Dimensions["Explore Dimensions_components"]) + 1),
+                    _guard_project_load(load_estimates_from_ui, len(assessment["assessment_components"]) + 1),
                     [project_switch_action, token, active_project_id],
-                    Explore Dimensions["Explore Dimensions_components"] + [Explore Dimensions["Explore Dimensions_revisions"]],
+                    assessment["assessment_components"] + [assessment["assessment_revisions"]],
                 )
-                .then(_guard_project_load(lambda: False, 1), project_switch_action, Explore Dimensions["Explore Dimensions_dirty"])
-                .then(_guard_project_load(lambda: "", 1), project_switch_action, Explore Dimensions["unsaved_note"])
-                .then(_guard_project_load(dict, 1), project_switch_action, Explore Dimensions["frozen_state"])
-                .then(_guard_project_load(_clear_comparator_selection, 1), project_switch_action, Explore Dimensions["comparator"])
+                .then(_guard_project_load(lambda: False, 1), project_switch_action, assessment["assessment_dirty"])
+                .then(_guard_project_load(lambda: "", 1), project_switch_action, assessment["unsaved_note"])
+                .then(_guard_project_load(dict, 1), project_switch_action, assessment["frozen_state"])
+                .then(_guard_project_load(_clear_comparator_selection, 1), project_switch_action, assessment["comparator"])
                 .then(
                     _guard_project_load(lambda: "Select a comparator to see the comparison table.", 1),
                     project_switch_action,
-                    Explore Dimensions["comparison_table"],
+                    assessment["comparison_table"],
                 )
                 .then(
                     _guard_project_load(live_profile_from_ui, 1),
-                    [project_switch_action, Explore Dimensions["frozen_state"], *Explore Dimensions["sliders"]],
-                    Explore Dimensions["live_chart"],
+                    [project_switch_action, assessment["frozen_state"], *assessment["sliders"]],
+                    assessment["live_chart"],
                 )
                 .then(
                     _guard_project_load(dimension_notes_from_ui, 1),
-                    [project_switch_action, token, active_project_id, Explore Dimensions["dimension_note_states"][0]],
+                    [project_switch_action, token, active_project_id, assessment["dimension_note_states"][0]],
                     dimension_note_outputs[0],
                 )
                 .then(
                     _guard_project_load(dimension_notes_from_ui, 1),
-                    [project_switch_action, token, active_project_id, Explore Dimensions["dimension_note_states"][1]],
+                    [project_switch_action, token, active_project_id, assessment["dimension_note_states"][1]],
                     dimension_note_outputs[1],
                 )
                 .then(
                     _guard_project_load(dimension_notes_from_ui, 1),
-                    [project_switch_action, token, active_project_id, Explore Dimensions["dimension_note_states"][2]],
+                    [project_switch_action, token, active_project_id, assessment["dimension_note_states"][2]],
                     dimension_note_outputs[2],
                 )
                 .then(
                     _guard_project_load(dimension_notes_from_ui, 1),
-                    [project_switch_action, token, active_project_id, Explore Dimensions["dimension_note_states"][3]],
+                    [project_switch_action, token, active_project_id, assessment["dimension_note_states"][3]],
                     dimension_note_outputs[3],
                 )
                 .then(
                     _guard_project_load(dimension_notes_from_ui, 1),
-                    [project_switch_action, token, active_project_id, Explore Dimensions["dimension_note_states"][4]],
+                    [project_switch_action, token, active_project_id, assessment["dimension_note_states"][4]],
                     dimension_note_outputs[4],
                 )
                 .then(
-                    _guard_project_load(lambda: [""] * len(Explore Dimensions["note_drafts"]), len(Explore Dimensions["note_drafts"])),
+                    _guard_project_load(lambda: [""] * len(assessment["note_drafts"]), len(assessment["note_drafts"])),
                     project_switch_action,
-                    [draft["text"] for draft in Explore Dimensions["note_drafts"]],
+                    [draft["text"] for draft in assessment["note_drafts"]],
                 )
                 .then(
-                    _guard_project_load(lambda: [False] * len(Explore Dimensions["note_drafts"]), len(Explore Dimensions["note_drafts"])),
+                    _guard_project_load(lambda: [False] * len(assessment["note_drafts"]), len(assessment["note_drafts"])),
                     project_switch_action,
-                    [draft["dirty"] for draft in Explore Dimensions["note_drafts"]],
+                    [draft["dirty"] for draft in assessment["note_drafts"]],
                 )
                 .then(
                     _guard_project_load(load_backlog_table_from_ui, len(backlog["table_flat_outputs"]) + 1),
@@ -474,9 +474,9 @@ def build_app():
             setup["problem"],
             setup["hypothesis"],
             setup["figma_url"],
-            Explore Dimensions["Explore Dimensions_dirty"],
-            Explore Dimensions["Explore Dimensions_revisions"],
-            *Explore Dimensions["Explore Dimensions_components"],
+            assessment["assessment_dirty"],
+            assessment["assessment_revisions"],
+            *assessment["assessment_components"],
             improvement["dirty"],
             improvement["loop_id"],
             *improvement["fields"],
@@ -494,7 +494,7 @@ def build_app():
                 row["hyp_id"],
                 row["hyp_rev"],
             ])
-        for draft in Explore Dimensions["note_drafts"]:
+        for draft in assessment["note_drafts"]:
             save_switch_inputs.extend([draft["dirty"], draft["key"], draft["type"], draft["text"], draft["list"]])
         save_switch_inputs.extend([
             improvement["note_draft"]["dirty"],
@@ -507,8 +507,8 @@ def build_app():
             project_switch_message,
             project_revision,
             setup["brief_dirty"],
-            Explore Dimensions["Explore Dimensions_revisions"],
-            Explore Dimensions["Explore Dimensions_dirty"],
+            assessment["assessment_revisions"],
+            assessment["assessment_dirty"],
             improvement["loop_id"],
             improvement["revision"],
             improvement["dirty"],
@@ -517,7 +517,7 @@ def build_app():
             save_switch_outputs.extend([slot["dirty"], slot["revision"]])
         for row in backlog["row_components"]:
             save_switch_outputs.extend([row["dirty"], row["note_id"], row["hyp_id"], row["hyp_rev"]])
-        for draft in Explore Dimensions["note_drafts"]:
+        for draft in assessment["note_drafts"]:
             save_switch_outputs.extend([draft["dirty"], draft["text"], draft["list"]])
         save_switch_outputs.extend([
             improvement["note_draft"]["dirty"],
@@ -624,7 +624,7 @@ def build_app():
                 [token, active_project_id],
                 backlog["table_flat_outputs"] + [backlog["visible_rows_count"]],
             )
-            for note_state, note_output in zip(Explore Dimensions["dimension_note_states"], dimension_note_outputs):
+            for note_state, note_output in zip(assessment["dimension_note_states"], dimension_note_outputs):
                 event = event.then(dimension_notes_from_ui, [token, active_project_id, note_state], note_output)
             event = event.then(learning_notes_ui, [token, active_project_id, improvement["note_section"]], improvement["notes_list"])
             return (
@@ -660,7 +660,7 @@ def build_app():
             )
             r["cancel_btn"].click(lambda: False, outputs=r["dirty"])
 
-        for event in [*Explore Dimensions["note_events"], improvement["note_event"]]:
+        for event in [*assessment["note_events"], improvement["note_event"]]:
             event.then(load_backlog_table_from_ui, [token, active_project_id], backlog["table_flat_outputs"] + [backlog["visible_rows_count"]])
 
     return app

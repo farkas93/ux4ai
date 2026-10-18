@@ -110,7 +110,7 @@ def setup():
     return s
 
 
-def Explore Dimensions():
+def assessment():
     s = shell("Explore Dimensions", "Explore the intended characteristics of your product.", 1)
     s += card(232, 220, 504, 440, "Conversational interaction", "Guided ↔ Open-ended")
     s += text(252, 316, "Intended characteristic", 13, INK, 600) + text(671, 316, "1.5 / 5", 13, TEAL)
@@ -313,9 +313,9 @@ def login():
     return s
 
 
-PAGES = {"01-login": login, "02-project-setup": setup, "03-Explore Dimensions": Explore Dimensions,
-         "04-ai-safety": safety, "05-Build Self-Improvement": improvement, "06-backlog-creator": backlog,
-         "07-Explore Priority": priority, "08-summary-export": summary,
+PAGES = {"01-login": login, "02-project-setup": setup, "03-assessment": assessment,
+         "04-ai-safety": safety, "05-self-improvement": improvement, "06-backlog-creator": backlog,
+         "07-prioritization": priority, "08-summary-export": summary,
          "09-project-history": history, "10-instructor": instructor}
 
 

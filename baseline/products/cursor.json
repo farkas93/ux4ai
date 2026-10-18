@@ -1,0 +1,54 @@
+{
+  "product_name": "Cursor · coding agent",
+  "product_family": "Cursor",
+  "canonical_url": "https://cursor.com/",
+  "assessment_date": "2026-10-18",
+  "assessment_basis": "ai_assisted_documentation_review",
+  "live_testing_performed": false,
+  "scope": {
+    "experience": "Agent completing a bounded coding task with reviewable edits and tool use",
+    "task": "Request a small repository change and relevant test run, inspect the tool activity and diff, and accept or revert the changes.",
+    "configuration": "Local coding Agent with repository access and terminal tools; human review before committing, merging or deployment. No particular model or run-mode configuration was tested.",
+    "excluded_features": ["Automatic production deployment", "Multi-agent project orchestration", "Background schedules", "Unrestricted cross-system permissions"],
+    "audience_perspective": "A developer supervising an agent in a code repository"
+  },
+  "scores": {
+    "conversational": 4.0,
+    "specialization": 4.5,
+    "autonomy": 3.5,
+    "accessibility": 2.0,
+    "explainability": 3.5
+  },
+  "dimensions": {
+    "conversational": {
+      "rationale": "High-level natural-language requests, clarification and follow-up steering coexist with code review and editor controls.",
+      "evidence": ["agent"], "confidence": "medium",
+      "uncertainty": "Some tasks are executed with little further conversation; the product is focused on task completion."
+    },
+    "specialization": {
+      "rationale": "Repository search, code editing, terminal tools and checkpoints are tailored to software development.",
+      "evidence": ["agent"], "confidence": "medium",
+      "uncertainty": "Web and image tools broaden capability, but the assessed workflow remains coding-specific."
+    },
+    "autonomy": {
+      "rationale": "The agent can choose tools and perform multiple reads, edits and command runs from one goal without step-by-step user direction.",
+      "evidence": ["agent", "terminal"], "confidence": "medium",
+      "uncertainty": "Permissions and run modes determine what runs automatically. Human review and a bounded repository task keep this well below theoretical full agency."
+    },
+    "accessibility": {
+      "rationale": "The editor lowers effort for developers, but effective oversight requires programming, repository and command-line understanding.",
+      "evidence": ["agent", "terminal"], "confidence": "low",
+      "uncertainty": "Subscription access, project setup and platform support add barriers; no usability/accessibility study was conducted."
+    },
+    "explainability": {
+      "rationale": "Tool activity, resulting code and restore checkpoints allow inspection of actions and consequences beyond a narrative answer.",
+      "evidence": ["agent"], "confidence": "medium",
+      "uncertainty": "Action traces and tests do not prove the rationale for every decision or correctness of every change."
+    }
+  },
+  "provenance_notes": "AI-assisted documentation review, 2026-10-18; no live product tests. Scope: bounded Cursor coding Agent with edits and terminal tools, human review before release. Actual autonomy depends on permissions/run mode. Scores are design estimates. Sources: https://cursor.com/docs/agent/overview and https://cursor.com/docs/agent/tools/terminal .",
+  "sources": [
+    {"id": "agent", "title": "Cursor Agent overview", "url": "https://cursor.com/docs/agent/overview", "accessed_on": "2026-10-18"},
+    {"id": "terminal", "title": "Cursor Agent terminal tools", "url": "https://cursor.com/docs/agent/tools/terminal", "accessed_on": "2026-10-18"}
+  ]
+}

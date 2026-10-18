@@ -1,0 +1,54 @@
+{
+  "product_name": "Gemini Notebook (NotebookLM) · source Q&A",
+  "product_family": "Gemini Notebook / NotebookLM",
+  "canonical_url": "https://notebooklm.google/",
+  "assessment_date": "2026-10-18",
+  "assessment_basis": "ai_assisted_documentation_review",
+  "live_testing_performed": false,
+  "scope": {
+    "experience": "Question answering grounded in a user-selected set of notebook sources",
+    "task": "Supply two documents, ask for a comparison, and open citations to inspect the supporting passages.",
+    "configuration": "Standalone source Q&A. NotebookLM was renamed Gemini Notebook in July 2026; no cloud-computer or cross-app operations are assumed.",
+    "excluded_features": ["Cloud-computer code execution", "Audio/video overview generation", "External research automation", "Cross-app notebook synchronization"],
+    "audience_perspective": "A learner or knowledge worker investigating supplied materials"
+  },
+  "scores": {
+    "conversational": 4.0,
+    "specialization": 3.5,
+    "autonomy": 2.0,
+    "accessibility": 3.5,
+    "explainability": 4.5
+  },
+  "dimensions": {
+    "conversational": {
+      "rationale": "Free-form questions and follow-ups are possible, but answers are deliberately scoped by source selection and the notebook's contents.",
+      "evidence": ["questions"], "confidence": "medium",
+      "uncertainty": "Open conversation is bounded by the provided evidence rather than unrestricted knowledge or actions."
+    },
+    "specialization": {
+      "rationale": "Source-grounded research and synthesis are a clear specialized workflow, although notebooks can cover many domains.",
+      "evidence": ["questions", "rename"], "confidence": "medium",
+      "uncertainty": "Specific knowledge depends on the chosen sources; this does not establish expert-domain accuracy."
+    },
+    "autonomy": {
+      "rationale": "The product retrieves relevant material and synthesizes an answer without step-by-step retrieval instructions; the user supplies sources and directs each task.",
+      "evidence": ["questions"], "confidence": "medium",
+      "uncertainty": "New cloud-computer capabilities are excluded to keep the reference applicable to source Q&A."
+    },
+    "accessibility": {
+      "rationale": "A conversational research workflow is approachable for learners and knowledge workers, but collecting and interpreting source material is a meaningful prerequisite.",
+      "evidence": ["questions", "rename"], "confidence": "low",
+      "uncertainty": "Account access, source formats, language and plan limits vary; there was no direct usability or assistive-technology testing."
+    },
+    "explainability": {
+      "rationale": "Direct source quotations and citations that navigate to passages make the output's evidential basis unusually inspectable.",
+      "evidence": ["questions"], "confidence": "medium",
+      "uncertainty": "Short sources may have no individual citation, and citations can still be incomplete; source transparency does not expose reliable internal reasoning."
+    }
+  },
+  "provenance_notes": "AI-assisted documentation review, 2026-10-18; no live product tests. Scope: source-grounded Q&A in Gemini Notebook (formerly NotebookLM), excluding cloud-computer and cross-app workflows. Scores are design estimates. Sources: https://support.google.com/notebooklm/answer/14276569?hl=en and https://blog.google/innovation-and-ai/products/gemini-notebook/notebooklm-gemini-notebook/ .",
+  "sources": [
+    {"id": "questions", "title": "Asking questions in NotebookLM / Gemini Notebook", "url": "https://support.google.com/notebooklm/answer/14276569?hl=en", "accessed_on": "2026-10-18"},
+    {"id": "rename", "title": "NotebookLM is now Gemini Notebook", "url": "https://blog.google/innovation-and-ai/products/gemini-notebook/notebooklm-gemini-notebook/", "accessed_on": "2026-10-18"}
+  ]
+}

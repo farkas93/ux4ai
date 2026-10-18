@@ -1,0 +1,54 @@
+{
+  "product_name": "Google Gemini · standard chat",
+  "product_family": "Google Gemini",
+  "canonical_url": "https://gemini.google.com/",
+  "assessment_date": "2026-10-18",
+  "assessment_basis": "ai_assisted_documentation_review",
+  "live_testing_performed": false,
+  "scope": {
+    "experience": "Ordinary conversational assistance in the Gemini app",
+    "task": "Brainstorm a learning plan and refine a short written draft through follow-up questions.",
+    "configuration": "Standard text chat with Connected Apps disabled; no mobile-device actions or agentic research. No particular subscription or model was tested.",
+    "excluded_features": ["Connected Apps", "Gems", "Deep Research", "Mobile device control", "Scheduled tasks", "Gemini Notebook"],
+    "audience_perspective": "A non-specialist individual using standard chat"
+  },
+  "scores": {
+    "conversational": 5.0,
+    "specialization": 0.5,
+    "autonomy": 1.0,
+    "accessibility": 4.5,
+    "explainability": 1.5
+  },
+  "dimensions": {
+    "conversational": {
+      "rationale": "Users can ask open-ended questions, revise prompts and continue a discussion across many topics.",
+      "evidence": ["use"], "confidence": "medium",
+      "uncertainty": "This describes conversation design, not a measured ability to maintain context indefinitely."
+    },
+    "specialization": {
+      "rationale": "Brainstorming, drafting and explanations are general-purpose functions; a single prompted task does not create a specialized product.",
+      "evidence": ["use"], "confidence": "medium",
+      "uncertainty": "A specific Gem or Workspace integration would merit its own, narrower reference."
+    },
+    "autonomy": {
+      "rationale": "Without Connected Apps or device tools, the scoped chat responds to user prompts and leaves external actions to the user.",
+      "evidence": ["use"], "confidence": "medium",
+      "uncertainty": "Other Gemini modes can act on files or devices and should not inherit this score."
+    },
+    "accessibility": {
+      "rationale": "Everyday language and broadly relevant tasks make the standard app suitable for a wide audience without professional-domain training.",
+      "evidence": ["use", "limits"], "confidence": "low",
+      "uncertainty": "Accounts, age eligibility, regions, devices and usage allowances vary; no usability or assistive-technology audit was performed."
+    },
+    "explainability": {
+      "rationale": "Prompts, answers and revisions are visible, but a normal generative response is not an independently inspectable chain of evidence.",
+      "evidence": ["use"], "confidence": "low",
+      "uncertainty": "Optional source/verification features were not tested; explanations are not treated as faithful internal model reasoning."
+    }
+  },
+  "provenance_notes": "AI-assisted documentation review, 2026-10-18; no live product tests. Scope: ordinary Gemini text chat without Connected Apps, Gems, research agents or device actions. Scores are design estimates. Sources: https://support.google.com/gemini/answer/13275745?hl=en and https://support.google.com/gemini/answer/16275805?hl=en .",
+  "sources": [
+    {"id": "use", "title": "Use Gemini Apps", "url": "https://support.google.com/gemini/answer/13275745?hl=en", "accessed_on": "2026-10-18"},
+    {"id": "limits", "title": "Gemini Apps limits and feature availability", "url": "https://support.google.com/gemini/answer/16275805?hl=en", "accessed_on": "2026-10-18"}
+  ]
+}

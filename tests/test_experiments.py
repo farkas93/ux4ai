@@ -99,5 +99,5 @@ def test_priority_guidance_keeps_unknowns_outside_matrix(db):
     guidance = priority_guidance(db, user, project.id)
     assert "Evidence-versus-impact priority matrix" in guidance
     assert "Known high-impact claim" in guidance
-    assert "Needs Explore Dimensions (not placed on the matrix)" in guidance
+    assert "Needs assessment (not placed on the matrix)" in guidance
     assert "Unknown claim" in guidance

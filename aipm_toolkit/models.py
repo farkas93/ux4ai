@@ -28,13 +28,13 @@ class HypothesisKind(StrEnum):
     SUPPORTING = "supporting"
 
 
-class Explore DimensionsStatus(StrEnum):
+class AssessmentStatus(StrEnum):
     UNASSESSED = "unassessed"
     ESTIMATED = "estimated"
     UNKNOWN = "unknown"
 
 
-class Explore DimensionsBasis(StrEnum):
+class AssessmentBasis(StrEnum):
     INTENDED_DESIGN = "intended_design"
     PROTOTYPE_OBSERVED = "prototype_observed"
     MIXED = "mixed"
@@ -153,7 +153,7 @@ class DimensionEstimate(Base):
     project_id: Mapped[UUID] = mapped_column(ForeignKey("projects.id"), nullable=False)
     dimension_key: Mapped[str] = mapped_column(String(40), nullable=False)
     scale_version: Mapped[int] = mapped_column(Integer, nullable=False)
-    status: Mapped[str] = mapped_column(String(20), nullable=False, default=Explore DimensionsStatus.UNASSESSED.value)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default=AssessmentStatus.UNASSESSED.value)
     score: Mapped[float | None] = mapped_column(nullable=True)
     rationale: Mapped[str] = mapped_column(Text, default="", nullable=False)
     basis: Mapped[str | None] = mapped_column(String(30))
@@ -199,8 +199,8 @@ class BaselineDataset(Base):
     __table_args__ = (UniqueConstraint("product_id", "source_type", "cohort_label", "version", name="uq_baseline_dataset_identity"),)
 
 
-class BaselineExplore Dimensions(Base):
-    __tablename__ = "baseline_Explore Dimensionss"
+class BaselineAssessment(Base):
+    __tablename__ = "baseline_assessments"
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     dataset_id: Mapped[UUID] = mapped_column(ForeignKey("baseline_datasets.id"), nullable=False)
@@ -361,8 +361,8 @@ class ProjectReflection(Base):
     __table_args__ = (UniqueConstraint("project_id", "reflection_type", name="uq_project_reflection_type"),)
 
 
-class SafetyExplore Dimensions(Base):
-    __tablename__ = "safety_Explore Dimensionss"
+class SafetyAssessment(Base):
+    __tablename__ = "safety_assessments"
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     project_id: Mapped[UUID] = mapped_column(ForeignKey("projects.id"), unique=True, nullable=False)
@@ -375,12 +375,12 @@ class SafetyCheckpoint(Base):
     __tablename__ = "safety_checkpoints"
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
-    Explore Dimensions_id: Mapped[UUID] = mapped_column(ForeignKey("safety_Explore Dimensionss.id"), nullable=False)
+    assessment_id: Mapped[UUID] = mapped_column(ForeignKey("safety_assessments.id"), nullable=False)
     checkpoint_key: Mapped[str] = mapped_column(String(30), nullable=False)
     coverage: Mapped[str | None] = mapped_column(String(30))
     maturity: Mapped[str | None] = mapped_column(String(20))
     evidence: Mapped[str] = mapped_column(Text, default="", nullable=False)
-    __table_args__ = (UniqueConstraint("Explore Dimensions_id", "checkpoint_key", name="uq_safety_checkpoint"),)
+    __table_args__ = (UniqueConstraint("assessment_id", "checkpoint_key", name="uq_safety_checkpoint"),)
 
 
 class SafetyHypothesisLink(Base):

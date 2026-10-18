@@ -22,11 +22,11 @@ Drawer/default-space refinement: desktop opens the native sidebar on initial loa
 | --- | --- |
 | `01-login.svg` | Brand, description, student learning path, sign-in |
 | `02-project-setup.svg` | Product idea → user/problem → value hypothesis |
-| `03-Explore Dimensions.svg` | Dimension editor, radar, questions and comparison |
+| `03-assessment.svg` | Dimension editor, radar, questions and comparison |
 | `04-ai-safety.svg` | Six discussion topics and question/assumption capture |
-| `05-Build Self-Improvement.svg` | One loop, five capability prompts, open questions |
+| `05-self-improvement.svg` | One loop, five capability prompts, open questions |
 | `06-backlog-creator.svg` | Source context and question/assumption → hypothesis editing |
-| `07-Explore Priority.svg` | Risk/evidence inputs, ranking, matrix |
+| `07-prioritization.svg` | Risk/evidence inputs, ranking, matrix |
 | `08-summary-export.svg` | Value summary, progress and downloads |
 | `09-project-history.svg` | Readable activity timeline |
 | `10-instructor.svg` | Course overview, sharing, accounts, collapsed administration |
@@ -54,7 +54,7 @@ For implementation, use semantic native controls where possible, keyboard/focus 
 
 ## How to give feedback
 
-Start with `03-Explore Dimensions.svg` and `06-backlog-creator.svg`, because they exercise the shared shell and the most complex editing layout. For each page, tell me:
+Start with `03-assessment.svg` and `06-backlog-creator.svg`, because they exercise the shared shell and the most complex editing layout. For each page, tell me:
 
 1. What should be more or less prominent?
 2. Which controls should remain visible versus collapsed?
