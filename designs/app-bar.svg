@@ -4,7 +4,7 @@
   <title id="title">AI Product Toolkit responsive workspace proposal</title>
   <desc id="description">
     Desktop layout with compact header, left section navigation and
-    two-column assessment. Mobile layout with section selector,
+    two-column Explore Dimensions. Mobile layout with section selector,
     compact profile and stacked dimension editors.
   </desc>
 
@@ -38,19 +38,19 @@
   <!-- Desktop navigation -->
   <rect x="25" y="109" width="174" height="658" fill="#f8fafc"/>
   <text x="43" y="143" class="muted">WORKSPACE</text>
-  <text x="43" y="181" class="small">Project Setup</text>
+  <text x="43" y="181" class="small">Value Hypothesis</text>
   <rect x="34" y="198" width="154" height="36" rx="6" fill="#e0f2ee"/>
-  <text x="43" y="221" class="label">Assessment</text>
+  <text x="43" y="221" class="label">Explore Dimensions</text>
   <text x="43" y="261" class="small">AI Safety</text>
-  <text x="43" y="301" class="small">Self-Improvement</text>
-  <text x="43" y="341" class="small">Backlog Creator</text>
-  <text x="43" y="381" class="small">Prioritization</text>
+  <text x="43" y="301" class="small">Build Self-Improvement</text>
+  <text x="43" y="341" class="small">Explore Backlog</text>
+  <text x="43" y="381" class="small">Explore Priority</text>
   <path d="M43 410H180" class="line"/>
   <text x="43" y="441" class="small">Summary &amp; Export</text>
   <text x="43" y="481" class="small">Project History</text>
 
   <!-- Desktop section -->
-  <text x="223" y="150" font-size="24" class="heading">Assessment</text>
+  <text x="223" y="150" font-size="24" class="heading">Explore Dimensions</text>
   <text x="223" y="175" class="muted">
     Explore your product’s intended characteristics.
   </text>
@@ -98,7 +98,7 @@
   <text x="660" y="599" class="muted">Optional classroom comparison</text>
 
   <rect x="223" y="710" width="150" height="34" rx="6" class="accent"/>
-  <text x="237" y="732" font-size="13" style="fill:white">Save assessment</text>
+  <text x="237" y="732" font-size="13" style="fill:white">Save Explore Dimensions</text>
 
   <!-- Mobile workspace -->
   <text x="976" y="30" class="muted">MOBILE · below 768 px</text>
@@ -111,10 +111,10 @@
   <text x="1006" y="137" class="small">convincer.io</text>
   <text x="1255" y="137" class="small">⌄</text>
   <rect x="994" y="159" width="284" height="34" rx="6" class="field"/>
-  <text x="1006" y="181" class="label">Assessment</text>
+  <text x="1006" y="181" class="label">Explore Dimensions</text>
   <text x="1255" y="181" class="small">⌄</text>
 
-  <text x="994" y="229" font-size="22" class="heading">Assessment</text>
+  <text x="994" y="229" font-size="22" class="heading">Explore Dimensions</text>
   <text x="994" y="253" class="muted">Explore your product’s characteristics.</text>
 
   <rect x="994" y="271" width="284" height="70" rx="8" class="surface"/>
@@ -137,5 +137,5 @@
   <text x="1010" y="676" class="label">Specialization</text>
   <text x="1236" y="676" class="small">⌄</text>
   <rect x="994" y="710" width="284" height="36" rx="6" class="accent"/>
-  <text x="1068" y="734" font-size="13" style="fill:white">Save assessment</text>
+  <text x="1068" y="734" font-size="13" style="fill:white">Save Explore Dimensions</text>
 </svg>

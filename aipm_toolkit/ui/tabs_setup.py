@@ -1,4 +1,4 @@
-"""Project Setup tab."""
+"""Value Hypothesis tab."""
 
 import gradio as gr
 
@@ -23,7 +23,7 @@ def build_setup_tab(token, project_id, project_revision, status, switching):
                 description = gr.Textbox(label="Short description", lines=3, placeholder="What does your product help someone do?")
                 figma_url = gr.Textbox(label="Figma prototype URL (optional)")
         with gr.Column(elem_classes=["toolkit-form-card"]):
-            gr.Markdown("#### 3 · Your main value hypothesis\nDescribe the improvement you expect. You’ll explore supporting hypotheses in Backlog Creator.")
+            gr.Markdown("#### 3 · Your main value hypothesis\nDescribe the improvement you expect. You’ll explore supporting hypotheses in Explore Backlog.")
             hypothesis = gr.Textbox(label="Main value hypothesis", lines=3, placeholder="If we help [user] accomplish [job] through [capability], we expect [outcome] to improve while maintaining [constraint].")
         save_button = gr.Button("Save product setup", variant="primary")
         brief_dirty = gr.State(False)

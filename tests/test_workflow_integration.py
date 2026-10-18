@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from aipm_toolkit.assessment_services import ensure_scale_definitions, save_project_estimates
+from aipm_toolkit.Explore Dimensions_services import ensure_scale_definitions, save_project_estimates
 from aipm_toolkit.auth import hash_password
 from aipm_toolkit.experiment_services import completion_checklist, create_experiment
 from aipm_toolkit.export_services import build_project_export
@@ -40,7 +40,7 @@ def test_representative_team_workflow_survives_reload_and_export(db):
     reloaded = get_project(db, actor, UUID(str(project.id)))
     document = build_project_export(db, actor, reloaded.id)
     assert document["project"]["product_name"] == "Workshop product"
-    assert len(document["dimension_assessments"]) == 5
+    assert len(document["dimension_Explore Dimensionss"]) == 5
     assert document["notes"][0]["text"].startswith("The prototype")
     assert any(item["kind"] == "supporting" for item in document["hypotheses"])
     assert len(document["experiments"]) == 1

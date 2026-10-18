@@ -18,15 +18,15 @@ def test_authenticated_workspace_smoke(page):
     page.get_by_label("Password").fill(password)
     page.get_by_role("button", name="Sign in").click()
     page.wait_for_url("**/app**")
-    for tab in ("Project Setup", "Assessment", "Backlog Creator", "Prioritization", "Self-Improvement", "Summary & Export"):
+    for tab in ("Value Hypothesis", "Explore Dimensions", "Explore Backlog", "Explore Priority", "Build Self-Improvement", "Summary & Export"):
         assert page.locator("#toolkit-desktop-section").get_by_text(tab, exact=True).count() == 1
     assert page.get_by_text("AI Safety", exact=False).count() == 0
     assert page.get_by_role("tab").count() == 0
-    page.locator("#toolkit-desktop-section").get_by_text("Assessment", exact=True).click()
+    page.locator("#toolkit-desktop-section").get_by_text("Explore Dimensions", exact=True).click()
     assert page.get_by_text("Product profile & comparison", exact=True).count() > 0
-    page.locator("#toolkit-desktop-section").get_by_text("Backlog Creator", exact=True).click()
+    page.locator("#toolkit-desktop-section").get_by_text("Explore Backlog", exact=True).click()
     assert page.get_by_role("button", name="+ Add entry").count() > 0
-    page.locator("#toolkit-desktop-section").get_by_text("Prioritization", exact=True).click()
+    page.locator("#toolkit-desktop-section").get_by_text("Explore Priority", exact=True).click()
     assert page.get_by_text("Backlog ranking", exact=True).count() > 0
     page.locator("#toolkit-desktop-section").get_by_text("Summary & Export", exact=True).click()
     assert page.get_by_text("PDF export", exact=False).count() > 0

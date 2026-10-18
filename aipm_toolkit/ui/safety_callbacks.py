@@ -1,4 +1,4 @@
-"""Gradio adapters for safety and individual improvement-loop assessments."""
+"""Gradio adapters for safety and individual improvement-loop Explore Dimensionss."""
 
 import json
 from uuid import UUID
@@ -39,10 +39,10 @@ def load_safety_ui(token, project_id, request: gr.Request | None = None):
     with SessionLocal() as db:
         try:
             actor = get_authenticated_user(db, _resolve_token(token, request))
-            assessment, rows = get_safety(db, actor, UUID(project_id))
+            Explore Dimensions, rows = get_safety(db, actor, UUID(project_id))
             flat = [value for row in rows for value in (row["coverage"], row["maturity"], row["evidence"])]
-            risk = assessment.critical_risk if assessment else ""
-            return (*flat, risk, assessment.revision if assessment else None, safety_card(rows, risk))
+            risk = Explore Dimensions.critical_risk if Explore Dimensions else ""
+            return (*flat, risk, Explore Dimensions.revision if Explore Dimensions else None, safety_card(rows, risk))
         except (AuthenticationError, AuthorizationError, ValueError):
             return (*blank, "", None, safety_card(_rows_from_flat(blank), ""))
 
@@ -54,8 +54,8 @@ def save_safety_ui(token, project_id, revision, *values, request: gr.Request | N
     with SessionLocal() as db:
         try:
             actor = get_authenticated_user(db, _resolve_token(token, request))
-            assessment = save_safety(db, actor, UUID(project_id), revision, rows, risk)
-            return "AI safety assessment saved.", assessment.revision, safety_card(rows, risk)
+            Explore Dimensions = save_safety(db, actor, UUID(project_id), revision, rows, risk)
+            return "AI safety Explore Dimensions saved.", Explore Dimensions.revision, safety_card(rows, risk)
         except (AuthenticationError, AuthorizationError, RevisionConflict, ValueError) as exc:
             return str(exc), revision, safety_card(rows, risk)
 
@@ -83,7 +83,7 @@ def add_learning_note_ui(token, project_id, section, key, note_type, text, reque
             create_note(db, actor, UUID(project_id), (note_type or "").lower(), text, origin_section=section, origin_key=key)
         except (AuthenticationError, AuthorizationError, ValueError) as exc:
             return str(exc), gr.update(), text
-    return "Added. Develop it into a hypothesis in Backlog Creator.", learning_notes_ui(token, project_id, section, key, request=request), ""
+    return "Added. Develop it into a hypothesis in Explore Backlog.", learning_notes_ui(token, project_id, section, key, request=request), ""
 
 
 def load_primary_loop_ui(token, project_id, request: gr.Request | None = None):

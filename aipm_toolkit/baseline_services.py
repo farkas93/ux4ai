@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from .auth import AuthorizationError
 from .dimensions import DIMENSION_KEYS
-from .models import BaselineAssessment, BaselineDataset, ComparisonSnapshot, Product, Role, User
+from .models import BaselineExplore Dimensions, BaselineDataset, ComparisonSnapshot, Product, Role, User
 from .services import get_project
 
 
@@ -83,9 +83,9 @@ def import_legacy_reference_json(db: Session, directory: str | Path, cohort_labe
             score = float(raw_value) if _valid_score(raw_value) else None
             if raw_value is not None and score is None:
                 report["invalid_values"].append({"file": path.name, "dimension": key, "value": str(raw_value)})
-            existing = db.scalar(select(BaselineAssessment).where(BaselineAssessment.dataset_id == dataset.id, BaselineAssessment.source_record_id == source_id, BaselineAssessment.dimension_key == key))
+            existing = db.scalar(select(BaselineExplore Dimensions).where(BaselineExplore Dimensions.dataset_id == dataset.id, BaselineExplore Dimensions.source_record_id == source_id, BaselineExplore Dimensions.dimension_key == key))
             if existing is None:
-                db.add(BaselineAssessment(dataset_id=dataset.id, source_record_id=source_id, dimension_key=key, score=score, original_value=None if raw_value is None else str(raw_value), raw_record=raw_record))
+                db.add(BaselineExplore Dimensions(dataset_id=dataset.id, source_record_id=source_id, dimension_key=key, score=score, original_value=None if raw_value is None else str(raw_value), raw_record=raw_record))
             else:
                 existing.score = score
                 existing.original_value = None if raw_value is None else str(raw_value)
@@ -157,7 +157,7 @@ def aggregate_dataset(db: Session, dataset_id: UUID) -> dict:
         raise AuthorizationError("Baseline dataset is not published")
     output = {}
     for key in DIMENSION_KEYS:
-        values = list(db.scalars(select(BaselineAssessment.score).where(BaselineAssessment.dataset_id == dataset_id, BaselineAssessment.dimension_key == key)))
+        values = list(db.scalars(select(BaselineExplore Dimensions.score).where(BaselineExplore Dimensions.dataset_id == dataset_id, BaselineExplore Dimensions.dimension_key == key)))
         valid = [value for value in values if value is not None and _valid_score(value)]
         output[key] = {"count": len(valid), "mean": sum(valid) / len(valid) if valid else None, "median": median(valid) if valid else None, "minimum": min(valid) if valid else None, "maximum": max(valid) if valid else None, "p25": _percentile(valid, 0.25), "p75": _percentile(valid, 0.75)}
     return output

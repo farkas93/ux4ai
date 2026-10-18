@@ -31,9 +31,9 @@ def test_project_autosave_pauses_during_product_switch(monkeypatch):
     assert dirty is True
 
 
-def test_assessment_save_returns_new_revisions(monkeypatch):
-    monkeypatch.setattr(app_module, "save_estimates_from_ui", lambda *args, **kwargs: ("Dimension assessments saved.", [2, 2, 2, 2, 2]))
-    status, revisions, dirty = app_module.save_assessments_action("token", "project", [1] * 5, *([2.5, ""] * 5))
+def test_Explore Dimensions_save_returns_new_revisions(monkeypatch):
+    monkeypatch.setattr(app_module, "save_estimates_from_ui", lambda *args, **kwargs: ("Dimension Explore Dimensionss saved.", [2, 2, 2, 2, 2]))
+    status, revisions, dirty = app_module.save_Explore Dimensionss_action("token", "project", [1] * 5, *([2.5, ""] * 5))
     assert status.endswith("saved.")
     assert revisions == [2, 2, 2, 2, 2]
     assert dirty is False

@@ -13,15 +13,15 @@ The report should communicate **what students believe, why they believe it, and 
 
 1. **Product learning report** — product, target user, job/problem, full main value hypothesis and report contents.
 2. **Product dimensions** — radar with readable labels and a compact overview of all five scores and their intended meaning.
-3. **Reasoning behind the profile** — full assessment rationale plus current questions and assumptions, grouped under the relevant dimension. Repeat/continue for all five dimensions.
+3. **Reasoning behind the profile** — full Explore Dimensions rationale plus current questions and assumptions, grouped under the relevant dimension. Repeat/continue for all five dimensions.
 4. **AI Safety** — current questions/assumptions under all six checkpoint topics; explicitly state when a topic has no entries. Preserve links to the corresponding hypotheses.
-5. **Self-Improvement** — the single learning-loop description, all five capability answers with their explanations, and the section's questions and assumptions.
+5. **Build Self-Improvement** — the single learning-loop description, all five capability answers with their explanations, and the section's questions and assumptions.
 6. **Hypothesis backlog** — H-identifiers, source questions, source assumptions, complete hypothesis statements and recorded value links. Continue for every active hypothesis.
 7. **Priorities & next test** — matrix above the ranking, consistent H-identifiers, source context, risk/evidence values, arithmetic and ties, followed by the team's recorded next experiment.
 
 **Project history is excluded.** It belongs in the app's history view and archival JSON export, not in the learning report. Archived backlog content is likewise excluded from the current report unless explicitly requested as an appendix later.
 
-Safety coverage, implementation maturity and numeric self-improvement levels remain excluded, matching their deferral in the student interface.
+Safety coverage, implementation maturity and numeric Build Self-Improvement levels remain excluded, matching their deferral in the student interface.
 
 ## Content mapping / implementation requirements
 
@@ -29,7 +29,7 @@ Safety coverage, implementation maturity and numeric self-improvement levels rem
 | --- | --- |
 | Product context and value hypothesis | `Project` and main `Hypothesis` |
 | Five dimension scores and reasoning | `DimensionEstimate.score`, `.status`, `.rationale` |
-| Assessment questions/assumptions | Active `Note` joined to `NoteDimension` |
+| Explore Dimensions questions/assumptions | Active `Note` joined to `NoteDimension` |
 | Safety discussion | Active `Note.origin_section == safety`, grouped by `origin_key` |
 | Learning-loop description and explanations | First-created `ImprovementLoop`, five visible entries in `capabilities_json` |
 | Loop questions/assumptions | Active `Note.origin_section == self_improvement` |
@@ -56,7 +56,7 @@ H-numbers must use the same deterministic order as the UI, not ranking position.
 
 ## Feedback requested
 
-Review `03-reasoning-behind-the-profile.svg`, `04-ai-safety.svg`, and `05-self-improvement.svg` first: these address the missing reasoning. Then review the backlog and priority pages for traceability.
+Review `03-reasoning-behind-the-profile.svg`, `04-ai-safety.svg`, and `05-Build Self-Improvement.svg` first: these address the missing reasoning. Then review the backlog and priority pages for traceability.
 
 - Is this amount of detail right for a student hand-in?
 - Do we keep the product overview as a standalone opening page or condense it?

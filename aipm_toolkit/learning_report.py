@@ -28,11 +28,11 @@ def report_sections(document):
             links = [identifiers[s["hypothesis_id"]] for s in document["hypothesis_sources"] if s["note_id"] == note["id"] and s["hypothesis_id"] in identifiers]
             result.append((note["note_type"].title(), note["text"]))
             if note.get("origin_section") == "self_improvement":
-                source = "Self-Improvement"
+                source = "Build Self-Improvement"
             elif note["dimensions"]:
-                source = "Assessment · " + ", ".join(d["title"] for d in DEFAULT_DIMENSIONS if d["key"] in note["dimensions"])
+                source = "Explore Dimensions · " + ", ".join(d["title"] for d in DEFAULT_DIMENSIONS if d["key"] in note["dimensions"])
             else:
-                source = "Backlog Creator"
+                source = "Explore Backlog"
             result.append(("Source", source))
             result.append(("Linked hypothesis", ", ".join(dict.fromkeys(links)) or "Not yet developed into a hypothesis"))
         return result or [("Questions and assumptions", "No questions or assumptions recorded.")]
@@ -43,7 +43,7 @@ def report_sections(document):
                ("Main value hypothesis", main.get("statement")), ("Prototype", project["figma_url"])]
     sections.append(("Product and value", context))
     profile = [("Interpretation", document["warning"])]
-    estimates = {row["dimension_key"]: row for row in document["dimension_assessments"]}
+    estimates = {row["dimension_key"]: row for row in document["dimension_Explore Dimensionss"]}
     for definition in DEFAULT_DIMENSIONS:
         row = estimates.get(definition["key"], {})
         score = f"{row['score']}/5" if row.get("status") == "estimated" and row.get("score") is not None else row.get("status", "unassessed")
@@ -61,11 +61,11 @@ def report_sections(document):
         row = estimates.get(definition["key"], {})
         blocks = [("Rubric", f"{definition['low_anchor']} (0) — {definition['high_anchor']} (5)"),
                   ("Team's reasoning", row.get("rationale"))]
-        for label, key in (("Assessment basis", "basis"), ("Evidence", "evidence"), ("Uncertainty", "uncertainty")):
+        for label, key in (("Explore Dimensions basis", "basis"), ("Evidence", "evidence"), ("Uncertainty", "uncertainty")):
             if row.get(key):
                 blocks.append((label, row[key]))
         blocks += note_blocks([n for n in notes if definition["key"] in n["dimensions"]])
-        sections.append((f"Assessment · {definition['title']}", blocks))
+        sections.append((f"Explore Dimensions · {definition['title']}", blocks))
     improvement = []
     loop = next(iter(document["improvement_loops"]), None)
     if loop:
@@ -77,7 +77,7 @@ def report_sections(document):
     else:
         improvement.append(("Learning loop", "No improvement loop recorded."))
     improvement += note_blocks([n for n in notes if n["origin_section"] == "self_improvement"])
-    sections.append(("Self-Improvement", improvement))
+    sections.append(("Build Self-Improvement", improvement))
     unassigned = [n for n in notes if not n["dimensions"] and n["origin_section"] not in {"safety", "self_improvement"}]
     if unassigned:
         sections.append(("Other questions and assumptions", note_blocks(unassigned)))

@@ -1,4 +1,4 @@
-"""Structured safety assessment and multiple improvement loops.
+"""Structured safety Explore Dimensions and multiple improvement loops.
 
 Revision ID: 0016_safety_improvement
 Revises: 0015_project_history_and_archive
@@ -16,7 +16,7 @@ depends_on = None
 
 def upgrade():
     op.create_table(
-        "safety_assessments",
+        "safety_Explore Dimensionss",
         sa.Column("id", sa.Uuid(), primary_key=True),
         sa.Column("project_id", sa.Uuid(), sa.ForeignKey("projects.id"), nullable=False, unique=True),
         sa.Column("critical_risk", sa.Text(), nullable=False, server_default=""),
@@ -26,12 +26,12 @@ def upgrade():
     op.create_table(
         "safety_checkpoints",
         sa.Column("id", sa.Uuid(), primary_key=True),
-        sa.Column("assessment_id", sa.Uuid(), sa.ForeignKey("safety_assessments.id"), nullable=False),
+        sa.Column("Explore Dimensions_id", sa.Uuid(), sa.ForeignKey("safety_Explore Dimensionss.id"), nullable=False),
         sa.Column("checkpoint_key", sa.String(30), nullable=False),
         sa.Column("coverage", sa.String(30)),
         sa.Column("maturity", sa.String(20)),
         sa.Column("evidence", sa.Text(), nullable=False, server_default=""),
-        sa.UniqueConstraint("assessment_id", "checkpoint_key", name="uq_safety_checkpoint"),
+        sa.UniqueConstraint("Explore Dimensions_id", "checkpoint_key", name="uq_safety_checkpoint"),
     )
     op.create_table(
         "improvement_loops",
@@ -61,4 +61,4 @@ def downgrade():
     op.drop_table("safety_hypothesis_links")
     op.drop_table("improvement_loops")
     op.drop_table("safety_checkpoints")
-    op.drop_table("safety_assessments")
+    op.drop_table("safety_Explore Dimensionss")

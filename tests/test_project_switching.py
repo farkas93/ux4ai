@@ -41,7 +41,7 @@ def test_workspace_product_loaders_return_data_for_the_requested_project(db, mon
         scale_version=1,
         status="estimated",
         score=4.5,
-        rationale="Beta-only assessment",
+        rationale="Beta-only Explore Dimensions",
     ))
     create_note(db, user, beta.id, "question", "Beta-only backlog question", origin_section="backlog")
     create_hypothesis(db, user, beta.id, "Beta-only supporting hypothesis")
@@ -68,7 +68,7 @@ def test_workspace_product_loaders_return_data_for_the_requested_project(db, mon
     assert cb.load_project_from_ui("token", str(beta.id))[0] == "Beta description"
     estimates = cb.load_estimates_from_ui("token", str(beta.id))
     assert estimates[0] == 4.5
-    assert estimates[1] == "Beta-only assessment"
+    assert estimates[1] == "Beta-only Explore Dimensions"
     backlog = cb.load_backlog_table_from_ui("token", str(beta.id))
     assert "Beta-only backlog question" in backlog[4]
     placement = cb.load_placements_from_ui("token", str(beta.id))
@@ -89,16 +89,16 @@ def test_save_before_switch_persists_all_dirty_edits_to_the_old_project(db, monk
     monkeypatch.setattr(safety_callbacks, "SessionLocal", lambda: db)
     monkeypatch.setattr(safety_callbacks, "get_authenticated_user", lambda _db, _token: user)
 
-    assessment_fields = []
+    Explore Dimensions_fields = []
     for index in range(len(DEFAULT_DIMENSIONS)):
-        assessment_fields.extend([4.0 + index / 10, f"Alpha assessment {index}"])
+        Explore Dimensions_fields.extend([4.0 + index / 10, f"Alpha Explore Dimensions {index}"])
     loop_fields = ["Alpha learning loop"]
     for key in list(QUESTIONS)[:5]:
         loop_fields.extend(["yes", f"Alpha explanation {key}"])
     backlog_rows = [[True, "autonomy", "Alpha assumption", "", "If we explain the control, users can intervene", None, None, None]]
     backlog_rows.extend([[False, None, "", "", "", None, None, None] for _ in range(cb.MAX_BACKLOG_ROWS - 1)])
-    assessment_note_drafts = [[True, DEFAULT_DIMENSIONS[0]["key"], "Question", "Alpha assessment note draft", ""]]
-    assessment_note_drafts.extend([[False, None, "Question", "", ""] for _ in range(len(DEFAULT_DIMENSIONS) - 1)])
+    Explore Dimensions_note_drafts = [[True, DEFAULT_DIMENSIONS[0]["key"], "Question", "Alpha Explore Dimensions note draft", ""]]
+    Explore Dimensions_note_drafts.extend([[False, None, "Question", "", ""] for _ in range(len(DEFAULT_DIMENSIONS) - 1)])
     draft = [
         True,
         alpha.revision,
@@ -111,7 +111,7 @@ def test_save_before_switch_persists_all_dirty_edits_to_the_old_project(db, monk
         "",
         True,
         [],
-        *assessment_fields,
+        *Explore Dimensions_fields,
         True,
         None,
         *loop_fields,
@@ -123,7 +123,7 @@ def test_save_before_switch_persists_all_dirty_edits_to_the_old_project(db, monk
         2.0,
         *[value for _ in range(cb.PLACEMENT_SLOTS - 1) for value in [False, None, None, 0.0, 0.0]],
         *[value for row in backlog_rows for value in row],
-        *[value for note in assessment_note_drafts for value in note],
+        *[value for note in Explore Dimensions_note_drafts for value in note],
         True,
         "Assumption",
         "Alpha improvement note draft",
@@ -148,7 +148,7 @@ def test_save_before_switch_persists_all_dirty_edits_to_the_old_project(db, monk
     assert db.get(type(priority_hypothesis), priority_hypothesis.id).priority_risk == 9.0
     assert db.get(type(priority_hypothesis), priority_hypothesis.id).priority_evidence == 2.0
     assert any(note.project_id == alpha.id and note.text == "Alpha assumption" for note in db.scalars(select(Note)))
-    assert any(note.project_id == alpha.id and note.text == "Alpha assessment note draft" for note in db.scalars(select(Note)))
+    assert any(note.project_id == alpha.id and note.text == "Alpha Explore Dimensions note draft" for note in db.scalars(select(Note)))
     assert any(note.project_id == alpha.id and note.text == "Alpha improvement note draft" for note in db.scalars(select(Note)))
     assert not any(note.project_id == beta.id for note in db.scalars(select(Note)))
     assert safety_callbacks.load_primary_loop_ui("token", str(alpha.id))[1] == "Alpha learning loop"
@@ -171,7 +171,7 @@ def test_failed_save_keeps_switch_blocked_and_preserves_dirty_project_setup(db, 
     assert result[-1] is False
     assert result[2] is True
     assert result[1] == alpha.revision
-    assert "Project Setup:" in result[0]
+    assert "Value Hypothesis:" in result[0]
     assert db.get(type(alpha), alpha.id).figma_url is None
     assert db.get(type(beta), beta.id).short_description == ""
 

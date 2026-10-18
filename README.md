@@ -80,7 +80,7 @@ Instructors can delete any product with explicit confirmation in the instructor 
 
 Set `AIPM_DATABASE_URL` for PostgreSQL. The default SQLite URL is intended only for a quick local smoke test; integration and production use PostgreSQL.
 
-The current implementation includes the Assessment tab and a historical baseline catalog. Import the legacy instructor references with:
+The current implementation includes the Explore Dimensions tab and a historical baseline catalog. Import the legacy instructor references with:
 
 ```bash
 uv run python -m aipm_toolkit.import_baselines solutions --publish
@@ -94,17 +94,17 @@ uv run python -m aipm_toolkit.import_baselines solutions --manifest examples/imp
 
 Manifests define source type, cohort label, aliases, and per-dimension scale versions.
 
-The importer preserves source records for instructor-only access, keeps valid zero scores, reports invalid values, and publishes only aggregate-ready reference data to teams. Teams can select one published comparator and save a purpose/scope snapshot from the Assessment tab. Historical comparators are classroom assessments, not rankings or current product ratings.
+The importer preserves source records for instructor-only access, keeps valid zero scores, reports invalid values, and publishes only aggregate-ready reference data to teams. Teams can select one published comparator and save a purpose/scope snapshot from the Explore Dimensions tab. Historical comparators are classroom Explore Dimensionss, not rankings or current product ratings.
 
 Legacy reference imports preserve per-dimension scale metadata. The historical autonomy scale is marked incompatible with the current autonomy definition, so its numeric difference is suppressed and its baseline radar point is shown as a gap.
 
 Published baseline datasets are immutable. Re-importing a source file after publication skips it and reports that a replacement dataset version is required. Instructors can create an unpublished replacement version with an explicit reason, review it, and publish it separately.
 
-The workspace also includes structured Notes and a Hypothesis Backlog. Backlog entries have one current dimension assignment; moving an entry in Backlog Creator updates the current questions-and-assumptions list in Assessment. Assessment presents the current rubric and assignments. Project activity continues to be recorded by the backend, but a Project History page is not part of the current student workflow. Removing a backlog entry archives it from active views while preserving its history and existing experiment references. Notes can be used as provenance when creating supporting hypotheses. Hypothesis relationships are project-scoped; self-links and dependency cycles are rejected.
+The workspace also includes structured Notes and a Hypothesis Backlog. Backlog entries have one current dimension assignment; moving an entry in Explore Backlog updates the current questions-and-assumptions list in Explore Dimensions. Explore Dimensions presents the current rubric and assignments. Project activity continues to be recorded by the backend, but a Project History page is not part of the current student workflow. Removing a backlog entry archives it from active views while preserving its history and existing experiment references. Notes can be used as provenance when creating supporting hypotheses. Hypothesis relationships are project-scoped; self-links and dependency cycles are rejected.
 
 Saved notes and hypotheses can be reopened from the workspace, edited, and saved with revision checks. Stale edits are rejected instead of silently overwriting newer content.
 
-The Hypothesis Backlog priority guidance now separates scored evidence-versus-impact entries from a `Needs assessment` list. Unknown values are never assigned arbitrary matrix coordinates.
+The Hypothesis Backlog priority guidance now separates scored evidence-versus-impact entries from a `Needs Explore Dimensions` list. Unknown values are never assigned arbitrary matrix coordinates.
 
 Experiments can be planned against one primary hypothesis, updated with procedures, metrics, success criteria, guardrails, results, limitations, and decisions. Completing an experiment never automatically marks its hypothesis as supported. The workshop checklist requires a planned next experiment but remains guidance rather than a product-readiness score.
 
@@ -118,17 +118,17 @@ Instructor accounts now have a course overview with per-project checklist progre
 
 Instructors can also create course/team accounts from the instructor area. Passwords are Argon2-hashed immediately and are never included in project content or exports; the initial password should be shared through a separate secure channel.
 
-Assessment focuses on the five product dimensions, current rubric questions and assumptions, and the radar comparison. You can add questions and assumptions within each dimension and edit or move them in Backlog Creator. Saved backlog rows can be removed, while new rows are shown only after clicking **+ Add Row** (with **Cancel** for unsaved rows).
+Explore Dimensions focuses on the five product dimensions, current rubric questions and assumptions, and the radar comparison. You can add questions and assumptions within each dimension and edit or move them in Explore Backlog. Saved backlog rows can be removed, while new rows are shown only after clicking **+ Add Row** (with **Cancel** for unsaved rows).
 
-The current student workflow is Project Setup → Assessment → Backlog Creator → Prioritization → Self-Improvement → Summary & Export. Safety services and stored data remain available to the backend for existing records and future reconsideration, but the AI Safety page is not built into the team workspace. Existing safety-origin backlog notes remain usable with generic Backlog Creator attribution; safety exercise data are omitted from user-facing exports. Advanced Self-Improvement automation questions, implementation fields and numerical classifications remain hidden pending pedagogical review. Additional improvement loops from earlier versions are retained in user-facing JSON, while only the first-created loop is editable in the UI.
+The current student workflow is Value Hypothesis → Explore Dimensions → Explore Backlog → Explore Priority → Build Self-Improvement → Summary & Export. Safety services and stored data remain available to the backend for existing records and future reconsideration, but the AI Safety page is not built into the team workspace. Existing safety-origin backlog notes remain usable with generic Explore Backlog attribution; safety exercise data are omitted from user-facing exports. Advanced Build Self-Improvement automation questions, implementation fields and numerical classifications remain hidden pending pedagogical review. Additional improvement loops from earlier versions are retained in user-facing JSON, while only the first-created loop is editable in the UI.
 
 The team workspace exposes the six workflow steps through sidebar navigation. The integration suite exercises a representative create, reload, assess, hypothesize, experiment, and export journey.
 
 English and German resource catalogs are validated at startup. The workspace language selector changes section context text while preserving stable internal keys and stored project content; remaining field labels will be migrated to the same catalog in the next localization pass.
 
-Project Setup text and selection changes are tracked as dirty input and flushed through a two-second autosave timer. Failed or conflicting saves keep the dirty state and report the failure; the explicit save action remains available.
+Value Hypothesis text and selection changes are tracked as dirty input and flushed through a two-second autosave timer. Failed or conflicting saves keep the dirty state and report the failure; the explicit save action remains available.
 
-Dimension assessments also round-trip server revisions and use the same dirty-state timer, so repeated saves update the loaded assessment rather than being treated as accidental stale writes.
+Dimension Explore Dimensionss also round-trip server revisions and use the same dirty-state timer, so repeated saves update the loaded Explore Dimensions rather than being treated as accidental stale writes.
 
 
 ## Docker Accounts and Baseline Uploads

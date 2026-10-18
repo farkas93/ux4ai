@@ -1,4 +1,4 @@
-"""Prioritization tab: per-hypothesis risk/evidence sliders with real-time ranking and matrix plot."""
+"""Explore Priority tab: per-hypothesis risk/evidence sliders with real-time ranking and matrix plot."""
 
 import gradio as gr
 
@@ -10,8 +10,8 @@ from .callbacks import (
 
 
 def build_priority_tab(token, product_dropdown, status):
-    with gr.Column(visible=False, elem_id="page-prioritization") as tab:
-        gr.Markdown("## Prioritization\nWhich hypothesis is most important to test next?", elem_classes=["toolkit-page-heading"])
+    with gr.Column(visible=False, elem_id="page-Explore Priority") as tab:
+        gr.Markdown("## Explore Priority\nWhich hypothesis is most important to test next?", elem_classes=["toolkit-page-heading"])
         gr.Markdown(
             "Open a hypothesis and discuss risk if it is wrong and the evidence you have. "
             "The suggested test order updates as you change the sliders."

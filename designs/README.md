@@ -4,7 +4,7 @@ These are **review mockups only**, not app implementation. Each numbered SVG pla
 
 ## Implementation status
 
-The approved shared layout is now implemented: compact workspace branding, desktop sidebar, tablet/mobile section selector, card-based backlog with stacked inputs, reorganized assessment profile, collapsible administration, and history cards. The SVGs remain the reference for further visual review. Decorative sample progress counts, filters, and one-click file preparation in the mockups are not substituted for existing backend state; the actual interface continues to use the existing checklist and export preparation actions. Browser screenshot verification still needs a machine with Playwright Chromium installed.
+The approved shared layout is now implemented: compact workspace branding, desktop sidebar, tablet/mobile section selector, card-based backlog with stacked inputs, reorganized Explore Dimensions profile, collapsible administration, and history cards. The SVGs remain the reference for further visual review. Decorative sample progress counts, filters, and one-click file preparation in the mockups are not substituted for existing backend state; the actual interface continues to use the existing checklist and export preparation actions. Browser screenshot verification still needs a machine with Playwright Chromium installed.
 
 The sidebar now uses explicit radio navigation instead of restyling Gradio's tab navigation: its tab overflow logic produced an unwanted menu in the initial implementation. Label colors, padding, and font sizes are set through Gradio theme tokens as well as scoped CSS. Browser verification currently requires the Chromium system libraries; downloading the Playwright browser alone was insufficient in the development container.
 
@@ -12,7 +12,7 @@ Following visual feedback, section pages are now plain visibility-controlled con
 
 Mobile correction: navigation now uses Gradio's native collapsible `Sidebar`, initially closed. A mobile Menu button opens it; choosing a section closes it on small screens. There is no fixed sidebar consuming the phone's form width. The mobile header uses a compact grid, and text inputs use 16px text to avoid iOS focus zoom. Native drawer behavior and actual device appearance still require browser verification with the host libraries installed.
 
-Mobile header/Setup refinement: language and sign-out now live in the drawer. The header has only brand/menu plus product selection and a short “+ New” action. Project Setup's idea and user/problem cards explicitly stack below 768px; desktop retains two columns.
+Mobile header/Setup refinement: language and sign-out now live in the drawer. The header has only brand/menu plus product selection and a short “+ New” action. Value Hypothesis's idea and user/problem cards explicitly stack below 768px; desktop retains two columns.
 
 Drawer/default-space refinement: desktop opens the native sidebar on initial load; mobile closes it, and crossing the 1023px breakpoint adjusts the drawer accordingly. Its native handle is now a 48px hamburger control, replacing the separate Menu button. Workspace width caps and centered wrapper margins are removed so the app bar sits near the top and the exercise can fill the available content area.
 
@@ -22,11 +22,11 @@ Drawer/default-space refinement: desktop opens the native sidebar on initial loa
 | --- | --- |
 | `01-login.svg` | Brand, description, student learning path, sign-in |
 | `02-project-setup.svg` | Product idea → user/problem → value hypothesis |
-| `03-assessment.svg` | Dimension editor, radar, questions and comparison |
+| `03-Explore Dimensions.svg` | Dimension editor, radar, questions and comparison |
 | `04-ai-safety.svg` | Six discussion topics and question/assumption capture |
-| `05-self-improvement.svg` | One loop, five capability prompts, open questions |
+| `05-Build Self-Improvement.svg` | One loop, five capability prompts, open questions |
 | `06-backlog-creator.svg` | Source context and question/assumption → hypothesis editing |
-| `07-prioritization.svg` | Risk/evidence inputs, ranking, matrix |
+| `07-Explore Priority.svg` | Risk/evidence inputs, ranking, matrix |
 | `08-summary-export.svg` | Value summary, progress and downloads |
 | `09-project-history.svg` | Readable activity timeline |
 | `10-instructor.svg` | Course overview, sharing, accounts, collapsed administration |
@@ -36,11 +36,11 @@ Drawer/default-space refinement: desktop opens the native sidebar on initial loa
 - Login carries the explanation. The signed-in workspace uses a compact brand/product header, without a repeated introductory banner or sign-in message.
 - Desktop: section navigation in a narrow left sidebar; product/account/language controls in a short header.
 - Tablet (768–1023 px): compact header, section selector, flexible one/two-column content depending on available width.
-- Mobile (<768 px): product and section selectors, stacked editors, full-width primary actions. The assessment profile is collapsible and comes before the dimension editor.
+- Mobile (<768 px): product and section selectors, stacked editors, full-width primary actions. The Explore Dimensions profile is collapsible and comes before the dimension editor.
 - Plain labels, a restrained teal accent, softer borders, and consistent form spacing replace badge-like labels and oversized controls.
 - Delete is a secondary product/account action, not a prominent top-level button. Confirmation remains required.
 - Save feedback belongs near the relevant action; global errors should still be visible. Draft indicators must reflect real state, not visual-only success messages.
-- Safety scoring and advanced Self-Improvement features remain absent.
+- Safety scoring and advanced Build Self-Improvement features remain absent.
 
 The first draft uses light mode for legibility and layout review. A matching dark-mode board can follow once the structure is agreed. This is not a decision to remove dark mode.
 
@@ -54,7 +54,7 @@ For implementation, use semantic native controls where possible, keyboard/focus 
 
 ## How to give feedback
 
-Start with `03-assessment.svg` and `06-backlog-creator.svg`, because they exercise the shared shell and the most complex editing layout. For each page, tell me:
+Start with `03-Explore Dimensions.svg` and `06-backlog-creator.svg`, because they exercise the shared shell and the most complex editing layout. For each page, tell me:
 
 1. What should be more or less prominent?
 2. Which controls should remain visible versus collapsed?

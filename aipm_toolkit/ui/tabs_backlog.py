@@ -1,4 +1,4 @@
-"""Backlog creator: transform sourced questions and assumptions into hypotheses."""
+"""Explore Backlog: transform sourced questions and assumptions into hypotheses."""
 
 import gradio as gr
 
@@ -12,8 +12,8 @@ from .callbacks import (
 def build_backlog_tab(token, project_id, status):
     with gr.Column(visible=False, elem_id="page-backlog-creator") as tab:
         gr.Markdown(
-            "## Backlog Creator\n"
-            "Rows are auto-populated from Assessment and Self-Improvement. "
+            "## Explore Backlog\n"
+            "Rows are auto-populated from Explore Dimensions and Build Self-Improvement. "
             "Their source is preserved. A product dimension is optional for open learning questions. "
             "Turn a question or assumption into a testable hypothesis. Save each entry when you finish.",
             elem_classes=["toolkit-page-heading"],
@@ -24,7 +24,7 @@ def build_backlog_tab(token, project_id, status):
         with gr.Column(elem_classes=["backlog-table-container"]):
             for i in range(MAX_BACKLOG_ROWS):
                 with gr.Column(visible=False, elem_classes=["backlog-entry"]) as row_box:
-                    source = gr.Textbox(value="Backlog Creator", label="From", interactive=False, container=False)
+                    source = gr.Textbox(value="Explore Backlog", label="From", interactive=False, container=False)
                     with gr.Row(elem_classes=["backlog-fields"]):
                         assumption_box = gr.Textbox(
                             label="Assumption",

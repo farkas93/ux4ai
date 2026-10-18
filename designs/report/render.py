@@ -59,13 +59,13 @@ def overview():
     s += text(78, 620, "MAIN VALUE HYPOTHESIS", 11, TEAL, 700)
     s += paragraph(78, 657, ["If we help job seekers tailor their CV to a role,", "we expect less application effort and more interview invitations", "while maintaining factual accuracy and user control."], 17, INK, 29)
     s += label(819, "What this report contains")
-    s += paragraph(56, 851, ["02–03  Product dimensions and the reasoning behind them", "04       AI Safety questions and assumptions", "05       Self-Improvement loop and capability explanations", "06–07  Hypothesis backlog, priorities, and next learning step"], 14, MUTED, 28)
+    s += paragraph(56, 851, ["02–03  Product dimensions and the reasoning behind them", "04       AI Safety questions and assumptions", "05       Build Self-Improvement loop and capability explanations", "06–07  Hypothesis backlog, priorities, and next learning step"], 14, MUTED, 28)
     s += text(56, 1017, "Workshop snapshot · 9 October 2026 · Product type: AI-native", 11, MUTED)
     page(1, "Product learning report", "An argument about value and uncertainty — not an activity log.", s)
 
 
 def profile():
-    s = label(188, "02 / Assessment overview")
+    s = label(188, "02 / Explore Dimensions overview")
     s += box(56, 214, 682, 370, "#fafbfc", "#e4eaed")
     s += ('<g transform="translate(230,265)"><polygon points="166,0 312,106 257,278 75,278 20,106" fill="none" stroke="#d6e1e5"/>'
           '<polygon points="166,50 264,121 227,236 105,236 68,121" fill="none" stroke="#d6e1e5"/>'
@@ -90,18 +90,18 @@ def profile():
 
 
 def reasoning():
-    s = label(186, "03 / Assessment reasoning")
+    s = label(186, "03 / Explore Dimensions reasoning")
     s += text(56, 225, "Conversational interaction", 22, INK, 700) + text(651, 225, "1.5 / 5", 17, TEAL, 700)
     s += text(56, 256, "Guided 0 ↔ Open-ended 5", 12, MUTED)
     s += label(301, "Team's reasoning")
     s += paragraph(56, 336, ["The main experience is a guided comparison between a CV and a job", "description. AI does not need to lead an open-ended conversation.", "Short clarifying questions may help users explain relevant experience", "without making the process feel like an interview."], 15, INK, 25)
-    s += note(458, "Question", "Will users understand why a clarification is being asked?", "Assessment · Conversational interaction → H1")
-    s += note(558, "Assumption", "A short guided flow is less effort than an open-ended chat.", "Assessment · Conversational interaction → not yet formulated as a hypothesis")
+    s += note(458, "Question", "Will users understand why a clarification is being asked?", "Explore Dimensions · Conversational interaction → H1")
+    s += note(558, "Assumption", "A short guided flow is less effort than an open-ended chat.", "Explore Dimensions · Conversational interaction → not yet formulated as a hypothesis")
     s += rule(686)
     s += text(56, 729, "Autonomy", 22, INK, 700) + text(651, 729, "2.0 / 5", 17, TEAL, 700)
     s += label(772, "Team's reasoning")
     s += paragraph(56, 807, ["The tool proposes changes but does not submit an application.", "Users should approve every edit and be able to restore the original.", "This keeps consequential decisions with the applicant."], 15, INK, 25)
-    s += note(910, "Question", "Can applicants reliably spot inaccurate suggested changes?", "Assessment · Autonomy → H2")
+    s += note(910, "Question", "Can applicants reliably spot inaccurate suggested changes?", "Explore Dimensions · Autonomy → H2")
     page(3, "Reasoning behind the profile", "Student comments and uncertainties, grouped by rubric.", s)
 
 
@@ -137,15 +137,15 @@ def improvement():
         s += text(56, y, number, 11, TEAL, 700) + text(89, y, title, 14, INK, 600)
         s += text(655, y, answer, 10, TEAL, 700) + paragraph(89, y + 24, comments, 13, MUTED, 20)
         s += rule(y + 76)
-    s += note(914, "Question", "Do summaries reveal the real reason applicants reject edits?", "Self-Improvement → H4")
+    s += note(914, "Question", "Do summaries reveal the real reason applicants reject edits?", "Build Self-Improvement → H4")
     s += text(56, 1030, "No automated-loop level or implementation score is included.", 12, MUTED)
-    page(5, "Self-Improvement", "The loop, capability answers, explanations, and unresolved assumptions.", s)
+    page(5, "Build Self-Improvement", "The loop, capability answers, explanations, and unresolved assumptions.", s)
 
 
 def backlog():
     s = label(187, "06 / From uncertainty to hypothesis")
     s += text(56, 231, "H2 · Accuracy of suggested edits", 23, INK, 700)
-    s += text(56, 260, "Sources: Assessment · Autonomy and AI Safety · Harms", 12, TEAL)
+    s += text(56, 260, "Sources: Explore Dimensions · Autonomy and AI Safety · Harms", 12, TEAL)
     s += label(312, "Question")
     s += paragraph(56, 347, ["Can applicants spot an inaccurate suggestion? Could a proposed", "edit invent experience the applicant does not have?"], 15)
     s += label(429, "Assumption")

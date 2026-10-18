@@ -9,7 +9,7 @@ def build_history_tab(token, product_dropdown):
     with gr.Column(visible=False, elem_id="page-project-history") as tab:
         gr.Markdown("## Project History\nSee how your thinking has changed.", elem_classes=["toolkit-page-heading"])
         gr.Markdown(
-            "Changes to assessments and backlog entries are recorded here. "
+            "Changes to Explore Dimensionss and backlog entries are recorded here. "
             "This is a history of changes made in the workspace, not a record of edits made before history was introduced."
         )
         refresh_button = gr.Button("Refresh history")

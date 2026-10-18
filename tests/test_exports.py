@@ -57,13 +57,13 @@ def test_exports_enforce_project_authorization(db):
 
 def test_learning_report_preserves_comments_provenance_and_excludes_history(db):
     user, project = user_project(db, "learning-report")
-    rationale = "Reasoning repeated for pagination. " * 300 + "FINAL ASSESSMENT COMMENT"
+    rationale = "Reasoning repeated for pagination. " * 300 + "FINAL Explore Dimensions COMMENT"
     db.add(DimensionEstimate(project_id=project.id, dimension_key="autonomy", scale_version=1, status="estimated", score=2.0, rationale=rationale))
     db.commit()
-    assessment = create_note(db, user, project.id, "question", "Can users spot inaccurate suggestions?", ["autonomy"])
+    Explore Dimensions = create_note(db, user, project.id, "question", "Can users spot inaccurate suggestions?", ["autonomy"])
     safety = create_note(db, user, project.id, "assumption", "Users review edits before submitting.", origin_section="safety", origin_key="harms")
     create_note(db, user, project.id, "question", "Do summaries reveal recurring problems?", origin_section="self_improvement")
-    hypothesis = create_hypothesis(db, user, project.id, "Showing original text improves error detection", note_id=assessment.id)
+    hypothesis = create_hypothesis(db, user, project.id, "Showing original text improves error detection", note_id=Explore Dimensions.id)
     set_placement(db, user, hypothesis.id, hypothesis.revision, 9, 2)
     save_loop(db, user, project.id, None, None, {
         "name": "Review rejected edits", "answers": {key: {"answer": "unknown", "explanation": "Capability explanation for " + key} for key in QUESTIONS},
@@ -71,7 +71,7 @@ def test_learning_report_preserves_comments_provenance_and_excludes_history(db):
         "approval_boundary": "", "success_checks": "", "rollback": "",
     })
     report = export_project_markdown(db, user, project.id)
-    for content in (rationale, assessment.text, "Do summaries reveal recurring problems?", "Review rejected edits", "Capability explanation for observe", "H1", "Test first", "Risk and evidence"):
+    for content in (rationale, Explore Dimensions.text, "Do summaries reveal recurring problems?", "Review rejected edits", "Capability explanation for observe", "H1", "Test first", "Risk and evidence"):
         assert content in report
     assert "AI Safety" not in report
     assert safety.text not in report
@@ -80,11 +80,11 @@ def test_learning_report_preserves_comments_provenance_and_excludes_history(db):
     assert "## Project History" not in report
     assert "Created product:" not in report
     payload = build_project_export(db, user, project.id)
-    assert payload["hypothesis_sources"][0]["note_id"] == str(assessment.id)
+    assert payload["hypothesis_sources"][0]["note_id"] == str(Explore Dimensions.id)
     assert payload["project_history"]  # Archival JSON retains history.
     assert any(note["id"] == str(safety.id) for note in payload["notes"])
     user_payload = json.loads(export_project_json(db, user, project.id))
-    assert "safety_assessment" not in user_payload
+    assert "safety_Explore Dimensions" not in user_payload
     assert "safety_hypothesis_links" not in user_payload
     assert all(note["origin_section"] != "safety" for note in user_payload["notes"])
     assert safety.text not in json.dumps(user_payload)

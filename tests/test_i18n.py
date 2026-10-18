@@ -1,7 +1,7 @@
 
 from aipm_toolkit.i18n import SUPPORTED_LANGUAGES, load_catalog
 
-SECTION_KEYS = {"Project Setup", "Assessment", "Backlog Creator", "Prioritization", "Self-Improvement", "Summary & Export"}
+SECTION_KEYS = {"Value Hypothesis", "Explore Dimensions", "Explore Backlog", "Explore Priority", "Build Self-Improvement", "Summary & Export"}
 
 
 def test_supported_catalogs_have_all_sections():
@@ -13,7 +13,7 @@ def test_supported_catalogs_have_all_sections():
 
 def test_unknown_language_falls_back_to_english_without_changing_content():
     assert load_catalog("fr")["language_name"] == "English"
-    assert "Project Setup" in load_catalog("de")["sections"]
+    assert "Value Hypothesis" in load_catalog("de")["sections"]
 
 
 def test_labels_use_product_terminology_consistently():

@@ -30,7 +30,7 @@ def create_note(db: Session, actor: User, project_id: UUID, note_type: str, text
         raise ValueError("A backlog entry can be assigned to only one dimension")
     if not set(dimensions).issubset(DIMENSION_KEYS):
         raise ValueError("Unknown note dimension")
-    if origin_section not in {None, "assessment", "backlog", "safety", "self_improvement"} or (origin_section == "safety" and origin_key not in {"scope", "harms", "controls", "evaluation", "response", "ownership"}) or (origin_section != "safety" and origin_key is not None):
+    if origin_section not in {None, "Explore Dimensions", "backlog", "safety", "self_improvement"} or (origin_section == "safety" and origin_key not in {"scope", "harms", "controls", "evaluation", "response", "ownership"}) or (origin_section != "safety" and origin_key is not None):
         raise ValueError("Unknown learning area")
     note = Note(project_id=project_id, note_type=note_type, text=text.strip(), origin_section=origin_section, origin_key=origin_key)
     db.add(note)

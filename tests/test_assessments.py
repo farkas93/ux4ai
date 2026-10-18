@@ -1,6 +1,6 @@
 import pytest
 
-from aipm_toolkit.assessment_services import (
+from aipm_toolkit.Explore Dimensions_services import (
     ensure_scale_definitions,
     get_project_estimates,
     save_project_estimates,
@@ -12,13 +12,13 @@ from aipm_toolkit.services import create_project
 
 
 def team_user(db):
-    course = Course(name="Assessment course")
+    course = Course(name="Explore Dimensions course")
     db.add(course)
     db.flush()
-    team = Team(course_id=course.id, alias="assessment-team")
+    team = Team(course_id=course.id, alias="Explore Dimensions-team")
     db.add(team)
     db.flush()
-    user = User(username="assessment-team", password_hash=hash_password("P" * 16), role=Role.TEAM.value, team_id=team.id)
+    user = User(username="Explore Dimensions-team", password_hash=hash_password("P" * 16), role=Role.TEAM.value, team_id=team.id)
     db.add(user)
     db.commit()
     return user
@@ -26,7 +26,7 @@ def team_user(db):
 
 def test_unknown_and_zero_are_distinct(db):
     user = team_user(db)
-    project = create_project(db, user, "Assessment prototype")
+    project = create_project(db, user, "Explore Dimensions prototype")
     ensure_scale_definitions(db)
     values = [
         {"dimension_key": key, "status": "unknown", "score": 4.0, "revision": 1}
@@ -42,7 +42,7 @@ def test_unknown_and_zero_are_distinct(db):
 
 def test_invalid_score_and_stale_revision_are_rejected(db):
     user = team_user(db)
-    project = create_project(db, user, "Assessment prototype")
+    project = create_project(db, user, "Explore Dimensions prototype")
     ensure_scale_definitions(db)
     values = [{"dimension_key": key, "status": "estimated", "score": 2.55, "revision": 1} for key in DIMENSION_KEYS]
     with pytest.raises(ValueError):
@@ -53,9 +53,9 @@ def test_invalid_score_and_stale_revision_are_rejected(db):
         save_project_estimates(db, user, project.id, valid)
 
 
-def test_assessments_can_be_saved_repeatedly_with_returned_revisions(db):
+def test_Explore Dimensionss_can_be_saved_repeatedly_with_returned_revisions(db):
     user = team_user(db)
-    project = create_project(db, user, "Assessment prototype")
+    project = create_project(db, user, "Explore Dimensions prototype")
     ensure_scale_definitions(db)
     first = [{"dimension_key": key, "status": "unknown", "score": None, "revision": 1} for key in DIMENSION_KEYS]
     saved = save_project_estimates(db, user, project.id, first)
@@ -67,7 +67,7 @@ def test_assessments_can_be_saved_repeatedly_with_returned_revisions(db):
     assert updated[0].rationale == "Updated after discussion"
 
 
-def test_assessment_scores_and_reasoning_persist_and_reload_cleanly(db, monkeypatch):
+def test_Explore Dimensions_scores_and_reasoning_persist_and_reload_cleanly(db, monkeypatch):
     user = team_user(db)
     project = create_project(db, user, "Reload Prototype")
     ensure_scale_definitions(db)
@@ -105,5 +105,5 @@ def test_assessment_scores_and_reasoning_persist_and_reload_cleanly(db, monkeypa
     assert reloaded[8] == 0.2
     assert reloaded[9] == "Custom note 5"
     assert reloaded[10] == revs
-    events = list(db.query(ProjectEvent).filter_by(project_id=project.id, event_type="assessment.updated"))
+    events = list(db.query(ProjectEvent).filter_by(project_id=project.id, event_type="Explore Dimensions.updated"))
     assert len(events) == 5

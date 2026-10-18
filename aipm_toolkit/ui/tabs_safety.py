@@ -11,7 +11,7 @@ def build_safety_tab(token, product_dropdown, status):
         gr.Markdown("## AI Safety", elem_classes=["toolkit-page-heading"])
         gr.Markdown(
             "Discuss where the idea might cause harm or need safeguards. Add questions and assumptions here, "
-            "then turn them into hypotheses in **Backlog Creator**."
+            "then turn them into hypotheses in **Explore Backlog**."
         )
         note_events = []
         note_lists = []

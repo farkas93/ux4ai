@@ -6,8 +6,8 @@ from sqlalchemy.orm import Session
 from .auth import RevisionConflict
 from .dimensions import DEFAULT_DIMENSIONS, DIMENSION_KEYS
 from .models import (
-    AssessmentBasis,
-    AssessmentStatus,
+    Explore DimensionsBasis,
+    Explore DimensionsStatus,
     DimensionEstimate,
     ScaleDefinition,
     User,
@@ -39,18 +39,18 @@ def save_project_estimates(db: Session, actor: User, project_id: UUID, values: l
     current = {item.dimension_key: item for item in db.scalars(select(DimensionEstimate).where(DimensionEstimate.project_id == project_id))}
     for value in values:
         key = value["dimension_key"]
-        status = value.get("status", AssessmentStatus.UNASSESSED.value)
+        status = value.get("status", Explore DimensionsStatus.UNASSESSED.value)
         score = value.get("score")
-        if status == AssessmentStatus.ESTIMATED.value:
+        if status == Explore DimensionsStatus.ESTIMATED.value:
             if score is None or not 0 <= score <= 5 or round(score * 10) != score * 10:
                 raise ValueError(f"{key} estimated scores must be from 0 to 5 in 0.1 steps")
-        elif status in {AssessmentStatus.UNKNOWN.value, AssessmentStatus.UNASSESSED.value}:
+        elif status in {Explore DimensionsStatus.UNKNOWN.value, Explore DimensionsStatus.UNASSESSED.value}:
             score = None
         else:
-            raise ValueError(f"Unknown assessment status for {key}")
+            raise ValueError(f"Unknown Explore Dimensions status for {key}")
         basis = value.get("basis")
-        if basis is not None and basis not in {item.value for item in AssessmentBasis}:
-            raise ValueError(f"Unknown assessment basis for {key}")
+        if basis is not None and basis not in {item.value for item in Explore DimensionsBasis}:
+            raise ValueError(f"Unknown Explore Dimensions basis for {key}")
         estimate = current.get(key)
         before = None if estimate is None else {
             "status": estimate.status,
@@ -84,10 +84,10 @@ def save_project_estimates(db: Session, actor: User, project_id: UUID, values: l
                 db,
                 actor,
                 project_id,
-                "assessment.updated",
-                "dimension_assessment",
+                "Explore Dimensions.updated",
+                "dimension_Explore Dimensions",
                 estimate.id,
-                f"Updated {key.replace('_', ' ')} assessment",
+                f"Updated {key.replace('_', ' ')} Explore Dimensions",
                 {"dimension": key, "before": before, "after": after},
             )
         estimate.revision += 1

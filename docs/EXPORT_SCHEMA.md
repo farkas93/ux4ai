@@ -9,14 +9,14 @@ source-linked supporting hypotheses, priorities, and recorded experiments.
 PDF uses A4 pages, consistent typography, tinted note/hypothesis blocks, headers,
 page numbers and continuation pages for long comments. Project history and
 archived notes/hypotheses are excluded from these current-work reports; archival
-JSON retains them. Deferred numeric Safety and self-improvement ratings are not
+JSON retains them. Deferred numeric Safety and Build Self-Improvement ratings are not
 presented in the reports.
 
 The shaded matrix area and the separate **Test first** label indicate where the
 team should focus discussion. The label deliberately avoids repeating numeric
 axis bounds. H-identifiers follow active hypothesis creation order (with UUID
 as a deterministic tie breaker), not rank. The report includes all active
-hypotheses, even beyond the UI's current ten-slot prioritization limit.
+hypotheses, even beyond the UI's current ten-slot Explore Priority limit.
 
 Test-order guidance is quadrant-first: high-risk entries with limited evidence
 are discussed first. Within each group, uncertainty amplifies risk, so low
@@ -30,7 +30,7 @@ Top-level fields:
 - `warning`
 - `project`
 - `scale_definitions`
-- `dimension_assessments`
+- `dimension_Explore Dimensionss`
 - `comparison_snapshots`
 - `notes`
 - `hypotheses`
@@ -38,7 +38,7 @@ Top-level fields:
 - `hypothesis_sources` (links to source notes/comparator snapshots)
 - `experiments`
 - `reflections`
-- `safety_assessment`
+- `safety_Explore Dimensions`
 - `safety_hypothesis_links`
 - `improvement_loops`
 - `project_history` (archival JSON only)

@@ -13,7 +13,7 @@ import gradio as gr
 import plotly.graph_objects as go
 from sqlalchemy import delete, select
 
-from ..assessment_services import (
+from ..Explore Dimensions_services import (
     ensure_scale_definitions,
     get_project_estimates,
     save_project_estimates,
@@ -235,7 +235,7 @@ def save_project_from_ui(token: str, project_id: str | None, revision: int | Non
             before["main_hypothesis"] = old_hypothesis
             changed = {key: {"before": before[key], "after": after[key]} for key in before if before[key] != after[key]}
             if changed:
-                record_project_event(db, user, project.id, "project_setup.updated", "project", project.id, "Updated project setup", changed)
+                record_project_event(db, user, project.id, "project_setup.updated", "project", project.id, "Updated Value Hypothesis", changed)
                 db.commit()
         except (AuthenticationError, RevisionConflict, ValueError) as exc:
             return str(exc), revision
@@ -296,7 +296,7 @@ def save_estimates_from_ui(
 ):
     token = _resolve_token(token, request)
     if not project_id:
-        return "Select a product before saving dimension assessments.", revisions or []
+        return "Select a product before saving dimension Explore Dimensionss.", revisions or []
     revisions = revisions or [None] * len(DEFAULT_DIMENSIONS)
     scores = [s0, s1, s2, s3, s4]
     notes = [r0, r1, r2, r3, r4]
@@ -321,10 +321,10 @@ def save_estimates_from_ui(
             saved = get_project_estimates(db, user, UUID(project_id))
         except (AuthenticationError, RevisionConflict, ValueError) as exc:
             return str(exc), revisions
-    return "Dimension assessments saved.", [estimate.revision for estimate in saved]
+    return "Dimension Explore Dimensionss saved.", [estimate.revision for estimate in saved]
 
 
-def save_assessments_action(
+def save_Explore Dimensionss_action(
     token: str,
     project_id: str | None,
     revisions: list[int] | None,
@@ -345,7 +345,7 @@ def save_assessments_action(
     return status, new_revisions, not status.endswith("saved.")
 
 
-def autosave_assessments_from_ui(
+def autosave_Explore Dimensionss_from_ui(
     token: str,
     project_id: str | None,
     revisions: list[int] | None,
@@ -367,7 +367,7 @@ def autosave_assessments_from_ui(
         return gr.update(), revisions or [], dirty
     status, new_revisions = save_estimates_from_ui(token, project_id, revisions, s0, r0, s1, r1, s2, r2, s3, r3, s4, r4, request=request)
     if status.endswith("saved."):
-        return "Dimension assessments saved automatically.", new_revisions, False
+        return "Dimension Explore Dimensionss saved automatically.", new_revisions, False
     return f"Save failed: {status}", new_revisions, True
 
 
@@ -526,7 +526,7 @@ def project_history_from_ui(token: str | None, project_id: str | None, request: 
         except json.JSONDecodeError:
             details = {}
         changed = []
-        if event.event_type == "assessment.updated":
+        if event.event_type == "Explore Dimensions.updated":
             before, after = details.get("before") or {}, details.get("after") or {}
             changed = [key.replace("_", " ") for key in after if before.get(key) != after.get(key)]
         elif event.event_type == "backlog.entry_saved":
@@ -556,7 +556,7 @@ def add_dimension_note_from_ui(token: str | None, project_id: str | None, dimens
     with SessionLocal() as db:
         try:
             user = get_authenticated_user(db, token)
-            create_note(db, user, UUID(project_id), note_type.lower(), text.strip(), [dimension_key], origin_section="assessment")
+            create_note(db, user, UUID(project_id), note_type.lower(), text.strip(), [dimension_key], origin_section="Explore Dimensions")
         except (AuthenticationError, ValueError) as exc:
             return str(exc), "", ""
     return "Added to this dimension.", dimension_notes_from_ui(token, project_id, dimension_key), ""
@@ -797,8 +797,8 @@ def save_backlog_row_from_ui(
                     saved_hyp_rev = new_hyp.revision
 
             area_label = clean_dim.replace("_", " ") if clean_dim else (
-                "Self-Improvement" if primary_note and primary_note.origin_section == "self_improvement" else
-                "Backlog Creator"
+                "Build Self-Improvement" if primary_note and primary_note.origin_section == "self_improvement" else
+                "Explore Backlog"
             )
             if before["dimension"] and before["dimension"] != clean_dim:
                 event_summary = f"Moved backlog entry from {before['dimension'].replace('_', ' ')} to {area_label}"
@@ -842,25 +842,25 @@ def save_pending_project_edits(token: str | None, project_id: str | None, reques
     setup_dirty = bool(next(values))
     project_revision = next(values)
     setup_fields = [next(values) for _ in range(7)]
-    assessment_dirty = bool(next(values))
-    assessment_revisions = next(values)
-    assessment_fields = [next(values) for _ in range(len(DEFAULT_DIMENSIONS) * 2)]
+    Explore Dimensions_dirty = bool(next(values))
+    Explore Dimensions_revisions = next(values)
+    Explore Dimensions_fields = [next(values) for _ in range(len(DEFAULT_DIMENSIONS) * 2)]
     improvement_dirty = bool(next(values))
     loop_id = next(values)
     improvement_fields = [next(values) for _ in range(12)]
     priority_slots = [[next(values) for _ in range(5)] for _ in range(PLACEMENT_SLOTS)]
     backlog_rows = [[next(values) for _ in range(8)] for _ in range(MAX_BACKLOG_ROWS)]
-    assessment_note_drafts = [[next(values) for _ in range(5)] for _ in DEFAULT_DIMENSIONS]
+    Explore Dimensions_note_drafts = [[next(values) for _ in range(5)] for _ in DEFAULT_DIMENSIONS]
     improvement_note_draft = [next(values) for _ in range(4)]
 
     errors = []
     if not project_id and (
         setup_dirty
-        or assessment_dirty
+        or Explore Dimensions_dirty
         or improvement_dirty
         or any(bool(slot[0]) for slot in priority_slots)
         or any(bool(row[0]) for row in backlog_rows)
-        or any(bool(note[0]) for note in assessment_note_drafts)
+        or any(bool(note[0]) for note in Explore Dimensions_note_drafts)
         or bool(improvement_note_draft[0])
     ):
         errors.append("No active product is selected.")
@@ -870,14 +870,14 @@ def save_pending_project_edits(token: str | None, project_id: str | None, reques
         if status == "Product setup saved.":
             setup_dirty = False
         else:
-            errors.append(f"Project Setup: {status}")
+            errors.append(f"Value Hypothesis: {status}")
 
-    if assessment_dirty and project_id:
-        status, assessment_revisions = save_estimates_from_ui(token, project_id, assessment_revisions, *assessment_fields)
-        if status == "Dimension assessments saved.":
-            assessment_dirty = False
+    if Explore Dimensions_dirty and project_id:
+        status, Explore Dimensions_revisions = save_estimates_from_ui(token, project_id, Explore Dimensions_revisions, *Explore Dimensions_fields)
+        if status == "Dimension Explore Dimensionss saved.":
+            Explore Dimensions_dirty = False
         else:
-            errors.append(f"Assessment: {status}")
+            errors.append(f"Explore Dimensions: {status}")
 
     if improvement_dirty and project_id:
         from .safety_callbacks import save_primary_loop_ui
@@ -889,7 +889,7 @@ def save_pending_project_edits(token: str | None, project_id: str | None, reques
             improvement_dirty = False
             improvement_fields[-1] = loop_revision
         else:
-            errors.append(f"Self-Improvement: {status}")
+            errors.append(f"Build Self-Improvement: {status}")
 
     priority_states = []
     for index, slot in enumerate(priority_slots, start=1):
@@ -897,7 +897,7 @@ def save_pending_project_edits(token: str | None, project_id: str | None, reques
         if dirty and project_id:
             status, revision, dirty = save_placement_from_ui(token, hypothesis_id, revision, risk, evidence)
             if dirty:
-                errors.append(f"Prioritization hypothesis {index}: {status}")
+                errors.append(f"Explore Priority hypothesis {index}: {status}")
         priority_states.append((dirty, revision))
 
     row_states = []
@@ -925,8 +925,8 @@ def save_pending_project_edits(token: str | None, project_id: str | None, reques
 
     from .safety_callbacks import add_learning_note_ui
 
-    assessment_note_states = []
-    for index, (dirty, dimension_key, note_type, text, _notes_list) in enumerate(assessment_note_drafts, start=1):
+    Explore Dimensions_note_states = []
+    for index, (dirty, dimension_key, note_type, text, _notes_list) in enumerate(Explore Dimensions_note_drafts, start=1):
         notes_list_update = gr.update()
         if dirty and project_id and (text or "").strip():
             status, notes_list_update, cleared_text = add_dimension_note_from_ui(token, project_id, dimension_key, note_type, text)
@@ -934,12 +934,12 @@ def save_pending_project_edits(token: str | None, project_id: str | None, reques
                 dirty = False
                 text = cleared_text
             else:
-                errors.append(f"Assessment question {index}: {status}")
+                errors.append(f"Explore Dimensions question {index}: {status}")
                 text = text if cleared_text is None else cleared_text
         elif dirty and not (text or "").strip():
             dirty = False
             text = ""
-        assessment_note_states.append((dirty, text, notes_list_update))
+        Explore Dimensions_note_states.append((dirty, text, notes_list_update))
 
     note_dirty, note_type, note_text, _notes_list = improvement_note_draft
     improvement_note_list_update = gr.update()
@@ -951,7 +951,7 @@ def save_pending_project_edits(token: str | None, project_id: str | None, reques
             note_dirty = False
             note_text = cleared_text
         else:
-            errors.append(f"Self-Improvement question: {status}")
+            errors.append(f"Build Self-Improvement question: {status}")
             note_text = note_text if cleared_text is None else cleared_text
     elif note_dirty and not (note_text or "").strip():
         note_dirty = False
@@ -962,14 +962,14 @@ def save_pending_project_edits(token: str | None, project_id: str | None, reques
         status_message,
         project_revision,
         setup_dirty,
-        assessment_revisions,
-        assessment_dirty,
+        Explore Dimensions_revisions,
+        Explore Dimensions_dirty,
         loop_id,
         improvement_fields[-1],
         improvement_dirty,
         *[value for priority_state in priority_states for value in priority_state],
         *[value for row_state in row_states for value in row_state],
-        *[value for note_state in assessment_note_states for value in note_state],
+        *[value for note_state in Explore Dimensions_note_states for value in note_state],
         note_dirty,
         note_text,
         improvement_note_list_update,
@@ -1009,7 +1009,7 @@ def load_backlog_table_from_ui(
     token = _resolve_token(token, request)
     empty_slot = (
         gr.update(visible=False),
-        "Backlog Creator",
+        "Explore Backlog",
         gr.update(value=None),
         "",
         "",
@@ -1063,11 +1063,11 @@ def load_backlog_table_from_ui(
             for note in notes:
                 dim = note_dims.get(note.id)
                 if note.origin_section == "safety":
-                    source = "Backlog Creator"
+                    source = "Explore Backlog"
                 elif note.origin_section == "self_improvement":
-                    source = "Self-Improvement"
+                    source = "Build Self-Improvement"
                 else:
-                    source = "Assessment" if note.origin_section == "assessment" else "Backlog Creator" if note.origin_section == "backlog" else "Earlier entry"
+                    source = "Explore Dimensions" if note.origin_section == "Explore Dimensions" else "Explore Backlog" if note.origin_section == "backlog" else "Earlier entry"
                 a_text = note.text if note.note_type == "assumption" else ""
                 q_text = note.text if note.note_type == "question" else ""
 
@@ -1099,7 +1099,7 @@ def load_backlog_table_from_ui(
                 if hyp.id not in used_hyp_ids:
                     dim = hyp_dims.get(hyp.id)
                     rows.append({
-                        "source": "Backlog Creator",
+                        "source": "Explore Backlog",
                         "dim": dim,
                         "assumption": "",
                         "question": "",
@@ -1588,7 +1588,7 @@ def save_risk_reflection_from_ui(token: str | None, project_id: str | None, scor
             save_reflection(db, user, UUID(project_id), "adversarial_risk", uncertainty, subjective_score=score, attack_entry_point=entry, unwanted_behavior=behavior, affected_data_action=affected, consequence=consequence, proposed_safeguard=safeguard)
         except (AuthenticationError, ValueError) as exc:
             return str(exc)
-    return "Adversarial-risk reflection saved. The score is a subjective discussion input, not a calibrated security assessment."
+    return "Adversarial-risk reflection saved. The score is a subjective discussion input, not a calibrated security Explore Dimensions."
 
 
 def save_feedback_reflection_from_ui(token: str | None, project_id: str | None, signal: str, meaning: str, change: str, human: str, evaluation: str, request: gr.Request | None = None):
@@ -1656,4 +1656,4 @@ def delete_product_from_ui(token: str | None, project_id: str | None, confirm: b
 
 def section_context(section: str, language: str = "en") -> str:
     descriptions = load_catalog(language)["sections"]
-    return descriptions.get(section, descriptions["Project Setup"])
+    return descriptions.get(section, descriptions["Value Hypothesis"])

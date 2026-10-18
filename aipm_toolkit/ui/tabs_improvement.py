@@ -7,11 +7,11 @@ from .safety_callbacks import add_learning_note_ui, save_primary_loop_ui
 
 
 def build_improvement_tab(token, project_id, status):
-    with gr.Column(visible=False, elem_id="page-self-improvement") as tab:
+    with gr.Column(visible=False, elem_id="page-Build Self-Improvement") as tab:
         gr.Markdown(
-            "## Recursive Self-Improvement\n"
+            "## Recursive Build Self-Improvement\n"
             "Imagine one way your product might learn from its use. Write questions and assumptions first, "
-            "then develop hypotheses in **Backlog Creator**."
+            "then develop hypotheses in **Explore Backlog**."
         )
         loop_id = gr.State(None)
         revision = gr.State(None)

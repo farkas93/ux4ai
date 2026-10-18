@@ -1,4 +1,4 @@
-"""Assessment tab: dimensions, current notes, historical comparator and radar."""
+"""Explore Dimensions tab: dimensions, current notes, historical comparator and radar."""
 
 import gradio as gr
 
@@ -7,24 +7,24 @@ from .callbacks import (
     add_dimension_note_from_ui,
     live_profile_from_ui,
     on_comparator_selected,
-    save_assessments_action,
+    save_Explore Dimensionss_action,
 )
 
 
-def build_assessment_tab(token, project_id, status):
-    with gr.Column(visible=False, elem_id="page-assessment") as tab:
+def build_Explore Dimensions_tab(token, project_id, status):
+    with gr.Column(visible=False, elem_id="page-Explore Dimensions") as tab:
         frozen_state = gr.State({})
         unsaved_note = gr.Markdown()
 
-        gr.Markdown("## Assessment\nExplore the intended characteristics of your product.", elem_classes=["toolkit-page-heading"])
-        with gr.Row(elem_id="toolkit-assessment-row", elem_classes=["toolkit-two-column"]):
+        gr.Markdown("## Explore Dimensions\nExplore the intended characteristics of your product.", elem_classes=["toolkit-page-heading"])
+        with gr.Row(elem_id="toolkit-Explore Dimensions-row", elem_classes=["toolkit-two-column"]):
             # LEFT COLUMN: 5 Dimensions with Sliders, Notes, and Inline Questions/Assumptions
             with gr.Column(scale=3):
-                gr.Markdown("Add questions and assumptions here; develop them in **Backlog Creator**.")
+                gr.Markdown("Add questions and assumptions here; develop them in **Explore Backlog**.")
 
                 sliders = []
                 reasoning_fields = []
-                assessment_components = []
+                Explore Dimensions_components = []
                 dimension_note_states = []
                 dimension_note_lists = []
                 note_events = []
@@ -50,7 +50,7 @@ def build_assessment_tab(token, project_id, status):
                         )
                         sliders.append(slider)
                         reasoning_fields.append(reasoning)
-                        assessment_components.extend([slider, reasoning])
+                        Explore Dimensions_components.extend([slider, reasoning])
 
                         dim_key_state = gr.State(definition["key"])
                         dimension_note_states.append(dim_key_state)
@@ -81,9 +81,9 @@ def build_assessment_tab(token, project_id, status):
                         note_events.append(note_event)
                         note_drafts.append({"dirty": draft_dirty, "key": dim_key_state, "type": note_type, "text": note_text, "list": notes_list})
 
-                assessment_revisions = gr.State([])
-                assessment_dirty = gr.State(False)
-                save_assessments_button = gr.Button("Save dimension assessments", variant="primary")
+                Explore Dimensions_revisions = gr.State([])
+                Explore Dimensions_dirty = gr.State(False)
+                save_Explore Dimensionss_button = gr.Button("Save dimension Explore Dimensionss", variant="primary")
 
             # RIGHT COLUMN: Comparator Selector, Live Spider Chart, and Comparison Table
             with gr.Column(scale=2), gr.Accordion("Product profile & comparison", open=True):
@@ -116,20 +116,20 @@ def build_assessment_tab(token, project_id, status):
         def mark_dirty():
             return True
 
-        for comp in assessment_components:
-            comp.input(mark_dirty, outputs=assessment_dirty, concurrency_id="project-data-write", concurrency_limit=1)
+        for comp in Explore Dimensions_components:
+            comp.input(mark_dirty, outputs=Explore Dimensions_dirty, concurrency_id="project-data-write", concurrency_limit=1)
 
-        assessment_dirty.change(
-            lambda dirty: "⚠ Unsaved changes — save dimension assessments to keep them." if dirty else "",
-            assessment_dirty,
+        Explore Dimensions_dirty.change(
+            lambda dirty: "⚠ Unsaved changes — save dimension Explore Dimensionss to keep them." if dirty else "",
+            Explore Dimensions_dirty,
             unsaved_note,
         )
 
-        # Save assessments button
-        save_assessments_button.click(
-            save_assessments_action,
-            [token, project_id, assessment_revisions, *assessment_components],
-            [status, assessment_revisions, assessment_dirty],
+        # Save Explore Dimensionss button
+        save_Explore Dimensionss_button.click(
+            save_Explore Dimensionss_action,
+            [token, project_id, Explore Dimensions_revisions, *Explore Dimensions_components],
+            [status, Explore Dimensions_revisions, Explore Dimensions_dirty],
             concurrency_id="project-data-write",
             concurrency_limit=1,
         )
@@ -138,9 +138,9 @@ def build_assessment_tab(token, project_id, status):
         "tab": tab,
         "sliders": sliders,
         "reasoning_fields": reasoning_fields,
-        "assessment_components": assessment_components,
-        "assessment_revisions": assessment_revisions,
-        "assessment_dirty": assessment_dirty,
+        "Explore Dimensions_components": Explore Dimensions_components,
+        "Explore Dimensions_revisions": Explore Dimensions_revisions,
+        "Explore Dimensions_dirty": Explore Dimensions_dirty,
         "unsaved_note": unsaved_note,
         "dimension_note_states": dimension_note_states,
         "dimension_note_lists": dimension_note_lists,

@@ -1,11 +1,11 @@
 {
   "language_name": "Deutsch",
   "sections": {
-    "Project Setup": "Kontext: Produktidee, Zielgruppe, Aufgabe, Problem, Prototyp und zentrale Wertehypothese definieren.",
-    "Assessment": "Einschätzung: Alle fünf Dimensionen bewerten, Fragen und Annahmen festhalten und optional mit einem historischen Produkt vergleichen.",
-    "Backlog Creator": "Hypothesen bilden: Aus Fragen und Annahmen Unterstützungshypothesen ableiten und mit dem Wert verknüpfen.",
-    "Prioritization": "Priorisieren: Hypothesen nach Risiko und Evidenz ordnen und das nächste Experiment planen.",
-    "Self-Improvement": "Jede KI-gestützte Verbesserungsschleife einzeln beschreiben und einordnen.",
+    "Value Hypothesis": "Kontext: Produktidee, Zielgruppe, Aufgabe, Problem, Prototyp und zentrale Wertehypothese definieren.",
+    "Explore Dimensions": "Einschätzung: Alle fünf Dimensionen bewerten, Fragen und Annahmen festhalten und optional mit einem historischen Produkt vergleichen.",
+    "Explore Backlog": "Hypothesen bilden: Aus Fragen und Annahmen Unterstützungshypothesen ableiten und mit dem Wert verknüpfen.",
+    "Explore Priority": "Priorisieren: Hypothesen nach Risiko und Evidenz ordnen und das nächste Experiment planen.",
+    "Build Self-Improvement": "Jede KI-gestützte Verbesserungsschleife einzeln beschreiben und einordnen.",
     "Summary & Export": "Überblick: Checklistenfortschritt prüfen und Produktdatensatz herunterladen."
   },
   "labels": {

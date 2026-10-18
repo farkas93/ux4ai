@@ -5,11 +5,11 @@ def test_responsive_navigation_targets_sections_without_duplicating_forms():
     app = build_app()
     config = app.get_config_file()
     expected_sections = [
-        "Project Setup",
-        "Assessment",
-        "Backlog Creator",
-        "Prioritization",
-        "Self-Improvement",
+        "Value Hypothesis",
+        "Explore Dimensions",
+        "Explore Backlog",
+        "Explore Priority",
+        "Build Self-Improvement",
         "Summary & Export",
     ]
     components = config["components"]
@@ -23,16 +23,16 @@ def test_responsive_navigation_targets_sections_without_duplicating_forms():
     assert sum(item["props"]["visible"] for item in pages) == 1
     assert not any(item["props"].get("elem_id") == "toolkit-mobile-section" for item in components)
     assert desktop["type"] == "radio"
-    assert desktop["props"]["value"] == "Project Setup"
+    assert desktop["props"]["value"] == "Value Hypothesis"
     indicator = next(item for item in components if item["props"].get("elem_id") == "toolkit-current-section")
-    assert indicator["props"]["value"] == "Project Setup"
+    assert indicator["props"]["value"] == "Value Hypothesis"
     drawer = next(item for item in components if item["props"].get("elem_id") == "toolkit-sidebar")
     assert drawer["type"] == "sidebar"
     assert drawer["props"]["open"] is True
     assert drawer["props"]["width"] == 240
     assert not any(item["props"].get("elem_id") == "toolkit-menu" for item in components)
     switch = next(fn for fn in app.fns.values() if fn.fn and fn.fn.__name__ == "select_section")
-    updates = switch.fn("Backlog Creator")
+    updates = switch.fn("Explore Backlog")
     assert [item["visible"] for item in updates] == [False, False, True, False, False, False]
     assert config["title"] == "AI Product Toolkit"
     assert app.theme.to_dict()["theme"]["block_label_background_fill_dark"] == "transparent"

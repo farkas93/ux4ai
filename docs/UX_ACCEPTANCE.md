@@ -5,7 +5,7 @@ This checklist directly covers the improvement feedback that triggered the UI re
 ## Shell and terminology
 
 - [ ] Header stays visible and includes language selection, active section title, and latest action feedback.
-- [ ] Sidebar navigation follows this order: Project Setup, Assessment, Backlog Creator, Prioritization, Self-Improvement, Summary & Export.
+- [ ] Sidebar navigation follows this order: Value Hypothesis, Explore Dimensions, Explore Backlog, Explore Priority, Build Self-Improvement, Summary & Export.
 - [ ] AI Safety and Project History are not reachable as workspace pages.
 - [ ] AI Safety is absent from Summary & Export previews and downloaded reports.
 - [ ] Changing products from any workflow page reloads that product's data across all pages.
@@ -14,30 +14,30 @@ This checklist directly covers the improvement feedback that triggered the UI re
 - [ ] Product name is entered once during creation and edited once in Product Setup.
 - [ ] English/German switching does not reset entered content.
 
-## Assessment
+## Explore Dimensions
 
 - [ ] No component displays an unexpected `Error` label on initial load.
 - [ ] Each dimension appears as an accordion with status, 0–5 slider, rationale, basis, evidence, and uncertainty.
 - [ ] Questions and assumptions can be added inside each dimension accordion.
 - [ ] Live spider chart updates when dimension status/score changes.
 - [ ] Unsaved-change warning is visible until values are saved.
-- [ ] Optional comparator selection is above the chart in the same Assessment tab.
+- [ ] Optional comparator selection is above the chart in the same Explore Dimensions tab.
 - [ ] Comparator table identifies incompatible dimensions and suppresses misleading differences.
 - [ ] Adversarial-risk and feedback-loop reflections are below the dimensions.
 
-## Backlog creator
+## Explore Backlog
 
 - [ ] Assumptions, questions, and hypothesis draft are visible side by side.
 - [ ] Selecting a question/assumption prefills a hypothesis draft and preserves provenance.
 - [ ] Saved hypotheses remain editable and relationship validation still applies.
 
-## Prioritization
+## Explore Priority
 
 - [ ] Each hypothesis opens to risk/evidence sliders (0–10, initial 0/0).
 - [ ] Ranking updates in real time using `risk + (10 - evidence)`.
 - [ ] Risk 10/evidence 0 ranks above risk 0/evidence 10.
 - [ ] Matrix hover displays the hypothesis text.
-- [ ] Experiment planning remains available below prioritization.
+- [ ] Experiment planning remains available below Explore Priority.
 
 ## Summary and lifecycle
 

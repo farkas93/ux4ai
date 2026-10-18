@@ -4,7 +4,7 @@ from pathlib import Path
 
 LOCALE_DIR = Path(__file__).with_name("locales")
 SUPPORTED_LANGUAGES = ("en", "de")
-REQUIRED_KEYS = {"language_name", "sections", "sections.Project Setup", "sections.Assessment", "sections.Backlog Creator", "sections.Prioritization", "sections.Self-Improvement", "sections.Summary & Export", "labels"}
+REQUIRED_KEYS = {"language_name", "sections", "sections.Value Hypothesis", "sections.Explore Dimensions", "sections.Explore Backlog", "sections.Explore Priority", "sections.Build Self-Improvement", "sections.Summary & Export", "labels"}
 
 
 @lru_cache

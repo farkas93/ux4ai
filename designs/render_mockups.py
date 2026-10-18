@@ -7,8 +7,8 @@ OUT = Path(__file__).parent
 INK = "#243449"
 MUTED = "#69798c"
 TEAL = "#0f766e"
-NAV = ["Project Setup", "Assessment", "AI Safety", "Self-Improvement",
-       "Backlog Creator", "Prioritization", "Summary & Export", "Project History"]
+NAV = ["Value Hypothesis", "Explore Dimensions", "AI Safety", "Build Self-Improvement",
+       "Explore Backlog", "Explore Priority", "Summary & Export", "Project History"]
 
 
 def rect(x, y, w, h, fill="white", stroke="#e0e7ef", radius=12):
@@ -83,12 +83,12 @@ def note_composer(x, y, w, example, mobile=False):
     s += rect(x, y + 79, w, 38, "#f9fbfd", radius=7) + text(x + 12, y + 103, "Question ▾  What needs exploring?", 12, MUTED)
     s += button(x, y + 128, "Add to backlog", 145)
     if not mobile:
-        s += text(x + 162, y + 152, "Develop it in Backlog Creator →", 12, MUTED)
+        s += text(x + 162, y + 152, "Develop it in Explore Backlog →", 12, MUTED)
     return s
 
 
 def setup():
-    s = shell("Project Setup", "Start with who you help and the change you expect.", 0)
+    s = shell("Value Hypothesis", "Start with who you help and the change you expect.", 0)
     s += card(232, 220, 425, 255, "1 · The user and their problem")
     s += field(252, 285, 385, "Who is it for?", "Support teams")
     s += field(252, 367, 385, "Job to be done", "Understand the customer's real request.", 70)
@@ -110,8 +110,8 @@ def setup():
     return s
 
 
-def assessment():
-    s = shell("Assessment", "Explore the intended characteristics of your product.", 1)
+def Explore Dimensions():
+    s = shell("Explore Dimensions", "Explore the intended characteristics of your product.", 1)
     s += card(232, 220, 504, 440, "Conversational interaction", "Guided ↔ Open-ended")
     s += text(252, 316, "Intended characteristic", 13, INK, 600) + text(671, 316, "1.5 / 5", 13, TEAL)
     s += '<path d="M256 343H710" stroke="#dce5ee" stroke-width="6"/><path d="M256 343H392" stroke="#0f766e" stroke-width="6"/><circle cx="392" cy="343" r="8" fill="white" stroke="#0f766e"/>'
@@ -130,7 +130,7 @@ def assessment():
     s += field(1190, 493, 270, "Reasoning", "Short guided clarifications", 47)
     s += note_composer(1190, 592, 270, "Do users understand the question?", True)
     s += rect(1170, 800, 310, 39) + text(1190, 825, "Specialization                         ▾", 13)
-    s += button(1170, 857, "Save assessment", 310)
+    s += button(1170, 857, "Save Explore Dimensions", 310)
     return s
 
 
@@ -152,7 +152,7 @@ def safety():
 
 
 def improvement():
-    s = shell("Self-Improvement", "Imagine one way your product could learn from its use.", 3)
+    s = shell("Build Self-Improvement", "Imagine one way your product could learn from its use.", 3)
     s += card(232, 220, 858, 146, "Your learning loop")
     s += field(252, 283, 818, "Describe one concrete loop", "Review failed conversations and propose better clarification prompts.")
     s += card(232, 385, 504, 267, "Explore what AI contributes")
@@ -177,9 +177,9 @@ def improvement():
 
 
 def backlog():
-    s = shell("Backlog Creator", "Turn a question or assumption into something you can test.", 4)
+    s = shell("Explore Backlog", "Turn a question or assumption into something you can test.", 4)
     s += text(232, 239, "All sources ▾     All entries ▾", 13, MUTED) + button(934, 215, "+ Add entry", 156, False)
-    s += card(232, 273, 858, 234, "Clarifying the request", "From Assessment · Conversational interaction")
+    s += card(232, 273, 858, 234, "Clarifying the request", "From Explore Dimensions · Conversational interaction")
     s += field(252, 366, 250, "Assumption", "Users understand the prompt", 66)
     s += field(518, 366, 250, "Question", "Do users know how to respond?", 66)
     s += field(784, 366, 286, "Hypothesis", "If we clarify, hand-offs decrease", 66)
@@ -204,7 +204,7 @@ def backlog():
 
 
 def priority():
-    s = shell("Prioritization", "Which hypothesis is most important to test next?", 5)
+    s = shell("Explore Priority", "Which hypothesis is most important to test next?", 5)
     s += card(232, 220, 430, 280, "H1 · Clarifying the request", "If we clarify, hand-offs decrease.")
     s += text(252, 318, "Risk if wrong                       8 / 10", 14)
     s += '<path d="M256 347H635" stroke="#dce5ee" stroke-width="6"/><circle cx="559" cy="347" r="8" fill="white" stroke="#0f766e"/>'
@@ -252,9 +252,9 @@ def history():
     s = shell("Project History", "See how your thinking has changed.", 7)
     s += text(232, 239, "All activity ▾", 13, MUTED) + button(960, 215, "Refresh", 130, False)
     events = [("Today · 10:42", "Rewrote a question as a hypothesis", "From AI Safety · Harms", "If retrieval is restricted, exposure decreases."),
-              ("Today · 10:36", "Updated the value hypothesis", "Project Setup", "Changed the expected outcome and constraint."),
-              ("Yesterday · 15:12", "Added a question", "Self-Improvement", "Will summaries reveal repeat issues?"),
-              ("Yesterday · 15:04", "Removed a backlog entry", "Backlog Creator", "The original entry remains in history.")]
+              ("Today · 10:36", "Updated the value hypothesis", "Value Hypothesis", "Changed the expected outcome and constraint."),
+              ("Yesterday · 15:12", "Added a question", "Build Self-Improvement", "Will summaries reveal repeat issues?"),
+              ("Yesterday · 15:04", "Removed a backlog entry", "Explore Backlog", "The original entry remains in history.")]
     for i, (stamp, title, source, detail) in enumerate(events):
         y = 272 + i * 139
         s += rect(232, y, 858, 121) + text(252, y + 28, stamp, 11, MUTED)
@@ -313,9 +313,9 @@ def login():
     return s
 
 
-PAGES = {"01-login": login, "02-project-setup": setup, "03-assessment": assessment,
-         "04-ai-safety": safety, "05-self-improvement": improvement, "06-backlog-creator": backlog,
-         "07-prioritization": priority, "08-summary-export": summary,
+PAGES = {"01-login": login, "02-project-setup": setup, "03-Explore Dimensions": Explore Dimensions,
+         "04-ai-safety": safety, "05-Build Self-Improvement": improvement, "06-backlog-creator": backlog,
+         "07-Explore Priority": priority, "08-summary-export": summary,
          "09-project-history": history, "10-instructor": instructor}
 
 

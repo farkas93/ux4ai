@@ -130,7 +130,7 @@ def test_show_next_row_increments():
     assert updates[3]["visible"] is False
 
 
-def test_backlog_dimension_move_updates_assessment_and_history(db, monkeypatch):
+def test_backlog_dimension_move_updates_Explore Dimensions_and_history(db, monkeypatch):
     user, project = user_project(db, "move-entry")
     from aipm_toolkit.ui import callbacks as cb_mod
     monkeypatch.setattr(cb_mod, "SessionLocal", lambda: db)

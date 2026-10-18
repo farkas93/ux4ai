@@ -82,13 +82,13 @@ def test_safety_unknown_is_a_range_but_not_addressed_is_zero(db):
 
 def test_safety_reloads_with_revision_and_history(db):
     user, project = project_for(db, "safety-team")
-    assessment = save_safety(db, user, project.id, None, rows(), "Unauthorized data disclosure")
+    Explore Dimensions = save_safety(db, user, project.id, None, rows(), "Unauthorized data disclosure")
     persisted, saved_rows = get_safety(db, user, project.id)
     assert persisted.critical_risk == "Unauthorized data disclosure"
     assert saved_rows[0]["coverage"] == "clearly_specified"
     with pytest.raises(RevisionConflict):
         save_safety(db, user, project.id, None, rows(), "Stale")
-    updated = save_safety(db, user, project.id, assessment.revision, rows("partly_specified"), "New risk")
+    updated = save_safety(db, user, project.id, Explore Dimensions.revision, rows("partly_specified"), "New risk")
     assert updated.revision == 2
     assert db.scalar(select(ProjectEvent).where(ProjectEvent.event_type == "safety.updated")) is not None
 
@@ -142,18 +142,18 @@ def test_safety_question_develops_in_backlog_and_legacy_hypothesis_survives(db, 
     monkeypatch.setattr(safety_callbacks, "SessionLocal", lambda: db)
     monkeypatch.setattr(safety_callbacks, "get_authenticated_user", lambda _db, _token: user)
     status, visible, cleared = safety_callbacks.add_learning_note_ui("token", str(project.id), "safety", "harms", "Question", "Could retrieval disclose another user's data?")
-    assert "Backlog Creator" in status and "disclose" in visible and cleared == ""
+    assert "Explore Backlog" in status and "disclose" in visible and cleared == ""
     monkeypatch.setattr(cb_mod, "SessionLocal", lambda: db)
     monkeypatch.setattr(cb_mod, "get_authenticated_user", lambda _db, _token: user)
     backlog = cb_mod.load_backlog_table_from_ui("token", str(project.id))
-    assert backlog[1] == "Backlog Creator"
+    assert backlog[1] == "Explore Backlog"
     assert backlog[2]["value"] is None  # Safety is independent of product dimensions.
     assert backlog[4] == "Could retrieval disclose another user's data?"
     saved, note_id, hyp_id, _revision = cb_mod.save_backlog_row_from_ui("token", str(project.id), None, "", backlog[4], "If retrieval leaks, users lose trust", backlog[8], None, None)
     assert "saved" in saved
     assert db.get(Hypothesis, UUID(hyp_id)).statement == "If retrieval leaks, users lose trust"
     assert db.scalar(select(HypothesisSource).where(HypothesisSource.hypothesis_id == UUID(hyp_id))).note_id == UUID(note_id)
-    assert cb_mod.load_backlog_table_from_ui("token", str(project.id))[1] == "Backlog Creator"
+    assert cb_mod.load_backlog_table_from_ui("token", str(project.id))[1] == "Explore Backlog"
     saved, _, _, new_revision = cb_mod.save_backlog_row_from_ui("token", str(project.id), None, "", "Could retrieval expose another user's records?", "If retrieval is restricted, exposure decreases", note_id, hyp_id, _revision)
     assert "saved" in saved and new_revision > _revision
     assert "Could retrieval expose another user's records?" in safety_callbacks.learning_notes_ui("token", str(project.id), "safety", "harms")
@@ -168,8 +168,8 @@ def test_safety_question_develops_in_backlog_and_legacy_hypothesis_survives(db, 
     save_loop(db, user, project.id, None, None, data("Improve prompt failure handling"))
     save_reflection(db, user, project.id, "adversarial_risk", "Legacy concern")
     document = build_project_export(db, user, project.id)
-    assert document["safety_assessment"]["critical_risk"] == "Data leakage"
-    assert len(document["safety_assessment"]["checkpoints"]) == 6
+    assert document["safety_Explore Dimensions"]["critical_risk"] == "Data leakage"
+    assert len(document["safety_Explore Dimensions"]["checkpoints"]) == 6
     assert document["improvement_loops"][0]["name"] == "Improve prompt failure handling"
     assert document["safety_hypothesis_links"][0]["checkpoint_key"] == "harms"
     assert document["notes"][0]["origin_section"] == "safety"
@@ -178,19 +178,19 @@ def test_safety_question_develops_in_backlog_and_legacy_hypothesis_survives(db, 
     assert "AI Safety" not in markdown
     assert "Could retrieval expose another user's records?" not in markdown
     assert "AI Safety (design coverage" not in markdown
-    assert "Self-Improvement (course-specific classification)" not in markdown
+    assert "Build Self-Improvement (course-specific classification)" not in markdown
     assert "Level 5" not in markdown
 
 
-def test_assessment_can_add_question_and_backlog_loads_it(db, monkeypatch):
-    user, project = project_for(db, "assessment-add")
+def test_Explore Dimensions_can_add_question_and_backlog_loads_it(db, monkeypatch):
+    user, project = project_for(db, "Explore Dimensions-add")
     monkeypatch.setattr(cb_mod, "SessionLocal", lambda: db)
     monkeypatch.setattr(cb_mod, "get_authenticated_user", lambda _db, _token: user)
     status, visible, cleared = cb_mod.add_dimension_note_from_ui("token", str(project.id), "autonomy", "Question", "Can users intervene?")
     assert status == "Added to this dimension."
     assert "Can users intervene?" in visible and cleared == ""
     loaded = cb_mod.load_backlog_table_from_ui("token", str(project.id))
-    assert loaded[1] == "Assessment"
+    assert loaded[1] == "Explore Dimensions"
     assert loaded[4] == "Can users intervene?"
     assert loaded[-1] == 1
 
@@ -221,11 +221,11 @@ def test_callbacks_reload_safety_and_loop_per_selected_project(db, monkeypatch):
     assert persisted_loop.status == "implemented"
     assert persisted_loop.approval_boundary == "A human approves release"
     added, listed, _ = safety_callbacks.add_learning_note_ui("token", str(project.id), "self_improvement", None, "Assumption", "Summaries reveal repeat failures")
-    assert "Backlog Creator" in added and "repeat failures" in listed
+    assert "Explore Backlog" in added and "repeat failures" in listed
     monkeypatch.setattr(cb_mod, "SessionLocal", lambda: db)
     monkeypatch.setattr(cb_mod, "get_authenticated_user", lambda _db, _token: user)
     backlog = cb_mod.load_backlog_table_from_ui("token", str(project.id))
-    assert backlog[1] == "Self-Improvement" and backlog[2]["value"] is None
+    assert backlog[1] == "Build Self-Improvement" and backlog[2]["value"] is None
     assert backlog[3] == "Summaries reveal repeat failures"
     assert safety_callbacks.learning_notes_ui("token", str(second.id), "self_improvement") == "No questions or assumptions yet."
 
@@ -235,9 +235,9 @@ def test_product_deletion_cleans_up_safety_and_loops(db):
     save_safety(db, user, project.id, None, rows(), "Unknown use")
     save_loop(db, user, project.id, None, None, data("Review incident patterns"))
     delete_project(db, user, project.id, confirm=True)
-    from aipm_toolkit.models import ImprovementLoop, SafetyAssessment, SafetyCheckpoint
+    from aipm_toolkit.models import ImprovementLoop, SafetyExplore Dimensions, SafetyCheckpoint
 
-    assert db.scalar(select(SafetyAssessment).where(SafetyAssessment.project_id == project.id)) is None
+    assert db.scalar(select(SafetyExplore Dimensions).where(SafetyExplore Dimensions.project_id == project.id)) is None
     assert db.scalar(select(SafetyCheckpoint)) is None
     assert db.scalar(select(ImprovementLoop).where(ImprovementLoop.project_id == project.id)) is None
 
