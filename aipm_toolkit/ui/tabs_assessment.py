@@ -100,7 +100,7 @@ def build_assessment_tab(token, project_id, status):
             slider.input(live_profile_from_ui, [frozen_state, *sliders], live_chart)
 
         # Comparator dropdown event: immediately updates frozen_state, table, and chart
-        comparator_dropdown.change(
+        comparator_dropdown.input(
             on_comparator_selected,
             [token, project_id, comparator_dropdown],
             [frozen_state, comparison_table],

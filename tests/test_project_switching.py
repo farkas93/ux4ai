@@ -189,7 +189,7 @@ def test_product_switch_popup_offers_save_discard_and_cancel(monkeypatch):
     route = next(fn.fn for fn in app.fns.values() if fn.fn and fn.fn.__name__ == "route_project_selection")
     dirty_count = 3 + cb.PLACEMENT_SLOTS + cb.MAX_BACKLOG_ROWS + len(DEFAULT_DIMENSIONS) + 1
     clean = route("token", "beta", "alpha", False, None, *([False] * dirty_count))
-    assert clean[0:3] == ("beta", None, "load")
+    assert clean[0:3] == ("alpha", "beta", "load")
     assert clean[-1] is True
     dirty = route("token", "beta", "alpha", False, None, *([True] + [False] * (dirty_count - 1)))
     assert dirty[0:3] == ("alpha", "beta", "none")

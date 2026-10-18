@@ -9,6 +9,12 @@ The interface is a student learning workspace: define value, identify questions 
 - Used a consistent teal/slate workspace theme with clearer spacing, rounded form groups, and horizontally scrollable navigation on narrow screens.
 - Moved action feedback outside the student panel so instructors also see save/error messages.
 - Grouped Value Hypothesis around the idea, the user/problem, and the main value hypothesis.
+- Project loading now fetches the setup, dimensions, backlog, priority, and
+  improvement editors in one authenticated snapshot response. An unavailable
+  comparator or report is reported without preventing the project editors from
+  loading. Core load failures retain the previous project and unlock the picker.
+- Priority sliders and comparator selection save only on user input; displaying
+  fetched values does not trigger database writes.
 
 ## Further usability opportunities
 

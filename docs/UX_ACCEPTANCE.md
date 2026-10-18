@@ -9,6 +9,9 @@ This checklist directly covers the improvement feedback that triggered the UI re
 - [ ] AI Safety and Project History are not reachable as workspace pages.
 - [ ] AI Safety is absent from Summary & Export previews and downloaded reports.
 - [ ] Changing products from any workflow page reloads that product's data across all pages.
+- [ ] Setup, backlog, priorities, and the improvement loop load together; failed
+  auxiliary comparison/report requests do not leave later workflow pages empty.
+- [ ] Fetching saved priority values does not write them back or increase revisions.
 - [ ] Pending edits prompt with Save & Switch, Discard & Switch, and Cancel; saves apply to the project being left.
 - [ ] User-facing copy consistently says product (not a mixture of project/product).
 - [ ] Product name is entered once during creation and edited once in Product Setup.

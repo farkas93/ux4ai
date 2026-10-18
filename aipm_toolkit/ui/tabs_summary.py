@@ -5,7 +5,7 @@ import gradio as gr
 from .callbacks import delete_product_from_ui, export_project_from_ui, summary_preview_from_ui
 
 
-def build_summary_tab(token, product_dropdown, status):
+def build_summary_tab(token, project_id, status, product_dropdown):
     with gr.Column(visible=False, elem_id="page-summary-export") as tab:
         gr.Markdown("## Summary & Export\nBring your idea and learning together.", elem_classes=["toolkit-page-heading"])
         with gr.Row(elem_classes=["toolkit-two-column"]):
@@ -27,11 +27,11 @@ def build_summary_tab(token, product_dropdown, status):
             confirm_delete = gr.Checkbox(label="I understand this permanently deletes my product and its content", value=False)
             delete_button = gr.Button("Delete this product", variant="stop")
 
-        refresh_summary_button.click(summary_preview_from_ui, [token, product_dropdown], summary_preview)
-        export_button.click(export_project_from_ui, [token, product_dropdown], [status, json_download, markdown_download, pdf_download])
+        refresh_summary_button.click(summary_preview_from_ui, [token, project_id], summary_preview)
+        export_button.click(export_project_from_ui, [token, project_id], [status, json_download, markdown_download, pdf_download])
         delete_event = delete_button.click(
             delete_product_from_ui,
-            [token, product_dropdown, confirm_delete],
+            [token, project_id, confirm_delete],
             [status, product_dropdown],
             concurrency_id="project-data-write",
             concurrency_limit=1,
