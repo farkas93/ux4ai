@@ -94,7 +94,7 @@ uv run python -m aipm_toolkit.import_baselines solutions --manifest examples/imp
 
 Manifests define source type, cohort label, aliases, and per-dimension scale versions.
 
-For the 15 dated, scoped product design references, see [baseline/README.md](baseline/README.md).
+For the 16 dated, scoped product design references, including Grok Bot, see [baseline/README.md](baseline/README.md).
 Upload `baseline/products/*.json` and `baseline/import_manifest.json` in the
 instructor import panel, or preview them with:
 

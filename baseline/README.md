@@ -1,8 +1,8 @@
 # AI product comparison references
 
-**Assessment date: 18 October 2026 · Current application rubric: version 1**
+**Assessment dates: 18–19 October 2026 · Current application rubric: version 1**
 
-This catalog contains 15 ready-to-import, scoped design assessments for
+This catalog contains 16 ready-to-import, scoped design assessments for
 **Explore Dimensions**. The scores are AI-assisted estimates based on the linked
 official product documentation. No hands-on trials, user studies, accuracy
 measurements, or production performance tests were performed. Each JSON records
@@ -19,6 +19,7 @@ the importer will not mistake it for a product assessment.
 | `chatgpt.json` | ChatGPT: standard chat | 5.0 | 0.5 | 1.0 | 1.5 | 4.5 |
 | `claude.json` | Claude: document chat | 5.0 | 1.0 | 1.5 | 2.0 | 4.0 |
 | `google_gemini.json` | Google Gemini: standard chat | 5.0 | 0.5 | 1.0 | 1.5 | 4.5 |
+| `grok_bot.json` | Grok Bot: cross-app research and drafting | 4.0 | 2.0 | 4.0 | 3.5 | 3.0 |
 | `microsoft_365_copilot.json` | Microsoft 365 Copilot: Word authoring | 4.0 | 3.5 | 2.5 | 3.0 | 3.5 |
 | `perplexity.json` | Perplexity: ordinary web search | 4.5 | 3.0 | 2.0 | 4.0 | 4.0 |
 | `gemini_notebook.json` | Gemini Notebook / NotebookLM: source Q&A | 4.0 | 3.5 | 2.0 | 4.5 | 3.5 |
@@ -63,6 +64,12 @@ NotebookLM; source Q&A excludes its newer cloud-computer capabilities. Zapier's
 documentation now describes migration from Agents to AI by Zapier. Its file
 explicitly assesses the legacy Agents experience, not the replacement product.
 
+Grok Bot is scoped to a single persistent cloud Bot researching across approved
+apps and preparing drafts for human review. This is the Grok Bot agent product;
+ordinary Grok chat, coding workflows, schedules and multi-Bot orchestration are
+outside this assessment. Its documentation review is dated **19 October 2026**;
+the original 15 profiles retain their **18 October 2026** review dates.
+
 ## Import in production
 
 Use a deployed application containing the internal-name repairs from this task.
@@ -76,12 +83,19 @@ on an existing, previously working database.
 
 1. Sign in with the production instructor account.
 2. Open **Historical reference import**.
-3. Upload the 15 JSON files from `baseline/products/` into **Legacy JSON files**.
+3. Upload the 16 JSON files from `baseline/products/` into **Legacy JSON files**.
 4. Upload `baseline/import_manifest.json` into **Import manifest JSON**.
-5. Click **Preview import**. Expect 15 records, 15 distinct product names, and no
+5. Click **Preview import**. Expect 16 records, 16 distinct product names, and no
    invalid values. Then use **Publish preview**.
 6. Reload the team workspace. The scoped product names appear under
    **Explore Dimensions → Compare to Product**.
+
+If the original 15 references are already published, upload only
+`baseline/products/grok_bot.json` alongside the same
+`baseline/import_manifest.json`, preview **1 record** with no invalid values,
+then use **Publish preview**. The existing cohort label is retained so the
+addition leaves published references and saved comparison snapshots intact;
+Grok Bot's own review date and provenance are stored with its dataset.
 
 ### CLI import
 

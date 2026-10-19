@@ -1,0 +1,57 @@
+{
+  "product_name": "Grok Bot · cross-app research and drafting",
+  "product_family": "Grok Bot",
+  "canonical_url": "https://x.ai/bot",
+  "assessment_date": "2026-10-19",
+  "assessment_basis": "ai_assisted_documentation_review",
+  "live_testing_performed": false,
+  "scope": {
+    "experience": "A persistent cloud Bot completing a bounded research task across apps and returning review-ready drafts",
+    "task": "Read a CRM review list, research selected accounts through approved web and Slack sources, and return source-linked findings and outreach drafts for human review.",
+    "configuration": "One Bot on its cloud computer with approved source access and local artifact creation. Auto Review is assumed enabled with narrow read/prepare permissions and ask-first boundaries for external changes. Human takeover handles login steps; sending outreach or editing business records is excluded. No particular subscription, model or rule configuration was tested.",
+    "excluded_features": ["Ordinary Grok chat", "Grok Build coding workflows", "Multi-Bot orchestration", "Scheduled routines", "Local-computer execution", "Sending messages", "Updating CRM records", "Purchases and payments"],
+    "audience_perspective": "A business knowledge worker delegating research and reviewing drafts across familiar tools"
+  },
+  "scores": {
+    "conversational": 4.0,
+    "specialization": 2.0,
+    "autonomy": 4.0,
+    "explainability": 3.5,
+    "accessibility": 3.0
+  },
+  "dimensions": {
+    "conversational": {
+      "rationale": "Natural-language messages initiate work, clarify goals and steer revisions, alongside task updates, computer handoffs and approval controls.",
+      "evidence": ["overview", "get-started"], "confidence": "medium",
+      "uncertainty": "The assessed experience emphasizes completing delegated work rather than unrestricted conversation; voice interaction is not assessed."
+    },
+    "specialization": {
+      "rationale": "Persistent job context and connected apps focus the Bot on operational work, but the product can research, draft and manipulate artifacts across many domains rather than one fixed specialist task.",
+      "evidence": ["overview", "get-started", "computer"], "confidence": "medium",
+      "uncertainty": "The CRM research task is an example of the general cross-app agent, not a separately configured sales-only product. A narrowly configured specialist Bot would need its own assessment."
+    },
+    "autonomy": {
+      "rationale": "From one delegated outcome the Bot can choose browser or connector steps, gather information and prepare files on a persistent cloud computer while the user's laptop is closed.",
+      "evidence": ["overview", "computer", "approvals"], "confidence": "medium",
+      "uncertainty": "This estimate assumes bounded source access, human login handoffs and review before external changes. Auto Review is model-based; no approval enforcement, recovery or end-to-end execution was tested."
+    },
+    "explainability": {
+      "rationale": "The conversation exposes file and tool-result cards, a view of computer actions and proposed operations for approval; source-linked artifacts let the user inspect findings and resulting work.",
+      "evidence": ["computer", "results", "approvals"], "confidence": "medium",
+      "uncertainty": "Source links and visible actions aid inspection but do not establish complete logs, correct findings or faithful access to the model's internal reasoning."
+    },
+    "accessibility": {
+      "rationale": "Message-based setup and desktop/mobile access support knowledge workers beyond programmers, but using the product effectively requires an eligible plan, connected-account setup and understanding of the source systems and review task.",
+      "evidence": ["overview", "get-started", "computer"], "confidence": "low",
+      "uncertainty": "Target-demographic reach is an estimate. Plan eligibility, cloud storage requirements and app permissions limit access; no onboarding, language, usability or assistive-technology trials were performed."
+    }
+  },
+  "provenance_notes": "AI-assisted documentation review, 2026-10-19; no live product tests. Scope: Grok Bot's persistent cloud-computer research and drafting workflow with approved source access and human review before external changes. Ordinary Grok chat, coding, schedules, multi-Bot orchestration and local execution are excluded. Scores use rubric v1 and are design estimates. Sources: https://docs.x.ai/grok-bot/overview , https://docs.x.ai/grok-bot/get-started , https://docs.x.ai/grok-bot/computer-and-apps , https://docs.x.ai/grok-bot/files-and-results and https://docs.x.ai/grok-bot/approvals-security-and-privacy .",
+  "sources": [
+    {"id": "overview", "title": "Grok Bot overview", "url": "https://docs.x.ai/grok-bot/overview", "accessed_on": "2026-10-19"},
+    {"id": "get-started", "title": "Get started with Grok Bot", "url": "https://docs.x.ai/grok-bot/get-started", "accessed_on": "2026-10-19"},
+    {"id": "computer", "title": "Use the computer and apps", "url": "https://docs.x.ai/grok-bot/computer-and-apps", "accessed_on": "2026-10-19"},
+    {"id": "results", "title": "Files and results", "url": "https://docs.x.ai/grok-bot/files-and-results", "accessed_on": "2026-10-19"},
+    {"id": "approvals", "title": "Approvals, security, and privacy", "url": "https://docs.x.ai/grok-bot/approvals-security-and-privacy", "accessed_on": "2026-10-19"}
+  ]
+}
