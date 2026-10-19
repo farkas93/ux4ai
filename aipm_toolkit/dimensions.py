@@ -2,8 +2,8 @@ DIMENSION_KEYS = (
     "conversational",
     "specialization",
     "autonomy",
-    "accessibility",
     "explainability",
+    "accessibility",
 )
 
 DEFAULT_DIMENSIONS = (
@@ -32,19 +32,19 @@ DEFAULT_DIMENSIONS = (
         "midpoint": "Recommends or prepares actions for user approval",
     },
     {
-        "key": "accessibility",
-        "title": "Accessibility / audience breadth",
-        "explanation": "How broadly the intended product experience can be used. Broad reach does not establish accessibility for every user.",
-        "low_anchor": "Niche",
-        "high_anchor": "Broadly accessible/usable",
-        "midpoint": "Usable by a wider audience with some constraints",
-    },
-    {
         "key": "explainability",
         "title": "Explainability",
         "explanation": "How transparent the visible product experience is, not access to reliable internal model reasoning.",
         "low_anchor": "Black box",
         "high_anchor": "Fully transparent",
         "midpoint": "Some visible explanation of inputs, outputs, or limits",
+    },
+    {
+        "key": "accessibility",
+        "title": "Accessibility",
+        "explanation": "How broadly the intended product experience can be used. Broad reach does not establish accessibility for every user.",
+        "low_anchor": "Niche",
+        "high_anchor": "Broadly accessible/usable",
+        "midpoint": "Usable by a wider audience with some constraints",
     },
 )

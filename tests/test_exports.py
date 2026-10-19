@@ -4,7 +4,9 @@ import zlib
 
 import pytest
 
+from aipm_toolkit.assessment_services import ensure_scale_definitions
 from aipm_toolkit.auth import AuthorizationError, hash_password
+from aipm_toolkit.dimensions import DIMENSION_KEYS
 from aipm_toolkit.export_services import (
     build_project_export,
     export_project_json,
@@ -32,10 +34,13 @@ def user_project(db, alias="export-team"):
 
 def test_exports_are_versioned_complete_and_unicode_safe(db):
     user, project = user_project(db)
+    ensure_scale_definitions(db)
     update_project(db, user, project.id, project.revision, short_description="Line one\nLine two", target_user="Teams")
     create_note(db, user, project.id, "question", "Welche Annahme müssen wir testen?\nNext line.")
     payload = json.loads(export_project_json(db, user, project.id))
     assert payload["schema_version"] == "1.1"
+    assert [item["key"] for item in payload["scale_definitions"]] == list(DIMENSION_KEYS)
+    assert next(item for item in payload["scale_definitions"] if item["key"] == "accessibility")["title"] == "Accessibility"
     assert "Éxample AI" in payload["project"]["product_name"]
     assert "Welche Annahme" in payload["notes"][0]["text"]
     assert "password_hash" not in export_project_json(db, user, project.id)

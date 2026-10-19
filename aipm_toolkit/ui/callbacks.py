@@ -38,7 +38,7 @@ from ..experiment_services import (
     save_reflection,
     update_experiment,
 )
-from ..export_services import export_project_markdown, write_export_files
+from ..export_services import export_project_sections, write_export_files
 from ..hypothesis_services import (
     add_relation,
     create_hypothesis,
@@ -371,9 +371,27 @@ def autosave_assessments_from_ui(
     return f"Save failed: {status}", new_revisions, True
 
 
-def load_comparator_choices():
+def load_project_comparator_from_ui(token: str | None, project_id: str | None, request: gr.Request | None = None):
+    """Restore the latest saved comparison snapshot for a project."""
+    token = _resolve_token(token, request)
+    if not project_id:
+        return gr.update(choices=[], value=None), {}, "Select a product to compare."
     with SessionLocal() as db:
-        return gr.update(choices=[(name, str(dataset_id)) for name, dataset_id in published_datasets(db)])
+        user = get_authenticated_user(db, token)
+        get_project(db, user, UUID(project_id))
+        choices = published_datasets(db)
+        snapshot = db.scalar(
+            select(ComparisonSnapshot)
+            .where(ComparisonSnapshot.project_id == UUID(project_id))
+            .order_by(ComparisonSnapshot.revision.desc(), ComparisonSnapshot.created_at.desc(), ComparisonSnapshot.id.desc())
+            .limit(1)
+        )
+        available_ids = {str(dataset_id) for _, dataset_id in choices}
+        selected_id = str(snapshot.dataset_id) if snapshot and str(snapshot.dataset_id) in available_ids else None
+        frozen = json.loads(snapshot.frozen_profile or "{}") if selected_id else {}
+        snapshot_id = str(snapshot.id) if selected_id else None
+    table = comparison_table_from_ui(token, project_id, snapshot_id) if snapshot_id else "Select a product to compare."
+    return gr.update(choices=[(name, str(dataset_id)) for name, dataset_id in choices], value=selected_id), frozen, table
 
 
 def load_frozen_profile_from_ui(token: str | None, project_id: str | None, snapshot_id: str | None, request: gr.Request | None = None):
@@ -395,7 +413,7 @@ def load_frozen_profile_from_ui(token: str | None, project_id: str | None, snaps
 def comparison_table_from_ui(token: str | None, project_id: str | None, snapshot_id: str | None, request: gr.Request | None = None):
     token = _resolve_token(token, request)
     if not project_id or not snapshot_id:
-        return "Select a comparator to see the comparison table."
+        return "Select a product to compare."
     with SessionLocal() as db:
         try:
             user = get_authenticated_user(db, token)
@@ -408,7 +426,7 @@ def comparison_table_from_ui(token: str | None, project_id: str | None, snapshot
         median_value = "unknown" if row["baseline_median"] is None else f"{row['baseline_median']:.1f}"
         spread = "unknown" if row["baseline_p25"] is None else f"{row['baseline_p25']:.1f}-{row['baseline_p75']:.1f} (n={row['count']})"
         difference = "not calculated" if row["difference"] is None else f"{row['difference']:+.1f}"
-        lines.append(f"{row['dimension']} | {ours_value} | {median_value} | {spread} | {difference} | {'Compatible' if row['compatible'] else 'Incompatible'}")
+        lines.append(f"{row['dimension_title']} | {ours_value} | {median_value} | {spread} | {difference} | {'Compatible' if row['compatible'] else 'Incompatible'}")
     return "\n".join(lines)
 
 
@@ -445,7 +463,7 @@ def live_profile_from_ui(frozen_state: dict | None, *values):
             go.Scatterpolar(
                 r=baseline_closed,
                 theta=theta,
-                name="Historical comparator",
+                name="Compare to Product",
                 line={"color": "#d62728", "width": 2, "dash": "dash"},
                 fill="none",
             )
@@ -478,7 +496,7 @@ def on_comparator_selected(token: str | None, project_id: str | None, dataset_id
                 "comparison.selected",
                 "comparison_snapshot",
                 snapshot.id,
-                "Selected a historical comparator",
+                "Selected Compare to Product",
                 {"dataset_id": str(dataset_id), "purpose": "task_comparator", "scope": "Direct comparison"},
             )
             db.commit()
@@ -1423,6 +1441,11 @@ def checklist_text(token: str | None, project_id: str | None, request: gr.Reques
                 label: complete
                 for label, complete in completion_checklist(db, user, UUID(project_id)).items()
                 if "safety" not in label.lower()
+                and label not in {
+                    "Hypotheses connected to value",
+                    "Priority hypothesis selected",
+                    "Next experiment defined",
+                }
             }
         except AuthenticationError:
             return "Session expired."
@@ -1573,9 +1596,19 @@ def summary_preview_from_ui(token: str | None, project_id: str | None, request: 
     with SessionLocal() as db:
         try:
             user = get_authenticated_user(db, token)
-            return export_project_markdown(db, user, UUID(project_id))
+            sections = export_project_sections(db, user, UUID(project_id))
         except (AuthenticationError, ValueError) as exc:
             return str(exc)
+    rendered = ["<div class=\"toolkit-summary-sections\"><h3>Product learning summary</h3>"]
+    for title, blocks in sections:
+        rendered.append(f"<details class=\"toolkit-summary-section\"><summary>{escape(title)}</summary><div class=\"toolkit-summary-section-content\">")
+        for label, value in blocks:
+            rendered.append(
+                f"<p><strong>{escape(str(label))}</strong><br><span>{escape(str(value or 'Not recorded.'))}</span></p>"
+            )
+        rendered.append("</div></details>")
+    rendered.append("</div>")
+    return "".join(rendered)
 
 
 def save_risk_reflection_from_ui(token: str | None, project_id: str | None, score, entry: str, behavior: str, affected: str, consequence: str, safeguard: str, uncertainty: str, request: gr.Request | None = None):

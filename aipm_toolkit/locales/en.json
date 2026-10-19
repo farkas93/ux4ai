@@ -21,7 +21,7 @@
     "problem": "Current problem or workflow",
     "main_hypothesis": "Main value hypothesis",
     "figma_url": "Figma prototype URL (optional)",
-    "comparator": "Historical comparator",
+    "comparator": "Compare to Product",
     "notes": "Saved notes",
     "hypotheses": "Hypothesis backlog",
     "experiments": "Reopen experiment",

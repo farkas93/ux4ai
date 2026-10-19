@@ -1,4 +1,6 @@
+from aipm_toolkit.dimensions import DEFAULT_DIMENSIONS
 from aipm_toolkit.ui.shell import build_app
+from aipm_toolkit.ui.workspace_style import WORKSPACE_CSS
 
 
 def test_responsive_navigation_targets_sections_without_duplicating_forms():
@@ -59,3 +61,21 @@ def test_setup_has_explicit_stacking_layout_and_header_moves_settings_to_drawer(
     add = next(item for item in components if item["props"].get("elem_id") == "toolkit-new-product")
     assert add["props"]["value"] == "+ New"
     assert add["props"]["size"] == "sm"
+
+
+def test_comparison_label_dimension_order_and_summary_controls():
+    app = build_app()
+    components = app.get_config_file()["components"]
+    labels = [item["props"].get("label") for item in components]
+    assert "Compare to Product" in labels
+    assert [definition["title"] for definition in DEFAULT_DIMENSIONS][-2:] == ["Explainability", "Accessibility"]
+    accessibility = next(definition for definition in DEFAULT_DIMENSIONS if definition["key"] == "accessibility")
+    assert accessibility["title"] == "Accessibility"
+    assert "target demographics" not in accessibility["title"].lower()
+    ids = [item["props"].get("elem_id") for item in components]
+    assert ids.index("toolkit-summary-sections") > ids.index("toolkit-summary-export")
+    summary_controls = next(index for index, item in enumerate(components) if item["props"].get("label") == "PDF export (includes both graphs)")
+    summary_content = next(index for index, item in enumerate(components) if item["props"].get("elem_id") == "toolkit-summary-sections")
+    assert summary_controls < summary_content
+    assert "overflow-y: auto !important" in WORKSPACE_CSS
+    assert "resize: vertical !important" in WORKSPACE_CSS

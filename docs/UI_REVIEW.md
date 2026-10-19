@@ -15,6 +15,11 @@ The interface is a student learning workspace: define value, identify questions 
   loading. Core load failures retain the previous project and unlock the picker.
 - Priority sliders and comparator selection save only on user input; displaying
   fetched values does not trigger database writes.
+- Compare to Product is restored from the latest project-scoped snapshot when a
+  product is reopened. Summary sections are collapsed by default, with export
+  controls above them; long text fields scroll within their viewport.
+- Explore Dimensions lists Explainability before Accessibility. Accessibility
+  keeps its existing target-demographics meaning and internal key.
 
 ## Further usability opportunities
 

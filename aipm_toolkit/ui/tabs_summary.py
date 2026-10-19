@@ -8,19 +8,24 @@ from .callbacks import delete_product_from_ui, export_project_from_ui, summary_p
 def build_summary_tab(token, project_id, status, product_dropdown):
     with gr.Column(visible=False, elem_id="page-summary-export") as tab:
         gr.Markdown("## Summary & Export\nBring your idea and learning together.", elem_classes=["toolkit-page-heading"])
-        with gr.Row(elem_classes=["toolkit-two-column"]):
-            with gr.Column(scale=3, elem_classes=["toolkit-card"]):
-                summary_preview = gr.Markdown("Select a product to view its summary.")
-                refresh_summary_button = gr.Button("Refresh summary", variant="secondary")
-            with gr.Column(scale=2, elem_classes=["toolkit-card"]):
-                checklist_display = gr.Textbox(label="Workshop progress", interactive=False, lines=9)
-        with gr.Column(elem_classes=["toolkit-card"]):
+        with gr.Column(elem_classes=["toolkit-card"], elem_id="toolkit-summary-export"):
             gr.Markdown("### Take your work with you\nExport for discussion, presentation, or further work.")
-            export_button = gr.Button("Prepare downloads", variant="primary")
+            with gr.Row():
+                refresh_summary_button = gr.Button("Refresh summary", variant="secondary")
+                export_button = gr.Button("Prepare downloads", variant="primary")
             with gr.Row(elem_classes=["toolkit-two-column"]):
                 pdf_download = gr.File(label="PDF export (includes both graphs)")
                 markdown_download = gr.File(label="Markdown export")
                 json_download = gr.File(label="JSON export")
+
+        with gr.Row(elem_classes=["toolkit-two-column"]):
+            with gr.Column(scale=3, elem_classes=["toolkit-card"]):
+                summary_preview = gr.HTML(
+                    "Select a product to view its summary.",
+                    elem_id="toolkit-summary-sections",
+                )
+            with gr.Column(scale=2, elem_classes=["toolkit-card"]):
+                checklist_display = gr.Textbox(label="Workshop progress", interactive=False, lines=5)
 
         with gr.Accordion("Product administration", open=False):
             gr.Markdown("Deleting is manual and permanent. Only your team or an instructor can delete this product.")

@@ -5,7 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from .auth import AuthorizationError
-from .dimensions import DIMENSION_KEYS
+from .dimensions import DEFAULT_DIMENSIONS, DIMENSION_KEYS
 from .models import ComparisonSnapshot, DimensionEstimate, Product, User
 from .services import get_project
 
@@ -25,7 +25,8 @@ def comparison_rows(db: Session, actor: User, project_id: UUID, snapshot_id: UUI
         baseline_median = baseline.get("median")
         compatible = baseline.get("compatible", True)
         difference = our_score - baseline_median if compatible and our_score is not None and baseline_median is not None else None
-        rows.append({"dimension": key, "our_score": our_score, "baseline_median": baseline_median, "baseline_p25": baseline.get("p25"), "baseline_p75": baseline.get("p75"), "count": baseline.get("count", 0), "difference": difference, "compatible": compatible})
+        title = next(definition["title"] for definition in DEFAULT_DIMENSIONS if definition["key"] == key)
+        rows.append({"dimension": key, "dimension_title": title, "our_score": our_score, "baseline_median": baseline_median, "baseline_p25": baseline.get("p25"), "baseline_p75": baseline.get("p75"), "count": baseline.get("count", 0), "difference": difference, "compatible": compatible})
     return rows
 
 

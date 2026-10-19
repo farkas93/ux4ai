@@ -7,7 +7,7 @@ from aipm_toolkit.assessment_services import (
 )
 from aipm_toolkit.auth import RevisionConflict, hash_password
 from aipm_toolkit.dimensions import DIMENSION_KEYS
-from aipm_toolkit.models import Course, ProjectEvent, Role, Team, User
+from aipm_toolkit.models import Course, ProjectEvent, Role, ScaleDefinition, Team, User
 from aipm_toolkit.services import create_project
 
 
@@ -107,3 +107,18 @@ def test_assessment_scores_and_reasoning_persist_and_reload_cleanly(db, monkeypa
     assert reloaded[10] == revs
     events = list(db.query(ProjectEvent).filter_by(project_id=project.id, event_type="assessment.updated"))
     assert len(events) == 5
+
+
+def test_existing_accessibility_scale_title_is_renamed_without_changing_its_key(db):
+    db.add(ScaleDefinition(
+        key="accessibility", version=1, title="Accessibility / audience breadth",
+        explanation="Existing demographic-breadth scale", low_anchor="Niche",
+        high_anchor="Broad", midpoint="Middle",
+    ))
+    db.commit()
+
+    ensure_scale_definitions(db)
+
+    definition = db.query(ScaleDefinition).filter_by(key="accessibility", version=1).one()
+    assert definition.title == "Accessibility"
+    assert definition.explanation == "Existing demographic-breadth scale"

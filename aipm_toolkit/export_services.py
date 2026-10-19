@@ -9,8 +9,9 @@ from fpdf import FPDF
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from .dimensions import DEFAULT_DIMENSIONS, DIMENSION_KEYS
 from .improvement_services import classify_loop
-from .learning_report import markdown_report, pdf_report
+from .learning_report import markdown_report, pdf_report, report_sections
 from .models import (
     BaselineDataset,
     ComparisonSnapshot,
@@ -62,14 +63,17 @@ def build_project_export(db: Session, actor: User, project_id: UUID) -> dict:
     note_dimensions = {}
     for link in db.scalars(select(NoteDimension).where(NoteDimension.note_id.in_([note.id for note in notes]))) if notes else []:
         note_dimensions.setdefault(link.note_id, []).append(link.dimension_key)
-    snapshots = list(db.scalars(select(ComparisonSnapshot).where(ComparisonSnapshot.project_id == project_id).order_by(ComparisonSnapshot.created_at)))
+    snapshots = list(db.scalars(select(ComparisonSnapshot).where(ComparisonSnapshot.project_id == project_id).order_by(ComparisonSnapshot.revision, ComparisonSnapshot.created_at, ComparisonSnapshot.id)))
     snapshot_data = []
     for snapshot in snapshots:
         product = db.get(Product, snapshot.product_id)
         dataset = db.get(BaselineDataset, snapshot.dataset_id)
         snapshot_data.append({**_record(ComparisonSnapshot, snapshot), "product": product.display_name if product else None, "dataset": {"cohort_label": dataset.cohort_label, "source_type": dataset.source_type, "scale_version": dataset.scale_version, "provenance_notes": dataset.provenance_notes} if dataset else None})
-    estimates = list(db.scalars(select(DimensionEstimate).where(DimensionEstimate.project_id == project_id).order_by(DimensionEstimate.dimension_key)))
-    scales = list(db.scalars(select(ScaleDefinition).where(ScaleDefinition.version == 1).order_by(ScaleDefinition.key)))
+    estimates_by_key = {item.dimension_key: item for item in db.scalars(select(DimensionEstimate).where(DimensionEstimate.project_id == project_id))}
+    estimates = [estimates_by_key[key] for key in DIMENSION_KEYS if key in estimates_by_key]
+    scales_by_key = {item.key: item for item in db.scalars(select(ScaleDefinition).where(ScaleDefinition.version == 1))}
+    scales = [scales_by_key[key] for key in DIMENSION_KEYS if key in scales_by_key]
+    dimension_titles = {definition["key"]: definition["title"] for definition in DEFAULT_DIMENSIONS}
     experiments = list(db.scalars(select(Experiment).where(Experiment.project_id == project_id).order_by(Experiment.created_at)))
     reflections = list(db.scalars(select(ProjectReflection).where(ProjectReflection.project_id == project_id)))
     safety = db.scalar(select(SafetyAssessment).where(SafetyAssessment.project_id == project_id))
@@ -88,7 +92,7 @@ def build_project_export(db: Session, actor: User, project_id: UUID) -> dict:
         "schema_version": EXPORT_SCHEMA_VERSION,
         "warning": WARNING,
         "project": _record(Project, project),
-        "scale_definitions": [_record(ScaleDefinition, item) for item in scales],
+        "scale_definitions": [{**_record(ScaleDefinition, item), "title": dimension_titles.get(item.key, item.title)} for item in scales],
         "dimension_assessments": [_record(DimensionEstimate, item) for item in estimates],
         "comparison_snapshots": snapshot_data,
         "notes": [{**_record(Note, note), "dimensions": note_dimensions.get(note.id, [])} for note in notes],
@@ -156,13 +160,19 @@ def export_project_markdown(db: Session, actor: User, project_id: UUID) -> str:
     return markdown_report(_build_user_export(db, actor, project_id))
 
 
+def export_project_sections(db: Session, actor: User, project_id: UUID) -> list[tuple[str, list[tuple[str, object]]]]:
+    """Return the user-facing report sections for the collapsible workspace summary."""
+    return report_sections(_build_user_export(db, actor, project_id))
+
+
 def _pdf_text(value: object, unicode_font: bool) -> str:
     text = str(value or "")
     return text if unicode_font else text.encode("latin-1", "replace").decode("latin-1")
 
 
 def _draw_radar(pdf: FPDF, document: dict, x: float, y: float, size: float, font: str) -> None:
-    labels = ["conversational", "specialization", "autonomy", "accessibility", "explainability"]
+    labels = [definition["key"] for definition in DEFAULT_DIMENSIONS]
+    titles = {definition["key"]: definition["title"] for definition in DEFAULT_DIMENSIONS}
     scores = {item["dimension_key"]: item["score"] for item in document["dimension_assessments"] if item["status"] == "estimated"}
     baseline = {}
     if document["comparison_snapshots"]:
@@ -186,7 +196,7 @@ def _draw_radar(pdf: FPDF, document: dict, x: float, y: float, size: float, font
         baseline_points.append(None if base is None else (cx + radius * base / 5 * math.cos(angle), cy + radius * base / 5 * math.sin(angle)))
         pdf.set_xy(ax - 12, ay - 3)
         pdf.set_font(font, size=7)
-        pdf.cell(24, 4, _pdf_text(label.title(), font == "Report"), align="C")
+        pdf.cell(24, 4, _pdf_text(titles[label], font == "Report"), align="C")
     for ring in range(1, 6):
         ring_points = []
         for index in range(len(labels)):

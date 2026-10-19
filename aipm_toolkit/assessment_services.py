@@ -17,10 +17,12 @@ from .services import get_project
 
 
 def ensure_scale_definitions(db: Session) -> None:
-    existing = {item.key for item in db.scalars(select(ScaleDefinition).where(ScaleDefinition.version == 1))}
+    existing = {item.key: item for item in db.scalars(select(ScaleDefinition).where(ScaleDefinition.version == 1))}
     for definition in DEFAULT_DIMENSIONS:
         if definition["key"] not in existing:
             db.add(ScaleDefinition(version=1, **definition))
+        elif definition["key"] == "accessibility" and existing[definition["key"]].title == "Accessibility / audience breadth":
+            existing[definition["key"]].title = definition["title"]
     db.commit()
 
 
