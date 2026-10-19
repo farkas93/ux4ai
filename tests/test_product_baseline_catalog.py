@@ -35,7 +35,7 @@ def test_catalog_is_complete_scoped_and_current_rubric_compatible():
     assert {path.stem for path in paths} == {
         "chatgpt", "claude", "google_gemini", "microsoft_365_copilot", "perplexity",
         "gemini_notebook", "deepl_translator", "grammarly", "canva_ai", "adobe_firefly",
-        "github_copilot", "otter", "cursor", "fin", "zapier_agents",
+        "github_copilot", "otter", "cursor", "fin", "zapier_agents", "grok_bot",
     }
     keys = set(manifest["scale_versions"])
     assert keys == {"conversational", "specialization", "autonomy", "accessibility", "explainability"}
@@ -45,7 +45,7 @@ def test_catalog_is_complete_scoped_and_current_rubric_compatible():
         payload = json.loads(path.read_text())
         assert payload["product_name"] not in names
         names.add(payload["product_name"])
-        assert payload["assessment_date"] == "2026-10-18"
+        assert payload["assessment_date"] == ("2026-10-19" if path.stem == "grok_bot" else "2026-10-18")
         assert payload["assessment_basis"] == "ai_assisted_documentation_review"
         assert payload["live_testing_performed"] is False
         assert payload["scope"]["experience"] and payload["scope"]["configuration"]
@@ -63,7 +63,7 @@ def test_catalog_is_complete_scoped_and_current_rubric_compatible():
         assert "no live" in payload["provenance_notes"].lower() or "no customer" in payload["provenance_notes"].lower()
         assert "username" not in payload and "password" not in payload
     preview = preview_legacy_reference_json(BASELINE / "products", manifest)
-    assert preview["files"] == preview["records"] == 15
+    assert preview["files"] == preview["records"] == 16
     assert preview["invalid_values"] == []
 
 
@@ -81,14 +81,19 @@ def test_catalog_upload_publishes_scores_and_preserves_provenance(db, tmp_path, 
     db.add(original)
     db.commit()
     paths = sorted((BASELINE / "products").glob("*.json"))
-    batch, preview = preview_upload(db, instructor, [str(path) for path in paths], str(BASELINE / "import_manifest.json"))
-    assert preview["records"] == 15 and preview["invalid_values"] == []
-    report = publish_upload(db, instructor, batch.id)
-    assert report["records"] == 15 and report["invalid_values"] == []
-    assert batch.status == "published"
+    # Import the original catalog, then add Grok Bot to the same published cohort
+    # through a one-file instructor upload.
+    original_paths = [path for path in paths if path.stem != "grok_bot"]
+    for batch_paths in (original_paths, [BASELINE / "products" / "grok_bot.json"]):
+        batch, preview = preview_upload(db, instructor, [str(path) for path in batch_paths], str(BASELINE / "import_manifest.json"))
+        assert preview["records"] == len(batch_paths) and preview["invalid_values"] == []
+        report = publish_upload(db, instructor, batch.id)
+        assert report["records"] == len(batch_paths) and report["invalid_values"] == []
+        assert report["skipped_published"] == []
+        assert batch.status == "published"
     datasets = list(db.scalars(select(BaselineDataset).where(BaselineDataset.cohort_label == manifest["cohort_label"])))
-    assert len(datasets) == 15 and all(dataset.published for dataset in datasets)
-    assert len(published_datasets(db)) == 16
+    assert len(datasets) == 16 and all(dataset.published for dataset in datasets)
+    assert len(published_datasets(db)) == 17
     assert original.cohort_label == "Legacy instructor reference" and original.published is True
     expected = {json.loads(path.read_text())["product_name"]: json.loads(path.read_text()) for path in paths}
     for dataset in datasets:
@@ -103,7 +108,7 @@ def test_catalog_upload_publishes_scores_and_preserves_provenance(db, tmp_path, 
         assert len(records) == 5
         assert all(json.loads(record.raw_record) == payload for record in records)
     repeated = import_legacy_reference_json(db, BASELINE / "products", manifest=manifest)
-    assert repeated["records"] == 0 and len(repeated["skipped_published"]) == 15
+    assert repeated["records"] == 0 and len(repeated["skipped_published"]) == 16
 
 
 def test_cli_publish_uses_manifest_cohort_without_requiring_duplicate_flag(db, monkeypatch):
@@ -114,7 +119,7 @@ def test_cli_publish_uses_manifest_cohort_without_requiring_duplicate_flag(db, m
     ])
     import_baselines.main()
     datasets = list(db.scalars(select(BaselineDataset)))
-    assert len(datasets) == 15 and all(dataset.published for dataset in datasets)
+    assert len(datasets) == 16 and all(dataset.published for dataset in datasets)
 
 
 def test_current_baseline_autonomy_is_visible_in_comparator(db):
