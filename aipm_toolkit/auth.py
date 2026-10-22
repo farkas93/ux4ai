@@ -1,17 +1,25 @@
 import hashlib
 import secrets
 from datetime import UTC, datetime, timedelta
+from functools import lru_cache
+from threading import BoundedSemaphore
 from uuid import UUID
 
 from argon2 import PasswordHasher
 from argon2.exceptions import InvalidHashError, VerifyMismatchError
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, or_, select, update
 from sqlalchemy.orm import Session
+from sqlalchemy.orm.attributes import set_committed_value
 
 from .config import get_settings
 from .models import LoginAttempt, Role, SessionRecord, User
 
 _hasher = PasswordHasher()
+
+
+@lru_cache
+def _password_slots(limit: int) -> BoundedSemaphore:
+    return BoundedSemaphore(limit)
 
 
 class AuthError(Exception):
@@ -33,12 +41,14 @@ class RevisionConflict(Exception):
 def hash_password(password: str) -> str:
     if len(password) < 12:
         raise ValueError("Passwords must contain at least 12 characters")
-    return _hasher.hash(password)
+    with _password_slots(get_settings().password_concurrency_limit):
+        return _hasher.hash(password)
 
 
 def verify_password(password_hash: str, password: str) -> bool:
     try:
-        return _hasher.verify(password_hash, password)
+        with _password_slots(get_settings().password_concurrency_limit):
+            return _hasher.verify(password_hash, password)
     except (VerifyMismatchError, InvalidHashError):
         return False
 
@@ -86,14 +96,33 @@ def authenticate(db: Session, username: str, password: str, ip_address: str | No
 def get_authenticated_user(db: Session, raw_token: str | None) -> User:
     if not raw_token:
         raise AuthenticationError("Authentication required")
-    record = db.scalar(select(SessionRecord).where(SessionRecord.token_hash == _digest(raw_token)))
-    if record is None or record.revoked or _as_utc(record.expires_at) <= _now():
+    result = db.execute(
+        select(SessionRecord, User)
+        .join(User, SessionRecord.user_id == User.id)
+        .where(SessionRecord.token_hash == _digest(raw_token))
+    ).one_or_none()
+    now = _now()
+    if result is None:
         raise AuthenticationError("Authentication required")
-    record.last_seen_at = _now()
-    db.commit()
-    user = db.get(User, record.user_id)
-    if user is None or not user.is_active:
+    record, user = result
+    if record.revoked or _as_utc(record.expires_at) <= now or not user.is_active:
         raise AuthenticationError("Authentication required")
+    cutoff = now - timedelta(seconds=get_settings().session_touch_interval_seconds)
+    if record.last_seen_at is None or _as_utc(record.last_seen_at) <= cutoff:
+        # Concurrent checks may have read the same timestamp. Only the first
+        # updates it; expiry, revocation and account status are never cached.
+        touched = db.execute(
+            update(SessionRecord)
+            .where(
+                SessionRecord.id == record.id,
+                or_(SessionRecord.last_seen_at <= cutoff, SessionRecord.last_seen_at.is_(None)),
+            )
+            .values(last_seen_at=now)
+            .execution_options(synchronize_session=False)
+        )
+        if touched.rowcount:
+            db.commit()
+            set_committed_value(record, "last_seen_at", now)
     return user
 
 

@@ -1,11 +1,16 @@
+import asyncio
+import threading
+from contextlib import nullcontext
 from pathlib import Path
 
 import gradio as gr
+import httpx
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 
+from aipm_toolkit import web
 from aipm_toolkit.app import _resolve_token
 from aipm_toolkit.auth import hash_password
 from aipm_toolkit.db import Base
@@ -113,3 +118,77 @@ def test_asset_exemption_does_not_open_private_gradio_routes(path):
     response = client.get(path, follow_redirects=False)
     assert response.status_code == 303
     assert response.headers["cache-control"] == "no-store"
+
+
+def test_twenty_logins_are_bounded_and_leave_the_event_loop_responsive(monkeypatch):
+    release = threading.Event()
+    four_started = threading.Event()
+    counter_lock = threading.Lock()
+    active = peak = 0
+
+    def slow_authentication(*_args):
+        nonlocal active, peak
+        with counter_lock:
+            active += 1
+            peak = max(peak, active)
+            if active == 4:
+                four_started.set()
+        try:
+            assert release.wait(timeout=5), "Authentication workers were not released"
+            return "session-token", None
+        finally:
+            with counter_lock:
+                active -= 1
+
+    monkeypatch.setattr(web, "authenticate", slow_authentication)
+    app = create_auth_app(lambda: nullcontext(None))
+
+    async def run():
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
+            logins = [asyncio.create_task(client.post("/auth/login", data={"username": f"student-{index}", "password": "password"})) for index in range(20)]
+            try:
+                for _ in range(200):
+                    if four_started.is_set():
+                        break
+                    await asyncio.sleep(0.01)
+                assert four_started.is_set()
+                assert peak == 4
+                response = await asyncio.wait_for(client.get("/healthz"), timeout=1)
+                assert response.status_code == 200
+                assert not any(login.done() for login in logins)
+            finally:
+                release.set()
+            responses = await asyncio.gather(*logins)
+            assert all(response.status_code == 303 for response in responses)
+
+    asyncio.run(run())
+    assert peak == 4
+
+
+def test_slow_session_check_does_not_block_health_requests(monkeypatch):
+    started = threading.Event()
+    release = threading.Event()
+
+    def slow_session_check(*_args):
+        started.set()
+        assert release.wait(timeout=5)
+
+    monkeypatch.setattr(web, "get_authenticated_user", slow_session_check)
+    app = create_auth_app(lambda: nullcontext(None))
+
+    async def run():
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
+            protected = asyncio.create_task(client.get("/app/config"))
+            try:
+                for _ in range(200):
+                    if started.is_set():
+                        break
+                    await asyncio.sleep(0.01)
+                assert started.is_set()
+                assert (await asyncio.wait_for(client.get("/healthz"), timeout=1)).status_code == 200
+                assert not protected.done()
+            finally:
+                release.set()
+            await protected
+
+    asyncio.run(run())

@@ -8,3 +8,7 @@ Before first use:
   4. Sign in at http://<node-ip>:{{ .Values.service.nodePort }}/auth/login.
 
 The optional temporary public Gradio link is controlled from the instructor panel.
+Open a new link after an upgrade or rollback replaces the app Pod.
+The app permits {{ .Values.app.uiConcurrencyLimit }} concurrent browser callback pipelines,
+with each browser's saves and project switches kept sequential.
+See docs/CLASSROOM_READINESS.md for a 20-session rehearsal and rollback commands.

@@ -28,6 +28,10 @@ app:
   courseName: AIPM Workshop
   cookieSecure: false
   sessionTtlHours: 12
+  # Different browsers run concurrently; callbacks within a browser remain ordered.
+  uiConcurrencyLimit: 8
+  passwordConcurrencyLimit: 4
+  sessionTouchIntervalSeconds: 60
 
 postgres:
   enabled: true
@@ -51,7 +55,7 @@ postgres:
 
 resources:
   requests:
-    cpu: 100m
-    memory: 256Mi
-  limits:
+    cpu: "2"
     memory: 1Gi
+  limits:
+    memory: 2Gi

@@ -3,12 +3,13 @@ from html import escape
 
 from alembic.config import Config
 from alembic.script import ScriptDirectory
+from anyio import CapacityLimiter, to_thread
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
-from .auth import AuthenticationError, authenticate, revoke_session
+from .auth import AuthenticationError, authenticate, get_authenticated_user, revoke_session
 from .config import get_settings
 from .db import SessionLocal
 from .ui.login_style import LOGIN_CSS
@@ -58,6 +59,17 @@ def _migration_heads() -> set[str]:
 def create_auth_app(session_factory=SessionLocal) -> FastAPI:
     app = FastAPI(title="AI Product Toolkit")
     settings = get_settings()
+    login_limiter = CapacityLimiter(settings.password_concurrency_limit)
+
+    def validate_session(token):
+        # Each worker owns its SQLAlchemy session from creation through close.
+        with session_factory() as db:
+            get_authenticated_user(db, token)
+
+    def authenticate_session(username, password, ip_address):
+        with session_factory() as db:
+            token, _ = authenticate(db, username, password, ip_address)
+            return token
 
     @app.middleware("http")
     async def require_session(request: Request, call_next):
@@ -67,15 +79,13 @@ def create_auth_app(session_factory=SessionLocal) -> FastAPI:
         # Do not exempt /file=, /gradio_api/, uploads, downloads, or app config.
         public_asset = path.startswith(("/app/assets/", "/app/static/"))
         if app_path and not public_asset:
-            with session_factory() as db:
-                try:
-                    from .auth import get_authenticated_user
-                    get_authenticated_user(db, request.cookies.get(settings.cookie_name))
-                except AuthenticationError:
-                    return RedirectResponse(
-                        f"/auth/login?next={path}", status_code=303,
-                        headers={"Cache-Control": "no-store", "Pragma": "no-cache", "Expires": "0"},
-                    )
+            try:
+                await to_thread.run_sync(validate_session, request.cookies.get(settings.cookie_name))
+            except AuthenticationError:
+                return RedirectResponse(
+                    f"/auth/login?next={path}", status_code=303,
+                    headers={"Cache-Control": "no-store", "Pragma": "no-cache", "Expires": "0"},
+                )
         response = await call_next(request)
         if path == "/" or path.startswith("/auth/") or (app_path and not public_asset) or (public_asset and response.status_code >= 300):
             # Prevent nginx/browser caches from reusing redirects or session data.
@@ -107,7 +117,7 @@ def create_auth_app(session_factory=SessionLocal) -> FastAPI:
         )
 
     @app.get("/readyz")
-    async def readyz():
+    def readyz():
         try:
             with session_factory() as db:
                 db.execute(text("SELECT 1"))
@@ -132,17 +142,20 @@ def create_auth_app(session_factory=SessionLocal) -> FastAPI:
         username = str(form.get("username", ""))
         password = str(form.get("password", ""))
         next_path = _safe_next(str(form.get("next", "/app")))
-        with session_factory() as db:
-            try:
-                token, _ = authenticate(db, username, password, request.client.host if request.client else None)
-            except AuthenticationError:
-                return HTMLResponse(_login_page("Invalid credentials or temporarily rate limited.", next_path), status_code=401)
+        try:
+            token = await to_thread.run_sync(
+                authenticate_session, username, password,
+                request.client.host if request.client else None,
+                limiter=login_limiter,
+            )
+        except AuthenticationError:
+            return HTMLResponse(_login_page("Invalid credentials or temporarily rate limited.", next_path), status_code=401)
         response = RedirectResponse(next_path, status_code=303)
         response.set_cookie(settings.cookie_name, token, max_age=settings.session_ttl_hours * 3600, httponly=True, secure=settings.cookie_secure, samesite="lax", path="/")
         return response
 
     @app.get("/auth/logout")
-    async def logout(request: Request):
+    def logout(request: Request):
         with session_factory() as db:
             revoke_session(db, request.cookies.get(settings.cookie_name))
         response = RedirectResponse("/auth/login", status_code=303)

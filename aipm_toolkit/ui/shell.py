@@ -39,6 +39,7 @@ from .callbacks import (
     summary_preview_from_ui,
     workspace,
 )
+from .concurrency import SessionBlocks
 from .safety_callbacks import learning_notes_ui, load_primary_loop_ui
 from .tunnel_callbacks import (
     close_public_access_from_ui,
@@ -182,7 +183,7 @@ def build_app():
         button_large_text_size="14px", button_large_padding="10px 16px",
         block_title_text_size="14px", block_padding="12px", layout_gap="16px",
     )
-    with gr.Blocks(title="AI Product Toolkit", theme=theme, js=BLOCKS_JS, css=WORKSPACE_CSS) as app:
+    with SessionBlocks(title="AI Product Toolkit", theme=theme, js=BLOCKS_JS, css=WORKSPACE_CSS) as app:
         token = gr.State(None)
         active_project_id = gr.State(None)
         pending_project_id = gr.State(None)
@@ -335,6 +336,7 @@ def build_app():
             summary["pdf_download"], summary["json_download"], summary["markdown_download"],
             *dirty_states, *[draft["text"] for draft in assessment["note_drafts"]],
             improvement["note_draft"]["text"],
+            setup["brief_draft"], setup["brief_timer"],
             active_project_id, pending_project_id, project_switch_action, project_switch_busy,
             product_dropdown, status,
         ]
@@ -387,6 +389,8 @@ def build_app():
                 for output in (summary["pdf_download"], summary["json_download"], summary["markdown_download"]):
                     values[output] = None
                 values.update(dict.fromkeys(dirty_states, False))
+                values[setup["brief_draft"]] = None
+                values[setup["brief_timer"]] = gr.update(active=False)
                 for draft in assessment["note_drafts"]:
                     values[draft["text"]] = ""
                 values[improvement["note_draft"]["text"]] = ""
@@ -630,4 +634,4 @@ def build_app():
         for event in [*assessment["note_events"], improvement["note_event"]]:
             event.then(load_backlog_table_from_ui, [token, active_project_id], backlog["table_flat_outputs"] + [backlog["visible_rows_count"]])
 
-    return app
+    return app.queue()
