@@ -1,5 +1,6 @@
 from functools import lru_cache
 
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -11,6 +12,9 @@ class Settings(BaseSettings):
     rate_limit_failures: int = 5
     rate_limit_window_seconds: int = 300
     rate_limit_lockout_seconds: int = 30
+    password_concurrency_limit: int = Field(default=4, ge=1, le=32)
+    session_touch_interval_seconds: int = Field(default=60, ge=0)
+    ui_concurrency_limit: int = Field(default=8, ge=1, le=40)
 
     model_config = SettingsConfigDict(env_prefix="AIPM_", env_file=".env", extra="ignore")
 

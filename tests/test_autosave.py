@@ -1,3 +1,4 @@
+from aipm_toolkit.ui import autosave
 from aipm_toolkit.ui import callbacks as app_module
 
 
@@ -45,3 +46,25 @@ def test_experiment_autosave_preserves_dirty_state_after_failure(monkeypatch):
     assert status.startswith("Save failed")
     assert revision == 4
     assert dirty is True
+
+
+def test_setup_autosave_retains_edits_newer_than_submitted_payload(monkeypatch):
+    submitted = (None, "earlier description", "", "", "", "", "")
+    latest = (None, "newer description", "", "", "", "", "")
+    monkeypatch.setattr(autosave, "autosave_project_from_ui", lambda *args, **kwargs: ("Product setup saved automatically.", 3, False))
+    status, revision, dirty = autosave.autosave_setup("token", "project", 2, True, latest, *submitted)
+    assert "newer edits are still pending" in status
+    assert revision == 3
+    assert dirty is True
+    _status, _revision, dirty = autosave.autosave_setup("token", "project", 3, True, latest, *latest)
+    assert dirty is False
+
+
+def test_setup_autosave_stays_dirty_after_failure_and_timer_pauses_for_switch(monkeypatch):
+    fields = (None, "draft", "", "", "", "", "")
+    monkeypatch.setattr(autosave, "autosave_project_from_ui", lambda *args, **kwargs: ("Save failed: database unavailable", 2, True))
+    _status, _revision, dirty = autosave.autosave_setup("token", "project", 2, True, fields, *fields)
+    assert dirty is True
+    assert autosave.autosave_timer_state(True, False)["active"] is True
+    assert autosave.autosave_timer_state(False, False)["active"] is False
+    assert autosave.autosave_timer_state(True, True)["active"] is False

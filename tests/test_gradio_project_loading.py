@@ -1,4 +1,5 @@
 import json
+import threading
 from collections import deque
 
 import gradio as gr
@@ -24,7 +25,7 @@ from aipm_toolkit.models import (
     User,
 )
 from aipm_toolkit.services import create_project, update_project
-from aipm_toolkit.ui import callbacks, safety_callbacks, shell
+from aipm_toolkit.ui import autosave, callbacks, safety_callbacks, shell
 from aipm_toolkit.ui.shell import build_app
 from aipm_toolkit.web import create_auth_app
 
@@ -392,6 +393,82 @@ def test_project_snapshot_has_no_intermediate_section_updates(workspace_browser)
     assert any(component_id in changed_outputs for component_id in browser.page_ids("page-backlog-creator"))
     assert any(component_id in changed_outputs for component_id in browser.page_ids("page-prioritization"))
     assert_loaded_project(browser, projects[1])
+
+
+def test_setup_timer_runs_only_for_dirty_edits_and_stops_after_save_or_discard(workspace_browser):
+    browser, projects, factory = workspace_browser
+    browser.automatic_changes = True
+    browser.select_project(projects[0].id)
+    timer = next(block for block in browser.blocks.blocks.values() if isinstance(block, gr.Timer))
+    assert browser.properties[timer._id]["active"] is False
+    description = browser.component(label="Short description")
+    browser.edit(description, "Alpha autosaved description")
+    assert browser.properties[timer._id]["active"] is True
+    browser.run(browser.event(timer, "tick"))
+    assert browser.properties[timer._id]["active"] is False
+    with factory() as db:
+        assert db.get(type(projects[0]), projects[0].id).short_description == "Alpha autosaved description"
+    browser.edit(description, "Unsaved draft")
+    assert browser.properties[timer._id]["active"] is True
+    browser.select_project(projects[1].id)
+    assert browser.properties[timer._id]["active"] is False
+    browser.click("Cancel")
+    assert browser.properties[timer._id]["active"] is True
+    browser.select_project(projects[1].id)
+    browser.click("Discard & Switch")
+    assert browser.properties[timer._id]["active"] is False
+    assert_loaded_project(browser, projects[1])
+
+
+def test_project_switch_waits_for_inflight_autosave_and_keeps_project_content_scoped(workspace_browser, monkeypatch):
+    browser, projects, factory = workspace_browser
+    alpha, beta = projects
+    browser.select_project(alpha.id)
+    browser.edit(browser.component(label="Short description"), "Alpha inflight autosave")
+    started = threading.Event()
+    release = threading.Event()
+    original_save = autosave.autosave_project_from_ui
+
+    def slow_save(*args, **kwargs):
+        started.set()
+        assert release.wait(timeout=10)
+        return original_save(*args, **kwargs)
+
+    monkeypatch.setattr(autosave, "autosave_project_from_ui", slow_save)
+    timer = next(block for block in browser.blocks.blocks.values() if isinstance(block, gr.Timer))
+    save = browser.event(timer, "tick")
+    route = browser.event(browser.component(elem_id="toolkit-product"), "input")
+
+    def submit(fn):
+        response = browser.client.post("/app/gradio_api/queue/join", json={
+            "fn_index": fn._id,
+            "session_hash": browser.session_hash,
+            "data": [None if block.stateful else browser.values[block._id] for block in fn.inputs],
+        })
+        assert response.status_code == 200, response.text
+
+    submit(save)
+    try:
+        assert started.wait(timeout=5)
+        browser.values[browser.component(elem_id="toolkit-product")._id] = str(beta.id)
+        submit(route)
+    finally:
+        release.set()
+    stream = browser.client.get("/app/gradio_api/queue/data", params={"session_hash": browser.session_hash})
+    messages = [json.loads(line[6:]) for line in stream.text.splitlines() if line.startswith("data: ")]
+    completed = [message for message in messages if message["msg"] == "process_completed"]
+    assert len(completed) == 2 and all(message["success"] for message in completed), messages
+    # Routing must see the autosave's clean state, rather than open a stale
+    # dirty-confirmation dialog or associate Alpha's payload with Beta.
+    state = browser.blocks.state_holder[browser.session_hash]
+    assert state[route.outputs[2]._id] == "load"
+    snapshot = next(fn for fn in browser.blocks.fns.values() if fn.fn and fn.fn.__name__ == "load_project_snapshot")
+    browser.queued = True
+    browser.run(snapshot)
+    assert_loaded_project(browser, beta)
+    with factory() as db:
+        assert db.get(type(alpha), alpha.id).short_description == "Alpha inflight autosave"
+        assert db.get(type(beta), beta.id).short_description == "Project Beta saved description"
 
 
 def test_auxiliary_fetch_failure_does_not_block_project_editors(workspace_browser, monkeypatch):

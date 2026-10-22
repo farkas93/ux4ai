@@ -1,4 +1,7 @@
+from datetime import timedelta
+
 import pytest
+from sqlalchemy import event, select
 
 from aipm_toolkit.auth import (
     AuthenticationError,
@@ -10,7 +13,7 @@ from aipm_toolkit.auth import (
     require_role,
     revoke_session,
 )
-from aipm_toolkit.models import Course, Role, Team, User
+from aipm_toolkit.models import Course, Role, SessionRecord, Team, User
 
 TEST_PASSWORD = "P" * 16
 
@@ -46,6 +49,36 @@ def test_session_expiry_and_revocation(db):
     revoke_session(db, token)
     with pytest.raises(AuthenticationError):
         get_authenticated_user(db, token)
+
+
+def test_session_activity_is_throttled_without_caching_authorization(db):
+    user = create_user(db)
+    token, _ = authenticate(db, user.username, TEST_PASSWORD)
+    record = db.scalar(select(SessionRecord).where(SessionRecord.user_id == user.id))
+    record.last_seen_at -= timedelta(minutes=2)
+    db.commit()
+    updates = []
+
+    def track_updates(_connection, _cursor, statement, _parameters, _context, _many):
+        if statement.startswith("UPDATE sessions "):
+            updates.append(statement)
+
+    event.listen(db.get_bind(), "before_cursor_execute", track_updates)
+    try:
+        for _ in range(20):
+            assert get_authenticated_user(db, token).id == user.id
+        assert len(updates) == 1
+        user.is_active = False
+        db.commit()
+        with pytest.raises(AuthenticationError):
+            get_authenticated_user(db, token)
+        user.is_active = True
+        record.expires_at -= timedelta(days=1)
+        db.commit()
+        with pytest.raises(AuthenticationError):
+            get_authenticated_user(db, token)
+    finally:
+        event.remove(db.get_bind(), "before_cursor_execute", track_updates)
 
 
 def test_roles_and_team_access(db):

@@ -2,10 +2,7 @@
 
 import gradio as gr
 
-from .callbacks import (
-    autosave_project_from_ui,
-    save_project_action,
-)
+from .autosave import autosave_setup, autosave_timer_state, save_setup, track_setup_edits
 
 
 def build_setup_tab(token, project_id, project_revision, status, switching):
@@ -27,23 +24,33 @@ def build_setup_tab(token, project_id, project_revision, status, switching):
             hypothesis = gr.Textbox(label="Main value hypothesis", lines=3, placeholder="If we help [user] accomplish [job] through [capability], we expect [outcome] to improve while maintaining [constraint].")
         save_button = gr.Button("Save product setup", variant="primary")
         brief_dirty = gr.State(False)
-        brief_timer = gr.Timer(2.0)
-        for brief_field in (product_type, description, target_user, job, problem, hypothesis, figma_url):
-            brief_field.input(lambda: True, outputs=brief_dirty, concurrency_id="project-data-write", concurrency_limit=1)
+        brief_draft = gr.State(None)
+        brief_timer = gr.Timer(2.0, active=False)
+        brief_fields = [product_type, description, target_user, job, problem, hypothesis, figma_url]
+        for brief_field in brief_fields:
+            brief_field.input(
+                track_setup_edits, brief_fields, [brief_dirty, brief_draft],
+                concurrency_id="project-data-write", concurrency_limit=1,
+                trigger_mode="always_last", show_progress="hidden",
+            )
+        brief_dirty.change(autosave_timer_state, [brief_dirty, switching], brief_timer)
+        switching.change(autosave_timer_state, [brief_dirty, switching], brief_timer)
 
         save_button.click(
-            save_project_action,
-            [token, project_id, project_revision, product_type, description, target_user, job, problem, hypothesis, figma_url],
+            save_setup,
+            [token, project_id, project_revision, brief_draft, *brief_fields],
             [status, project_revision, brief_dirty],
             concurrency_id="project-data-write",
             concurrency_limit=1,
+            show_progress="hidden",
         )
         brief_timer.tick(
-            autosave_project_from_ui,
-            [token, project_id, project_revision, brief_dirty, product_type, description, target_user, job, problem, hypothesis, figma_url, switching],
+            autosave_setup,
+            [token, project_id, project_revision, brief_dirty, brief_draft, *brief_fields, switching],
             [status, project_revision, brief_dirty],
             concurrency_id="project-data-write",
             concurrency_limit=1,
+            show_progress="hidden",
         )
 
     return {
@@ -56,4 +63,6 @@ def build_setup_tab(token, project_id, project_revision, status, switching):
         "hypothesis": hypothesis,
         "figma_url": figma_url,
         "brief_dirty": brief_dirty,
+        "brief_draft": brief_draft,
+        "brief_timer": brief_timer,
     }

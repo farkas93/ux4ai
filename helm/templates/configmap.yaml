@@ -11,5 +11,8 @@ data:
   AIPM_COOKIE_SECURE: {{ .Values.app.cookieSecure | quote }}
   AIPM_COURSE_NAME: {{ .Values.app.courseName | quote }}
   AIPM_SESSION_TTL_HOURS: {{ .Values.app.sessionTtlHours | quote }}
+  AIPM_UI_CONCURRENCY_LIMIT: {{ .Values.app.uiConcurrencyLimit | quote }}
+  AIPM_PASSWORD_CONCURRENCY_LIMIT: {{ .Values.app.passwordConcurrencyLimit | quote }}
+  AIPM_SESSION_TOUCH_INTERVAL_SECONDS: {{ .Values.app.sessionTouchIntervalSeconds | quote }}
   POSTGRES_DB: {{ .Values.postgres.database | quote }}
   POSTGRES_USER: {{ .Values.postgres.username | quote }}

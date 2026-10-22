@@ -148,6 +148,11 @@ Gitea-compatible image and Helm OCI publishing scripts are documented in [docs/G
 
 For a LAN-first Kubernetes installation with an always-on NodePort and an instructor-controlled, temporary authenticated Gradio link, see [docs/KUBERNETES.md](docs/KUBERNETES.md).
 
+For Helm responsiveness settings, a 20-student public-link rehearsal, and rollback
+commands, see [docs/CLASSROOM_READINESS.md](docs/CLASSROOM_READINESS.md). The workspace
+allows eight concurrent browser callback pipelines while keeping each browser's
+saves and project switches sequential. Setup autosave runs only for unsaved edits.
+
 The container startup applies migrations and creates the initial instructor account from environment variables. Configure `.env` from `.env.example` before starting: the password is never printed or committed.
 
 ```bash
