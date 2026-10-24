@@ -188,7 +188,9 @@ def test_second_launch_focuses_existing_instance_without_opening_database_again(
         result = subprocess.run([*command, "--headless", "--data-dir", str(profile)],
                                 cwd=tmp_path, capture_output=True, timeout=10, check=False)
         assert result.returncode == 0, (result.stdout + result.stderr).decode()
-        assert json.loads((profile / "instance.json").read_text())["pid"] == local.process.pid
+        # Windows venv redirectors and frozen launchers can own a different PID
+        # from the runtime. A focus-only launch must preserve the live identity.
+        assert json.loads((profile / "instance.json").read_text(encoding="utf-8")) == local.metadata
         assert local.process.poll() is None
     finally:
         local.stop()

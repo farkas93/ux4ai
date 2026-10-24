@@ -40,8 +40,16 @@ def main():
     args = parser.parse_args()
     program = executable(args.bundle_root.resolve())
     assert binary_architecture(program) == args.expected_arch
-    subprocess.run([str(program), "--smoke-test", "--data-dir", str(args.profile.resolve())],
-                    check=True, timeout=90, cwd=args.profile.parent)
+    try:
+        subprocess.run([str(program), "--smoke-test", "--data-dir", str(args.profile.resolve())],
+                        check=True, timeout=90, cwd=args.profile.parent)
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
+        # Windowed Windows/macOS executables may have no stdout/stderr. Retain
+        # their application diagnostics in the enclosing CI failure annotation.
+        log = args.profile / "logs/application.log"
+        if log.exists():
+            print(log.read_text(encoding="utf-8", errors="replace")[-12000:], flush=True)
+        raise
     result = json.loads((args.profile / "native-smoke.json").read_text())
     assert result["ready"] is True
     assert result["sections"] == 6 and result["graphs"] is True

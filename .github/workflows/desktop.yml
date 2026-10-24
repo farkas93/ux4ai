@@ -40,7 +40,7 @@ jobs:
     environment: ${{ inputs.publish && 'desktop-release' || 'desktop-build' }}
     defaults:
       run:
-        shell: bash
+        shell: ${{ matrix.os == 'windows' && 'pwsh' || 'bash' }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -58,7 +58,7 @@ jobs:
         if: matrix.os == 'linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y xvfb libgl1 libegl1 libgbm1 libnss3 libdbus-1-3 libfontconfig1 libfreetype6 libxkbcommon-x11-0 libxcb-cursor0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-render-util0 libxcb-xinerama0 libxcomposite1 libxdamage1 libxrandr2 libxtst6 libasound2-dev libxkbfile1 libwayland-server0 libopus0
+          sudo apt-get install -y xvfb libgl1 libegl1 libgbm1 libnss3 libdbus-1-3 libfontconfig1 libfreetype6 libxkbcommon-x11-0 libxcb-cursor0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-render-util0 libxcb-shape0 libxcb-xinerama0 libxcomposite1 libxdamage1 libxrandr2 libxtst6 libasound2-dev libxkbfile1 libwayland-server0 libopus0 libminizip1
       - name: Windows installer tooling
         if: matrix.os == 'windows'
         shell: pwsh
@@ -106,7 +106,7 @@ jobs:
         run: python packaging/ci_command.py 'Linux frozen-window qualification' -- xvfb-run -a uv run --frozen --extra desktop --extra packaging --extra test python packaging/smoke_desktop.py --expected-arch '${{ matrix.arch }}' --profile "$RUNNER_TEMP/desktop-smoke"
       - name: Windows/macOS native-window and frozen-runtime qualification
         if: matrix.os != 'linux'
-        run: python packaging/ci_command.py 'Native frozen-window qualification' -- uv run --frozen --extra desktop --extra packaging --extra test python packaging/smoke_desktop.py --expected-arch '${{ matrix.arch }}' --profile "$RUNNER_TEMP/desktop-smoke"
+        run: python packaging/ci_command.py 'Native frozen-window qualification' -- uv run --frozen --extra desktop --extra packaging --extra test python packaging/smoke_desktop.py --expected-arch '${{ matrix.arch }}' --profile '${{ runner.temp }}/desktop-smoke'
       - name: Notarize and staple macOS release
         if: matrix.os == 'macos' && inputs.publish
         env:

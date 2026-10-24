@@ -149,8 +149,10 @@ library with `ldd` and reports missing dependencies before creating a bundle.
 Native dependency gates:
 
 - Pandas 2.3.3 has no published Windows ARM64 wheel. The ARM runner initializes
-  the ARM64 MSVC environment and builds the locked source dependency. A failed
-  native build prevents that target/release from publishing.
+  the ARM64 MSVC environment and builds the locked source dependency. Windows
+  steps use PowerShell to preserve the MSVC linker precedence; Git Bash's GNU
+  `link.exe` is incompatible with that build. A failed native build prevents that
+  target/release from publishing.
 - macOS Intel may need a native source build of Argon2 bindings. Xcode's compiler
   provides the build toolchain; users do not compile packages at install time.
 - The workflow uses managed CPython 3.12.15, including a native Windows ARM64
