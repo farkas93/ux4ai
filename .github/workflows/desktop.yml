@@ -62,9 +62,9 @@ jobs:
         shell: pwsh
         run: ./packaging/prepare_windows.ps1
       - name: Install locked native dependencies
-        run: uv sync --frozen --extra desktop --extra packaging --extra test
+        run: python packaging/ci_command.py 'Native dependency installation' -- uv sync --frozen --extra desktop --extra packaging --extra test
       - name: Core and hosted-web regressions
-        run: uv run --frozen --extra desktop --extra packaging --extra test pytest -q
+        run: python packaging/ci_command.py 'Platform source regressions' -- uv run --frozen --extra desktop --extra packaging --extra test pytest -q
       - name: Import macOS publisher certificate
         if: matrix.os == 'macos' && inputs.publish
         env:
@@ -95,16 +95,16 @@ jobs:
           "WINDOWS_CERT_PASSWORD=$env:CERT_PASSWORD" >> $env:GITHUB_ENV
           "AIPM_SIGN_WINDOWS=1" >> $env:GITHUB_ENV
       - name: Build native bundle and installers
-        run: uv run --frozen --extra desktop --extra packaging --extra test python packaging/build_desktop.py --expected-arch '${{ matrix.arch }}'
+        run: python packaging/ci_command.py 'Native bundle build' -- uv run --frozen --extra desktop --extra packaging --extra test python packaging/build_desktop.py --expected-arch '${{ matrix.arch }}'
       - name: Linux native-window and frozen-runtime qualification
         if: matrix.os == 'linux'
         env:
           QT_QUICK_BACKEND: software
           QTWEBENGINE_CHROMIUM_FLAGS: '--disable-gpu'
-        run: xvfb-run -a uv run --frozen --extra desktop --extra packaging --extra test python packaging/smoke_desktop.py --expected-arch '${{ matrix.arch }}' --profile "$RUNNER_TEMP/desktop-smoke"
+        run: python packaging/ci_command.py 'Linux frozen-window qualification' -- xvfb-run -a uv run --frozen --extra desktop --extra packaging --extra test python packaging/smoke_desktop.py --expected-arch '${{ matrix.arch }}' --profile "$RUNNER_TEMP/desktop-smoke"
       - name: Windows/macOS native-window and frozen-runtime qualification
         if: matrix.os != 'linux'
-        run: uv run --frozen --extra desktop --extra packaging --extra test python packaging/smoke_desktop.py --expected-arch '${{ matrix.arch }}' --profile "$RUNNER_TEMP/desktop-smoke"
+        run: python packaging/ci_command.py 'Native frozen-window qualification' -- uv run --frozen --extra desktop --extra packaging --extra test python packaging/smoke_desktop.py --expected-arch '${{ matrix.arch }}' --profile "$RUNNER_TEMP/desktop-smoke"
       - name: Notarize and staple macOS release
         if: matrix.os == 'macos' && inputs.publish
         env:
