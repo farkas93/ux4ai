@@ -23,6 +23,21 @@ def native_arch():
     raise RuntimeError(f"Unsupported native architecture: {value}")
 
 
+def check_linux_libraries():
+    """Fail before freezing if Qt would silently omit an unresolved dependency."""
+    from importlib.util import find_spec
+
+    qt = Path(find_spec("PySide6").origin).parent / "Qt"
+    missing = set()
+    for library in (qt / "plugins/platforms/libqxcb.so", qt / "lib/libQt6WebEngineCore.so.6"):
+        result = subprocess.run(["ldd", str(library)], capture_output=True, text=True, check=True)
+        missing.update(line.split("=>", 1)[0].strip() for line in result.stdout.splitlines()
+                       if "=> not found" in line)
+    if missing:
+        raise RuntimeError("Install the Linux Qt runtime libraries before packaging: "
+                           + ", ".join(sorted(missing)) + ". See docs/DESKTOP.md and the native CI setup.")
+
+
 def build():
     parser = argparse.ArgumentParser()
     parser.add_argument("--expected-arch", choices=["x86_64", "arm64"], required=True)
@@ -38,6 +53,8 @@ def build():
     output = root / ".artifacts" / "desktop-dist"
     bundle = output / "AIProductToolkit"
     if not args.archive_only:
+        if sys.platform.startswith("linux"):
+            check_linux_libraries()
         generate(root)
         if sys.platform == "win32":
             from download_webview2 import download

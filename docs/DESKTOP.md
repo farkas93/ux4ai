@@ -140,6 +140,12 @@ qualification; it is not an end-user requirement. The exact artifact baseline
 must match its build environment (e.g. a development bundle built on Debian 12
 has that environment's glibc baseline).
 
+Linux build hosts need the complete Qt X11 and WebEngine runtime dependencies,
+including the XCB cursor, ICCCM, image, keysyms and render utilities, and Opus.
+The workflow installs these before dependency analysis so PyInstaller can collect
+the redistributable libraries. Packaging checks the X11 plugin and WebEngine
+library with `ldd` and reports missing dependencies before creating a bundle.
+
 Native dependency gates:
 
 - Pandas 2.3.3 has no published Windows ARM64 wheel. The ARM runner initializes
