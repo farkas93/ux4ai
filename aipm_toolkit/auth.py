@@ -86,11 +86,18 @@ def authenticate(db: Session, username: str, password: str, ip_address: str | No
         db.commit()
         raise AuthenticationError("Invalid credentials")
     db.execute(delete(LoginAttempt).where(LoginAttempt.subject == rate_subject))
+    return issue_session(db, user), user
+
+
+def issue_session(db: Session, user: User, ttl_hours: int | None = None) -> str:
+    """Issue a normal cookie session after an authenticated login/local launch."""
+    if not user.is_active:
+        raise AuthenticationError("Account is inactive")
     raw_token = secrets.token_urlsafe(32)
-    expires = _now() + timedelta(hours=get_settings().session_ttl_hours)
+    expires = _now() + timedelta(hours=ttl_hours or get_settings().session_ttl_hours)
     db.add(SessionRecord(token_hash=_digest(raw_token), user_id=user.id, expires_at=expires))
     db.commit()
-    return raw_token, user
+    return raw_token
 
 
 def get_authenticated_user(db: Session, raw_token: str | None) -> User:

@@ -2,7 +2,7 @@
 
 import gradio as gr
 
-from .callbacks import delete_product_from_ui, export_project_from_ui, summary_preview_from_ui
+from .callbacks import delete_product_from_ui, summary_preview_from_ui
 
 
 def build_summary_tab(token, project_id, status, product_dropdown):
@@ -33,7 +33,6 @@ def build_summary_tab(token, project_id, status, product_dropdown):
             delete_button = gr.Button("Delete this product", variant="stop")
 
         refresh_summary_button.click(summary_preview_from_ui, [token, project_id], summary_preview)
-        export_button.click(export_project_from_ui, [token, project_id], [status, json_download, markdown_download, pdf_download])
         delete_event = delete_button.click(
             delete_product_from_ui,
             [token, project_id, confirm_delete],
@@ -50,4 +49,5 @@ def build_summary_tab(token, project_id, status, product_dropdown):
         "json_download": json_download,
         "markdown_download": markdown_download,
         "delete_event": delete_event,
+        "export_button": export_button,
     }

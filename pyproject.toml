@@ -1,18 +1,18 @@
 [project]
 name = "ai-product-toolkit"
-version = "0.2.12"
+version = "0.2.13"
 description = "AIPM Toolkit workshop workspace"
 requires-python = ">=3.11,<3.14"
 dependencies = [
   "argon2-cffi==25.1.0",
   "alembic==1.16.5",
+  "brotli==1.2.1",
   "fastapi==0.116.1",
   "fpdf2==2.8.4",
   "gradio==5.44.1",
   "python-multipart==0.0.20",
   "pydantic-settings==2.10.1",
   "plotly==6.3.1",
-  "psycopg[binary]==3.2.10",
   "sqlalchemy==2.0.43",
   "uvicorn==0.35.0",
 ]
@@ -24,7 +24,24 @@ build-backend = "setuptools.build_meta"
 [tool.setuptools.packages.find]
 include = ["aipm_toolkit*"]
 
+[tool.setuptools.package-data]
+aipm_toolkit = ["locales/*.json", "assets/**/*"]
+
+[tool.setuptools.cmdclass]
+build_py = "build_support.BuildPy"
+
+[project.scripts]
+ai-product-toolkit = "aipm_toolkit.desktop:main"
+
 [project.optional-dependencies]
+server = ["psycopg[binary]==3.2.10"]
+desktop = [
+  "platformdirs==4.13.5",
+  "filelock==3.32.6",
+  "PySide6==6.12.0",
+  "PySide6-WebEngine==6.12.0.140; sys_platform != 'win32'",
+]
+packaging = ["pyinstaller==6.22.3"]
 test = [
   "pytest==8.4.2",
   "pytest-cov==7.0.0",
@@ -42,6 +59,7 @@ addopts = "--strict-markers"
 markers = [
   "postgres: requires a PostgreSQL database configured through AIPM_TEST_DATABASE_URL",
   "e2e: requires a running AIPM server and Playwright Chromium",
+  "desktop_gui: requires the desktop extra and a working display/web engine",
 ]
 
 [tool.ruff]

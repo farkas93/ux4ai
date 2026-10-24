@@ -1,6 +1,5 @@
 import json
 import shutil
-import tempfile
 from datetime import UTC, datetime
 from pathlib import Path
 from uuid import UUID, uuid4
@@ -15,10 +14,11 @@ from .baseline_services import (
     validate_manifest,
 )
 from .models import ImportBatch, Role, User
+from .paths import import_dir
 
 MAX_FILE_BYTES = 2 * 1024 * 1024
 MAX_TOTAL_BYTES = 20 * 1024 * 1024
-BATCH_ROOT = Path(tempfile.gettempdir()) / "aipm-toolkit-import-batches"
+BATCH_ROOT = import_dir()
 
 def _files(values):
     if not values:

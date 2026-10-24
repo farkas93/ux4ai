@@ -1,7 +1,6 @@
 from functools import lru_cache
 from html import escape
 
-from alembic.config import Config
 from alembic.script import ScriptDirectory
 from anyio import CapacityLimiter, to_thread
 from fastapi import FastAPI, HTTPException, Request
@@ -9,9 +8,16 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
-from .auth import AuthenticationError, authenticate, get_authenticated_user, revoke_session
+from .auth import (
+    AuthenticationError,
+    authenticate,
+    get_authenticated_user,
+    issue_session,
+    revoke_session,
+)
 from .config import get_settings
 from .db import SessionLocal
+from .paths import migration_config
 from .ui.login_style import LOGIN_CSS
 
 
@@ -53,10 +59,10 @@ then build a backlog of testable hypotheses with your team.</p>
 
 @lru_cache(maxsize=1)
 def _migration_heads() -> set[str]:
-    return set(ScriptDirectory.from_config(Config("alembic.ini")).get_heads())
+    return set(ScriptDirectory.from_config(migration_config()).get_heads())
 
 
-def create_auth_app(session_factory=SessionLocal) -> FastAPI:
+def create_auth_app(session_factory=SessionLocal, desktop_runtime=None) -> FastAPI:
     app = FastAPI(title="AI Product Toolkit")
     settings = get_settings()
     login_limiter = CapacityLimiter(settings.password_concurrency_limit)
@@ -73,6 +79,11 @@ def create_auth_app(session_factory=SessionLocal) -> FastAPI:
 
     @app.middleware("http")
     async def require_session(request: Request, call_next):
+        if desktop_runtime is not None and not desktop_runtime.valid_request(
+            request.headers.get("host", ""), request.headers.get("origin"),
+            request.client.host if request.client else None,
+        ):
+            return JSONResponse({"detail": "Local workspace requests must originate on this device"}, status_code=403)
         path = request.url.path
         app_path = path == "/app" or path.startswith("/app/")
         # These routes contain Gradio's packaged frontend, never project files.
@@ -130,14 +141,18 @@ def create_auth_app(session_factory=SessionLocal) -> FastAPI:
 
     @app.get("/", include_in_schema=False)
     async def root():
-        return RedirectResponse("/auth/login", status_code=303)
+        return RedirectResponse("/app/" if desktop_runtime else "/auth/login", status_code=303)
 
     @app.get("/auth/login", response_class=HTMLResponse)
     async def login_page(next: str = "/app"):
+        if desktop_runtime is not None:
+            return HTMLResponse("Open this local workspace from the AI Product Toolkit desktop app.", status_code=401)
         return HTMLResponse(_login_page(next_path=_safe_next(next)))
 
     @app.post("/auth/login")
     async def login(request: Request):
+        if desktop_runtime is not None:
+            raise HTTPException(status_code=404, detail="Course login is unavailable in desktop mode")
         form = await request.form()
         username = str(form.get("username", ""))
         password = str(form.get("password", ""))
@@ -161,6 +176,62 @@ def create_auth_app(session_factory=SessionLocal) -> FastAPI:
         response = RedirectResponse("/auth/login", status_code=303)
         response.delete_cookie(settings.cookie_name, path="/")
         return response
+
+    if desktop_runtime is not None:
+        from .models import User
+
+        @app.get("/desktop/start", include_in_schema=False)
+        def start_desktop(token: str):
+            if not desktop_runtime.claim_bootstrap(token):
+                raise HTTPException(status_code=401, detail="Local launch link is invalid or already used")
+            with session_factory() as db:
+                user = db.get(User, desktop_runtime.user_id)
+                if user is None:
+                    raise HTTPException(status_code=503, detail="Local workspace identity is unavailable")
+                raw_token = issue_session(db, user, ttl_hours=24 * 365)
+            response = RedirectResponse("/app/", status_code=303)
+            response.set_cookie(settings.cookie_name, raw_token, httponly=True,
+                                secure=False, samesite="strict", path="/")
+            response.headers["Cache-Control"] = "no-store"
+            return response
+
+        def require_control(request):
+            if not desktop_runtime.valid_control(request.headers.get("authorization")):
+                raise HTTPException(status_code=401, detail="Local instance control is unauthorized")
+
+        @app.get("/desktop/state", include_in_schema=False)
+        def desktop_state(request: Request):
+            require_control(request)
+            return desktop_runtime.state()
+
+        @app.post("/desktop/focus", include_in_schema=False)
+        def focus_desktop(request: Request):
+            require_control(request)
+            desktop_runtime.commands.put(("focus", None))
+            return {"queued": True}
+
+        @app.post("/desktop/quit", include_in_schema=False)
+        def quit_desktop(request: Request):
+            require_control(request)
+            desktop_runtime.commands.put(("quit", None))
+            return {"queued": True}
+
+        @app.post("/desktop/download", include_in_schema=False)
+        async def download_desktop(request: Request):
+            if request.headers.get("x-aipm-desktop") != "1":
+                raise HTTPException(status_code=403, detail="Invalid local download request")
+            try:
+                await to_thread.run_sync(validate_session, request.cookies.get(settings.cookie_name))
+                payload = await request.json()
+                url = payload.get("url")
+                if not isinstance(url, str) or len(url) > 8192:
+                    raise ValueError("Invalid download URL")
+                desktop_runtime.request_download(url)
+            except AuthenticationError as exc:
+                raise HTTPException(status_code=401, detail="Authentication required") from exc
+            except (ValueError, AttributeError) as exc:
+                raise HTTPException(status_code=400, detail=str(exc)) from exc
+            return JSONResponse({"queued": True}, status_code=202)
 
     from .tunnel_services import close_public_access
 

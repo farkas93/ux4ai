@@ -28,6 +28,7 @@ from ..auth import (
 from ..backlog_services import archive_backlog_entry
 from ..baseline_services import published_datasets, select_comparator
 from ..comparison_services import comparison_rows
+from ..config import get_settings
 from ..db import SessionLocal
 from ..dimensions import DEFAULT_DIMENSIONS
 from ..experiment_services import (
@@ -66,6 +67,7 @@ from ..models import (
     Role,
     SafetyHypothesisLink,
 )
+from ..paths import read_preferences
 from ..priority_rules import (
     RANKING_RULE,
     hypothesis_header,
@@ -112,7 +114,8 @@ def auto_login(request: gr.Request):
             user = get_authenticated_user(db, raw_token)
         except AuthenticationError:
             return "Session expired. Please sign in again.", None, gr.update(visible=True), gr.update(visible=False)
-    return f"Signed in as {user.username}", None, gr.update(visible=False), gr.update(visible=True)
+    notice = "Personal workspace" if get_settings().mode == "desktop" else f"Signed in as {user.username}"
+    return notice, None, gr.update(visible=False), gr.update(visible=True)
 
 
 def workspace(token: str | None, request: gr.Request | None = None):
@@ -128,6 +131,9 @@ def workspace(token: str | None, request: gr.Request | None = None):
         projects = list_projects(db, user)
     choices = [(project.product_name, str(project.id)) for project in projects]
     selected_id = choices[0][1] if choices else None
+    preferred = read_preferences().get("last_project_id")
+    if preferred in {choice[1] for choice in choices}:
+        selected_id = preferred
     return "Select an existing product or create a new draft.", gr.update(visible=False), gr.update(visible=False), gr.update(visible=True), gr.update(choices=choices, value=selected_id, interactive=not bool(selected_id)), selected_id, "load" if selected_id else "none", bool(selected_id)
 
 

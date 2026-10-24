@@ -34,6 +34,7 @@ from .models import (
     ScaleDefinition,
     User,
 )
+from .paths import export_dir
 from .safety_services import safety_result
 from .services import get_project
 
@@ -249,12 +250,15 @@ def export_project_pdf(db: Session, actor: User, project_id: UUID) -> bytes:
 
 def write_export_files(db: Session, actor: User, project_id: UUID) -> tuple[str, str, str]:
     get_project(db, actor, project_id)
-    directory = Path(tempfile.gettempdir()) / "aipm-toolkit-exports"
-    directory.mkdir(mode=0o700, exist_ok=True)
+    root = export_dir()
+    root.mkdir(mode=0o700, parents=True, exist_ok=True)
+    directory = Path(tempfile.mkdtemp(prefix="bundle-", dir=root))
     json_path = directory / f"project-{project_id}.json"
     markdown_path = directory / f"project-{project_id}.md"
     pdf_path = directory / f"product-{project_id}.pdf"
-    json_path.write_text(export_project_json(db, actor, project_id), encoding="utf-8")
-    markdown_path.write_text(export_project_markdown(db, actor, project_id), encoding="utf-8")
-    pdf_path.write_bytes(export_project_pdf(db, actor, project_id))
+    # One immutable document feeds every format; later saves do not change it.
+    document = _build_user_export(db, actor, project_id)
+    json_path.write_text(json.dumps(document, ensure_ascii=False, indent=2), encoding="utf-8")
+    markdown_path.write_text(markdown_report(document), encoding="utf-8")
+    pdf_path.write_bytes(pdf_report(document, _draw_radar, _draw_priority_matrix))
     return str(json_path), str(markdown_path), str(pdf_path)

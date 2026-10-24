@@ -13,6 +13,8 @@ from urllib.parse import urlparse
 from gradio import networking
 from gradio.tunneling import CURRENT_TUNNELS
 
+from .config import get_settings
+
 _lock = threading.Lock()
 _tunnel = None
 _public_url: str | None = None
@@ -31,6 +33,8 @@ def public_access_status() -> dict[str, str | bool | None]:
 def open_public_access(port: int = 7860) -> str:
     """Open an authenticated gradio.live route to this process's FastAPI port."""
     global _tunnel, _public_url
+    if get_settings().mode == "desktop":
+        raise RuntimeError("Public links are disabled in desktop mode")
     with _lock:
         if _tunnel is not None and _tunnel.proc is not None and _tunnel.proc.poll() is None:
             return _public_url or ""

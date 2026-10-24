@@ -11,13 +11,14 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/* \
     && pip install --no-cache-dir uv==0.12.7
 
-COPY pyproject.toml uv.lock ./
-RUN uv sync --frozen --no-dev
+COPY pyproject.toml uv.lock build_support.py MANIFEST.in ./
+RUN uv sync --frozen --no-dev --extra server --no-install-project
 
 COPY aipm_toolkit ./aipm_toolkit
 COPY alembic ./alembic
 COPY baseline ./baseline
 COPY alembic.ini README.md ./
+RUN uv sync --frozen --no-dev --extra server
 
 RUN useradd --create-home --uid 10001 appuser && chown -R appuser:appuser /app
 USER appuser

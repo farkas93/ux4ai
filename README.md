@@ -2,10 +2,27 @@
 
 The new application lives in `aipm_toolkit/`; the original workshop scripts remain available for legacy-data reference.
 
+## Desktop and hosted editions
+
+The same FastAPI/Gradio UI and SQLAlchemy services support both editions:
+
+- **Hosted web:** PostgreSQL and course/team accounts, using the `server` dependency extra.
+- **Desktop:** a native application window, a personal SQLite workspace in OS app-data,
+  bundled reference catalog/fonts/frontend, and loopback-only access. No course login or
+  public Gradio relay is used. Python and the web engine are included in desktop bundles.
+
+For running, building, signing and qualifying the six native x64/ARM64 targets,
+see [docs/DESKTOP.md](docs/DESKTOP.md). From a source checkout:
+
+```bash
+uv sync --frozen --extra desktop
+uv run --frozen --extra desktop ai-product-toolkit
+```
+
 ## Phase 1 setup
 
 ```bash
-uv sync --extra test
+uv sync --extra server --extra test
 uv run alembic upgrade head
 uv run python -m aipm_toolkit.seed instructor change-this-password --role instructor
 uv run python -m aipm_toolkit.seed team-a change-this-team-password --role team --team-alias team-a
@@ -15,7 +32,7 @@ uv run python -m aipm_toolkit.app
 For the authenticated server entry point, use:
 
 ```bash
-uv run uvicorn aipm_toolkit.server:app --host 127.0.0.1 --port 7860
+uv run --extra server uvicorn aipm_toolkit.server:app --host 127.0.0.1 --port 7860
 ```
 
 Open `http://127.0.0.1:7860/auth/login`. The server entry point protects `/app` with a database-backed HttpOnly session cookie and mounts the Gradio workspace there. `python -m aipm_toolkit.app` remains a development fallback for the standalone shell.
@@ -35,7 +52,7 @@ Open `http://127.0.0.1:7860/auth/login`. The app waits for PostgreSQL, applies A
 To run the optional PostgreSQL smoke test against an existing database:
 
 ```bash
-AIPM_TEST_DATABASE_URL='postgresql+psycopg://user:password@localhost:5432/aipm_test' uv run --extra test pytest -m postgres
+AIPM_TEST_DATABASE_URL='postgresql+psycopg://user:password@localhost:5432/aipm_test' uv run --extra server --extra test pytest -m postgres
 ```
 
 ## Browser E2E smoke test

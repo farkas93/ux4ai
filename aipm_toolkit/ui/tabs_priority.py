@@ -60,14 +60,17 @@ def build_priority_tab(token, product_dropdown, status):
             return ranked_backlog_from_ui(*args[:PLACEMENT_SLOTS * 4], sources=args[PLACEMENT_SLOTS * 4:])
 
         for slot in slot_components:
-            for slider in (slot["risk"], slot["evidence"]):
-                slider.input(
-                    save_placement_from_ui,
-                    [token, slot["id"], slot["revision"], slot["risk"], slot["evidence"]],
-                    [status, slot["revision"], slot["dirty"]],
-                    concurrency_id="project-data-write",
-                    concurrency_limit=1,
-                ).then(refresh_ranking, ranking_inputs + source_inputs, [ranking_display, matrix_fig])
+            # One event for both sliders coalesces to the latest complete pair.
+            # 'once' can drop the final value of a drag while a save is pending.
+            gr.on(
+                triggers=[slot["risk"].input, slot["evidence"].input],
+                fn=save_placement_from_ui,
+                inputs=[token, slot["id"], slot["revision"], slot["risk"], slot["evidence"]],
+                outputs=[status, slot["revision"], slot["dirty"]],
+                trigger_mode="always_last",
+                concurrency_id="project-data-write", concurrency_limit=1,
+                show_progress="hidden",
+            ).then(refresh_ranking, ranking_inputs + source_inputs, [ranking_display, matrix_fig])
 
     placement_outputs = []
     for slot in slot_components:

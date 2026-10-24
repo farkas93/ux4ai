@@ -1,0 +1,5 @@
+include build_support.py alembic.ini
+recursive-include alembic *.py *.mako
+recursive-include baseline *.json *.md
+recursive-include aipm_toolkit/assets *
+recursive-include aipm_toolkit/locales *.json

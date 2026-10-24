@@ -1,11 +1,10 @@
 """Insight-focused learning reports, shared by Markdown and paginated PDF."""
 
-from pathlib import Path
-
 from fpdf import FPDF
 
 from .dimensions import DEFAULT_DIMENSIONS
 from .improvement_services import QUESTIONS
+from .paths import resource_path
 from .priority_rules import RANKING_RULE, priority_group_score
 
 INK = (25, 44, 57)
@@ -134,7 +133,7 @@ class LearningPDF(FPDF):
         self.report_font = "Helvetica"
         self.set_margins(15, 24, 15)
         self.set_auto_page_break(True, margin=20)
-        regular = Path("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf")
+        regular = resource_path("fonts/DejaVuSans.ttf")
         bold = regular.with_name("DejaVuSans-Bold.ttf")
         if regular.exists() and bold.exists():
             self.add_font("Report", fname=str(regular))

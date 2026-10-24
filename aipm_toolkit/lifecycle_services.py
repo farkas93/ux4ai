@@ -53,7 +53,6 @@ def delete_project(db: Session, actor: User, project_id: UUID, confirm: bool) ->
         db.execute(delete(NoteDimension).where(NoteDimension.note_id.in_(note_ids)))
     db.execute(delete(DimensionEstimate).where(DimensionEstimate.project_id == project_id))
     db.execute(delete(ProjectReflection).where(ProjectReflection.project_id == project_id))
-    db.execute(delete(ComparisonSnapshot).where(ComparisonSnapshot.project_id == project_id))
     db.execute(delete(ProjectEvent).where(ProjectEvent.project_id == project_id))
     safety_ids = list(db.scalars(select(SafetyAssessment.id).where(SafetyAssessment.project_id == project_id)))
     if safety_ids:
@@ -61,6 +60,7 @@ def delete_project(db: Session, actor: User, project_id: UUID, confirm: bool) ->
     db.execute(delete(SafetyAssessment).where(SafetyAssessment.project_id == project_id))
     db.execute(delete(ImprovementLoop).where(ImprovementLoop.project_id == project_id))
     db.execute(delete(Note).where(Note.project_id == project_id))
+    db.execute(delete(ComparisonSnapshot).where(ComparisonSnapshot.project_id == project_id))
     db.execute(delete(Hypothesis).where(Hypothesis.project_id == project_id))
     db.delete(project)
     db.commit()

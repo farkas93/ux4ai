@@ -22,6 +22,7 @@ from .callbacks import (
     decide_project_switch,
     delete_product_from_ui,
     dimension_notes_from_ui,
+    export_project_from_ui,
     instructor_overview_from_ui,
     live_profile_from_ui,
     load_backlog_table_from_ui,
@@ -46,6 +47,7 @@ from .tunnel_callbacks import (
     open_public_access_from_ui,
     public_access_status_from_ui,
 )
+from .workspace_actions import save_current_edits
 from .workspace_style import WORKSPACE_CSS
 
 LANGUAGE_CHOICES = [("English", "en"), ("Deutsch", "de")]
@@ -73,7 +75,7 @@ BLOCKS_JS = """() => {
     window.aipmDirty = false;
     document.addEventListener('input', () => { window.aipmDirty = true; }, true);
     window.addEventListener('beforeunload', (event) => {
-        if (window.aipmDirty) {
+        if (window.aipmDirty && !window.aipmDesktop) {
             event.preventDefault();
             event.returnValue = '';
         }
@@ -172,7 +174,7 @@ def _build_instructor_panel(token, status, product_dropdown):
     return instructor_panel
 
 
-def build_app():
+def build_app(desktop_runtime=None):
     theme = gr.themes.Soft(primary_hue="teal", secondary_hue="slate", neutral_hue="slate",
                            font=[gr.themes.Font("ui-sans-serif"), gr.themes.Font("system-ui"), gr.themes.Font("sans-serif")]).set(
         block_label_background_fill="transparent", block_label_background_fill_dark="transparent",
@@ -183,7 +185,14 @@ def build_app():
         button_large_text_size="14px", button_large_padding="10px 16px",
         block_title_text_size="14px", block_padding="12px", layout_gap="16px",
     )
-    with SessionBlocks(title="AI Product Toolkit", theme=theme, js=BLOCKS_JS, css=WORKSPACE_CSS) as app:
+    js, css = BLOCKS_JS, WORKSPACE_CSS
+    if desktop_runtime is not None:
+        from ..desktop_runtime import DESKTOP_JS
+
+        js = f"() => {{ window.aipmDesktop = true; ({BLOCKS_JS})(); {DESKTOP_JS} }}"
+        css += "\n#toolkit-desktop-close-button { display: none !important; }"
+    with SessionBlocks(title="AI Product Toolkit", theme=theme, js=js, css=css,
+                       analytics_enabled=False if desktop_runtime else None) as app:
         token = gr.State(None)
         active_project_id = gr.State(None)
         pending_project_id = gr.State(None)
@@ -194,7 +203,7 @@ def build_app():
 
         status = gr.Markdown(elem_id="aipm-status-banner")
         session_notice = gr.Markdown(elem_id="toolkit-session-note")
-        with gr.Column(visible=True, elem_id="toolkit-login") as login_panel:
+        with gr.Column(visible=desktop_runtime is None, elem_id="toolkit-login") as login_panel:
             gr.Markdown("### Welcome to your workspace\nExplore value, question assumptions, and build a hypothesis backlog. Use the account provided for your course.")
             username = gr.Textbox(label="Team alias or instructor username")
             password = gr.Textbox(label="Password", type="password")
@@ -231,8 +240,12 @@ def build_app():
             with gr.Row(elem_id="toolkit-workspace"):
                 with gr.Sidebar(label="Workspace navigation", open=True, width=240, elem_id="toolkit-sidebar") as sidebar:
                     desktop_section = gr.Radio(label="Workspace", choices=section_names, value="Value Hypothesis", container=False, elem_id="toolkit-desktop-section")
-                    language_selector = gr.Dropdown(label="Language / Sprache", choices=LANGUAGE_CHOICES, value="en", container=False, elem_id="toolkit-language")
-                    gr.HTML('<a href="/auth/logout">Sign out</a>', elem_classes=["toolkit-account"])
+                    language = desktop_runtime.preferences.get("language", "en") if desktop_runtime else "en"
+                    if language not in {"en", "de"}:
+                        language = "en"
+                    language_selector = gr.Dropdown(label="Language / Sprache", choices=LANGUAGE_CHOICES, value=language, container=False, elem_id="toolkit-language")
+                    if desktop_runtime is None:
+                        gr.HTML('<a href="/auth/logout">Sign out</a>', elem_classes=["toolkit-account"])
                     with gr.Accordion("Product administration", open=False, elem_id="toolkit-product-admin"):
                         delete_product_btn = gr.Button("Delete product", variant="stop", size="sm")
                 with gr.Column(scale=1, min_width=0, elem_id="toolkit-main"):
@@ -257,7 +270,15 @@ def build_app():
                 js="() => [window.matchMedia('(max-width: 1023px)').matches]",
             )
 
-        instructor_panel = _build_instructor_panel(token, status, product_dropdown)
+        if desktop_runtime is None:
+            instructor_panel = _build_instructor_panel(token, status, product_dropdown)
+        else:
+            with gr.Column(visible=False) as instructor_panel:
+                pass
+            language_selector.change(
+                lambda value: desktop_runtime.save_preference("language", value),
+                language_selector,
+            )
         dimension_note_outputs = assessment["dimension_note_lists"]
         assessment["comparator_event"].then(
             summary_preview_from_ui,
@@ -402,6 +423,8 @@ def build_app():
                     product_dropdown: gr.update(value=target_id, interactive=True),
                     status: " ".join(auxiliary_errors) if auxiliary_errors else gr.skip(),
                 })
+                if desktop_runtime is not None:
+                    desktop_runtime.save_preference("last_project_id", target_id)
                 return values
             except (AuthenticationError, AuthorizationError, SQLAlchemyError, ValueError, LookupError) as exc:
                 # Retain the previous snapshot and make failures visible rather
@@ -497,6 +520,49 @@ def build_app():
         ])
         save_switch_outputs.append(save_switch_ok)
 
+        action_outputs = [status, *save_switch_outputs[1:]]
+
+        def prepare_downloads(switching, auth_token, project_id, request: gr.Request, *draft):
+            if switching:
+                result = ["Finish the project switch before preparing downloads."]
+                result += [gr.skip()] * (len(action_outputs) - 1)
+                return (*result, None, None, None)
+            try:
+                result = list(save_current_edits(auth_token, project_id, request, draft))
+                if not result[-1]:
+                    return (*result, None, None, None)
+                exported = export_project_from_ui(auth_token, project_id, request=request)
+                result[0] = exported[0]
+                return (*result, *exported[1:])
+            except (SQLAlchemyError, OSError, ValueError) as exc:
+                result = [f"Could not prepare downloads: {exc}"]
+                result += [gr.skip()] * (len(action_outputs) - 1)
+                return (*result, None, None, None)
+
+        summary["export_button"].click(
+            prepare_downloads, [project_switch_busy, *save_switch_inputs],
+            [*action_outputs, summary["json_download"], summary["markdown_download"], summary["pdf_download"]],
+            concurrency_id="project-data-write", concurrency_limit=1,
+        )
+
+        if desktop_runtime is not None:
+            close_button = gr.Button("Save and close", elem_id="toolkit-desktop-close-button")
+
+            def save_and_close(auth_token, project_id, request: gr.Request, *draft):
+                try:
+                    result = save_current_edits(auth_token, project_id, request, draft)
+                    desktop_runtime.complete_close(result[-1], result[0])
+                    return result
+                except Exception as exc:  # noqa: BLE001 - native close must receive a failure acknowledgment
+                    message = f"Could not save changes: {exc}"
+                    desktop_runtime.complete_close(False, message)
+                    return [message, *[gr.skip() for _ in action_outputs[1:]]]
+
+            close_button.click(
+                save_and_close, save_switch_inputs, action_outputs,
+                concurrency_id="project-data-write", concurrency_limit=1,
+            )
+
         def _finish_confirmed_switch(saved, active_id, target_id):
             if saved and target_id:
                 return active_id, target_id, "load", gr.update(visible=False), "", gr.update(value=active_id, interactive=False), True
@@ -579,10 +645,11 @@ def build_app():
         )
         _wire_project_load(summary_deleted_switch)
         # Login and auto-login: authenticate, reveal panels, update dropdown, then trigger full load
-        login_event = submit.click(login, [username, password], [status, token, login_panel, workspace_panel]).then(
-            workspace, token, [workspace_text, login_panel, instructor_panel, team_panel, product_dropdown, active_project_id, project_switch_action, project_switch_busy]
-        )
-        _wire_project_load(login_event)
+        if desktop_runtime is None:
+            login_event = submit.click(login, [username, password], [status, token, login_panel, workspace_panel]).then(
+                workspace, token, [workspace_text, login_panel, instructor_panel, team_panel, product_dropdown, active_project_id, project_switch_action, project_switch_busy]
+            )
+            _wire_project_load(login_event)
 
         load_event = app.load(auto_login, outputs=[session_notice, token, login_panel, workspace_panel]).then(
             workspace, token, [workspace_text, login_panel, instructor_panel, team_panel, product_dropdown, active_project_id, project_switch_action, project_switch_busy]

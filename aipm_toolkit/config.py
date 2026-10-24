@@ -1,10 +1,15 @@
+import os
 from functools import lru_cache
+from pathlib import Path
+from typing import Literal
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
+    mode: Literal["web", "desktop"] = "web"
+    data_dir: Path | None = None
     database_url: str = "sqlite:///./aipm_toolkit.db"
     session_ttl_hours: int = 12
     cookie_name: str = "aipm_session"
@@ -21,4 +26,15 @@ class Settings(BaseSettings):
 
 @lru_cache
 def get_settings() -> Settings:
+    if os.getenv("AIPM_MODE") == "desktop":
+        # Desktop bootstrap controls storage before any engine/UI imports.
+        # An unrelated .env or a deployment DATABASE_URL must not redirect it.
+        return Settings(
+            _env_file=None,
+            mode="desktop",
+            data_dir=Path(os.environ["AIPM_DATA_DIR"]).resolve(),
+            database_url="sqlite://",
+            cookie_name="aipm_session",
+            cookie_secure=False,
+        )
     return Settings()

@@ -159,6 +159,8 @@ def set_placement(db: Session, actor: User, hypothesis_id: UUID, revision: int, 
     for name, value in (("risk", risk), ("evidence", evidence)):
         if value is None or not 0 <= value <= 10:
             raise ValueError(f"Placement {name} must be between 0 and 10")
+    if hypothesis.priority_risk == float(risk) and hypothesis.priority_evidence == float(evidence):
+        return hypothesis
     hypothesis.priority_risk = float(risk)
     hypothesis.priority_evidence = float(evidence)
     hypothesis.revision += 1

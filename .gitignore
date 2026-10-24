@@ -7,3 +7,5 @@ __pycache__/
 *.db
 .env
 .artifacts/
+build/
+dist/
